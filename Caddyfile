@@ -1,14 +1,41 @@
-# HTTPS: with a domain Caddy gets and renews a Let's Encrypt certificate itself.
-# With only an IP address it uses its own (self-signed) certificate, so browsers show a warning.
+# HTTPS: with a domain Caddy gets and renews a Let's Encrypt certificate itself and redirects HTTP to HTTPS.
+# With only an IP address it uses its own certificate, so browsers show a warning until a domain is set.
+{
+	servers {
+		protocols h1 h2 h3
+	}
+}
+
 {$SITE_ADDRESS:localhost} {
-	encode gzip
+	encode zstd gzip
+
 	header {
-		Strict-Transport-Security "max-age=31536000"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
 		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		-Server
 	}
+
+	# Staff panel and its API can be limited to office IPs via ADMIN_ALLOW in .env.
+	@staff_blocked {
+		path /admin /admin/* /admin.html /api/admin/*
+		not remote_ip {$ADMIN_ALLOW:0.0.0.0/0 ::/0}
+	}
+	respond @staff_blocked 403
+
+	@staff path /admin /admin/* /admin.html /api/admin/*
+	header @staff X-Robots-Tag "noindex, nofollow"
+
 	request_body {
-		max_size 60MB
+		max_size 220MB
 	}
+
 	reverse_proxy app:3000
+
+	log {
+		output stdout
+		format console
+	}
 }

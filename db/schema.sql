@@ -37,3 +37,23 @@ CREATE TABLE IF NOT EXISTS otp_codes (
   expires_at  TIMESTAMPTZ NOT NULL,
   attempts    INTEGER NOT NULL DEFAULT 0
 );
+
+-- Qiymətləndirmə (əməkdaş paneli)
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS assessment    JSONB;
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS reject_reason TEXT;
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS decided_by    TEXT;
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS updated_at    TIMESTAMPTZ NOT NULL DEFAULT now();
+ALTER TABLE applications DROP CONSTRAINT IF EXISTS applications_status_check;
+ALTER TABLE applications ADD CONSTRAINT applications_status_check
+  CHECK (status IN ('review','offer','rejected','accepted','declined','cancelled'));
+CREATE INDEX IF NOT EXISTS applications_status_idx ON applications (status);
+
+CREATE TABLE IF NOT EXISTS application_events (
+  id             BIGSERIAL PRIMARY KEY,
+  application_id TEXT NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+  actor          TEXT NOT NULL,          -- əməkdaşın adı və ya "Müştəri"
+  kind           TEXT NOT NULL,          -- created, assessed, offer, rejected, note, accepted, declined, cancelled, sms
+  details        JSONB
+);
+CREATE INDEX IF NOT EXISTS application_events_app_idx ON application_events (application_id, at);

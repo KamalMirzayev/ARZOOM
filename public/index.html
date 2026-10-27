@@ -545,14 +545,14 @@ async function submitApp(){
   finally{sending=false;$("#nextBtn").disabled=false;$("#nextBtn").textContent=step===4?"Təsdiqlə və göndər":"Davam et"}
 }
 function offerFromServer(o){const F=o.price*(1-o.downPct/100),r=o.rate/100/12;
-  return {price:o.price,down:Math.round(o.price*o.downPct/100),F,rate:o.rate,n:o.months,pmt:F*r/(1-Math.pow(1+r,-o.months)),comm:Math.round(F*o.commissionPct/100),at:o.at}}
+  return {price:o.price,downPct:o.downPct,down:Math.round(o.price*o.downPct/100),F,rate:o.rate,n:o.months,pmt:F*r/(1-Math.pow(1+r,-o.months)),comm:Math.round(F*o.commissionPct/100),at:o.at}}
 async function syncApps(){
   if(!API||!apps.length)return;
   await Promise.all(apps.map(async a=>{try{const r=await fetch(`/api/applications/${encodeURIComponent(a.id)}?fin=${encodeURIComponent(a.fin)}`);if(!r.ok)return;const j=await r.json();
     if(j.status==="cancelled"){a.gone=true;return}
     if(j.offer&&!a.offer)a.offer=offerFromServer(j.offer);
     if(j.status==="offer"&&a.state==="review")a.state="offer";
-    if(j.status==="accepted"||j.status==="declined")a.state=j.status}catch(e){}}));
+    if(["accepted","declined","rejected"].includes(j.status))a.state=j.status}catch(e){}}));
   apps=apps.filter(a=>!a.gone);saveApps();renderApps();
 }
 function submitLocal(serverId){
@@ -564,7 +564,7 @@ function submitLocal(serverId){
 /* sample offer until real terms are agreed: 20% down, 36 months, 17% */
 function makeOffer(a){
   const down=Math.round(a.price*0.2),F=a.price-down,rate=17,n=36,r=rate/100/12;
-  a.offer={price:a.price,down,F,rate,n,pmt:F*r/(1-Math.pow(1+r,-n)),comm:Math.round(F*0.015),at:new Date().toISOString()};
+  a.offer={price:a.price,downPct:20,down,F,rate,n,pmt:F*r/(1-Math.pow(1+r,-n)),comm:Math.round(F*0.015),at:new Date().toISOString()};
   a.state="offer";
 }
 function schedRows(o){let bal=o.F;const r=o.rate/100/12,rows=[];for(let t=1;t<=o.n;t++){const i=bal*r,pr=o.pmt-i;bal-=pr;rows.push([t,o.pmt,pr,i,Math.max(0,bal)])}return rows}
@@ -576,31 +576,31 @@ function offerHtml(a){
     <div style="margin-top:14px" class="muted">Aylıq ödəniş</div>
     <div class="big">${grp(o.pmt)}<small>₼ / ay</small></div>
     <div class="muted" style="margin-top:6px">${o.n} ay · illik ${o.rate}%</div>
-    <div class="kv">${kvHtml([["Avtomobilin qiyməti",azn(o.price)],["İlkin ödəniş, 20%",azn(o.down)],["Maliyyələşmə məbləği",azn(o.F)],["Birdəfəlik komissiya",azn(o.comm)],["Ümumi faiz xərci",azn(o.pmt*o.n-o.F)]])}</div>
+    <div class="kv">${kvHtml([["Avtomobilin qiyməti",azn(o.price)],[`İlkin ödəniş, ${o.downPct??20}%`,azn(o.down)],["Maliyyələşmə məbləği",azn(o.F)],["Birdəfəlik komissiya",azn(o.comm)],["Ümumi faiz xərci",azn(o.pmt*o.n-o.F)]])}</div>
     ${a.state==="offer"?`<div class="btns" style="margin-top:16px"><button type="button" class="btn" data-accept="${a.id}">Təklifi qəbul et</button><button type="button" class="btn ghost" data-decline="${a.id}">İmtina et</button></div>`:""}
   </div>
   <details ${a.state==="offer"?"open":""}><summary>Ödəniş qrafiki, ${o.n} ay</summary>
     <div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Ay</th><th>Ödəniş</th><th>Əsas borc</th><th>Faiz</th><th>Qalıq borc</th></tr></thead><tbody>
     ${schedRows(o).map(r=>`<tr><td>${r[0]}</td><td>${m2(r[1])}</td><td>${m2(r[2])}</td><td>${m2(r[3])}</td><td>${m2(r[4])}</td></tr>`).join("")}</tbody></table></div></details>`;
 }
-const ST={review:["st-warn","Baxılır"],offer:["st-ok","Təklif hazırdır"],accepted:["st-ok","Təklif qəbul edildi"],declined:["st-bad","İmtina edildi"]};
+const ST={review:["st-warn","Baxılır"],offer:["st-ok","Təklif hazırdır"],accepted:["st-ok","Təklif qəbul edildi"],declined:["st-bad","İmtina edildi"],rejected:["st-bad","Təsdiqlənmədi"]};
 function renderApps(){
   const c=$("#appCount");c.hidden=!apps.length;c.textContent=apps.length;
   if(!apps.length){$("#apps").innerHTML=`<div class="panel empty"><span class="eyebrow">Kabinet boşdur</span><h3>Hələ müraciət yoxdur</h3><p>Müraciəti göndərdikdən sonra o, burada mərhələləri ilə görünəcək.</p><button class="btn" type="button" data-view="apply">Müraciət et</button></div>`;return}
   $("#apps").innerHTML=apps.map(a=>{
     const t=new Date(a.at),hm=String(t.getHours()).padStart(2,"0")+":"+String(t.getMinutes()).padStart(2,"0");
-    const lvl={review:2,offer:3,accepted:4,declined:3}[a.state];
+    const lvl={review:2,offer:3,accepted:4,declined:3,rejected:3}[a.state];
     const steps=[["Müraciət SMS ilə təsdiqləndi",`${hm} · ${a.phone}`],["Məlumatlar Arzoom Avto MMC-yə ötürüldü","Müraciət qeydə alındı"],["Müraciətə baxılır","Kredit Bürosu yoxlaması və qərar"],
-      [a.state==="declined"?"Təklifdən imtina edildi":"Təklif və ödəniş qrafiki","Şərtlər burada görünəcək"],["Müqavilə və təhvil","Sığorta, notarius, DYP qeydiyyatı"]];
+      [a.state==="declined"?"Təklifdən imtina edildi":a.state==="rejected"?"Müraciət təsdiqlənmədi":"Təklif və ödəniş qrafiki",a.state==="rejected"?"Hazırda təklif verə bilmirik":"Şərtlər burada görünəcək"],["Müqavilə və təhvil","Sığorta, notarius, DYP qeydiyyatı"]];
     const [cls,txt]=ST[a.state];
     return `<article class="panel">
       <div class="app-head"><div><span class="eyebrow mono">${a.id}</span><h3>${esc(a.brand)} ${esc(a.model)}</h3></div><span class="status ${cls}">${txt}</span></div>
       <div class="app-grid">
         <div class="stack" style="gap:18px">
           <div class="review">${kvHtml([["FİN kod",a.fin],["Şəxsiyyət vəsiqəsi",a.idc],["Gəlir mənbəyi",a.src],...(a.voen?[["VÖEN",a.voen]]:[]),["Sənədlər",a.docs+" yüklənib"]])}</div>
-          <ol class="tl">${steps.map(([b,s],i)=>`<li class="${i<lvl?"done":i===lvl&&a.state!=="declined"?"now":""}"><span class="dot">${i<lvl?"✓":""}</span><span><b>${b}</b><small>${esc(s)}</small></span></li>`).join("")}</ol>
+          <ol class="tl">${steps.map(([b,s],i)=>`<li class="${i<lvl?"done":i===lvl&&!["declined","rejected"].includes(a.state)?"now":""}"><span class="dot">${i<lvl?"✓":""}</span><span><b>${b}</b><small>${esc(s)}</small></span></li>`).join("")}</ol>
         </div>
-        <div class="stack" style="gap:16px">${a.offer?offerHtml(a):`<div class="waiting"><svg viewBox="0 0 122 46" style="width:150px;height:56px;color:var(--line-2)" aria-hidden="true">${carSvg(a.body)}</svg><h3>Cavab gözlənilir</h3><p style="margin:0">Təklif hazır olanda aylıq ödəniş və qrafik burada açılacaq.</p>${API?"":`<button type="button" class="btn ghost sm" data-sim="${a.id}">Demo: təklifi göstər</button>`}</div>`}</div>
+        <div class="stack" style="gap:16px">${a.state==="rejected"?`<div class="waiting"><h3>Müraciət təsdiqlənmədi</h3><p style="margin:0">Təəssüf ki, hazırda bu müraciətə müsbət cavab verə bilmirik. Sualın olarsa, Arzoom Avto ilə əlaqə saxla.</p></div>`:a.offer?offerHtml(a):`<div class="waiting"><svg viewBox="0 0 122 46" style="width:150px;height:56px;color:var(--line-2)" aria-hidden="true">${carSvg(a.body)}</svg><h3>Cavab gözlənilir</h3><p style="margin:0">Təklif hazır olanda aylıq ödəniş və qrafik burada açılacaq.</p>${API?"":`<button type="button" class="btn ghost sm" data-sim="${a.id}">Demo: təklifi göstər</button>`}</div>`}</div>
       </div>
       ${a.state==="review"||a.state==="offer"?`<div style="margin-top:18px"><button type="button" class="btn ghost sm" data-del="${a.id}">Müraciəti ləğv et</button></div>`:""}</article>`}).join("");
 }

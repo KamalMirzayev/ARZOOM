@@ -20,26 +20,26 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U arzoom" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run check
+      - run: npm audit --omit=dev --audit-level=high
       - name: API smoke test
         env:
           DATABASE_URL: postgres://arzoom:test@localhost:5432/arzoom
-          ADMIN_TOKEN: test
+          ADMIN_TOKEN: ci-admin-token-0123456789
           PORT: 3000
         run: |
           node server.js & sleep 4
-          curl -fsS localhost:3000/api/health
-          curl -fsS localhost:3000/ | grep -q "Arzoom Avto Lizinq"
+          bash scripts/smoke.sh
       - run: docker build -t arzoom-lizinq .
       - name: Compose və Caddy konfiqurasiyası
         run: |
-          POSTGRES_PASSWORD=x ADMIN_TOKEN=x SITE_ADDRESS=example.com docker compose config -q
+          POSTGRES_PASSWORD=x ADMIN_TOKEN=x SITE_ADDRESS=example.com docker compose config -q && mkdir -p backups
           docker run --rm -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" -e SITE_ADDRESS=example.com caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile
 
   deploy:
@@ -54,8 +54,20 @@ jobs:
       - name: Secrets yoxlanılır
         if: env.HAS_SSH != 'true'
         run: echo "::warning::SSH_HOST və SSH_KEY (və ya SSH_PASSWORD) secrets əlavə olunmayıb, yerləşdirmə ötürüldü. README-yə bax."
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: env.HAS_SSH == 'true'
+      - name: Qovluğu hazırla
+        if: env.HAS_SSH == 'true'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            S=""; [ "$(id -u)" = 0 ] || S=sudo
+            $S mkdir -p /opt/arzoom && $S chown "$(id -un)" /opt/arzoom
       - name: Kodu serverə köçür
         if: env.HAS_SSH == 'true'
         uses: appleboy/scp-action@v0.1.7
@@ -65,7 +77,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          source: "server.js,package.json,package-lock.json,Dockerfile,docker-compose.yml,Caddyfile,.dockerignore,db,public,deploy"
+          source: "server.js,package.json,package-lock.json,Dockerfile,docker-compose.yml,Caddyfile,.dockerignore,lib,db,public,deploy"
           target: /opt/arzoom
       - name: Konteynerləri yenilə
         if: env.HAS_SSH == 'true'
@@ -77,5 +89,6 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
-            test -f /opt/arzoom/.env || sudo bash /opt/arzoom/deploy/bootstrap.sh
-            DOMAIN='${{ secrets.DOMAIN || secrets.SSH_HOST }}' bash /opt/arzoom/deploy/deploy.sh
+            S=""; [ "$(id -u)" = 0 ] || S=sudo
+            $S test -f /opt/arzoom/.env || $S bash /opt/arzoom/deploy/bootstrap.sh
+            $S env DOMAIN='${{ secrets.DOMAIN || secrets.SSH_HOST }}' bash /opt/arzoom/deploy/deploy.sh

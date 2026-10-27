@@ -4,6 +4,7 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY server.js ./
+COPY lib ./lib
 COPY db ./db
 COPY public ./public
 RUN mkdir -p /app/uploads && chown -R node:node /app

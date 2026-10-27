@@ -71,6 +71,7 @@ app.get("/api/health", async (_req, res) => {
 const otpLimit = rateLimit({ windowMs: 15 * 60e3, max: 6 });
 const submitLimit = rateLimit({ windowMs: 60 * 60e3, max: 10 });
 const lookupLimit = rateLimit({ windowMs: 60e3, max: 60 });
+const verifyLimit = rateLimit({ windowMs: 15 * 60e3, max: 20 });
 const adminFail = rateLimit({ windowMs: 15 * 60e3, max: 10, message: "Çox sayda uğursuz giriş. 15 dəqiqə sonra yenidən cəhd et." });
 
 app.post("/api/otp", otpLimit, async (req, res) => {
@@ -102,6 +103,25 @@ async function checkOtp(phone, code) {
   await pool.query("DELETE FROM otp_codes WHERE phone = $1", [phone]);
   return true;
 }
+
+// After an SMS check the browser gets a random key for that one application; only its hash is stored.
+async function issueToken(db, appId) {
+  const token = crypto.randomBytes(32).toString("base64url");
+  await db.query("INSERT INTO app_tokens (token_hash, application_id, expires_at) VALUES ($1,$2, now() + interval '90 days')", [sha(token), appId]);
+  await db.query("DELETE FROM app_tokens WHERE expires_at < now()");
+  return token;
+}
+async function tokenApp(req) {
+  const t = String(req.get("x-app-token") || "");
+  if (t.length < 20) return null;
+  const { rows } = await pool.query(
+    "SELECT application_id FROM app_tokens WHERE token_hash = $1 AND application_id = $2 AND expires_at > now()", [sha(t), req.params.id]);
+  return rows[0]?.application_id || null;
+}
+const num = (v, lo, hi) => { const x = +v; return Number.isFinite(x) && x >= lo && x <= hi ? x : null; };
+const maskPhone = p => `+${p.slice(0, 3)} ${p.slice(3, 5)} *** ** ${p.slice(-2)}`;
+const CUSTOMER_FIELDS = `a.id, a.created_at, a.updated_at, a.fin, a.id_series, a.id_number, a.phone, a.income_sources, a.voen,
+  a.brand, a.model, a.status, a.offer, (SELECT count(*)::int FROM application_files f WHERE f.application_id = a.id) AS files`;
 
 /* ---------- applications ---------- */
 const upload = multer({
@@ -155,43 +175,82 @@ app.post("/api/applications", submitLimit, upload.any(), async (req, res) => {
         [id, src, f.originalname.slice(0, 200), f.filename, sniff(f.path), f.size]
       );
     }
+    const token = await issueToken(client, id);
     await client.query("COMMIT");
-    res.status(201).json({ id, status: "review" });
+    res.status(201).json({ id, status: "review", token });
   } catch (e) {
     await client.query("ROLLBACK"); cleanup(); console.error(e);
     bad(res, "Müraciət saxlanılmadı. Bir az sonra yenidən cəhd et.", 500);
   } finally { client.release(); }
 });
 
-// Customer view: needs the id plus the FİN it was filed with.
+// Customer finds an application from any device: id + FİN, then an SMS code to the phone on file.
+const findApp = async (id, fin) => (await pool.query(
+  "SELECT id, phone, status FROM applications WHERE id = $1 AND fin = $2",
+  [String(id || "").trim().toUpperCase(), String(fin || "").trim().toUpperCase()])).rows[0];
+
+app.post("/api/lookup/otp", otpLimit, async (req, res) => {
+  const a = await findApp(req.body?.id, req.body?.fin);
+  if (!a) return bad(res, "Bu nömrə və FİN ilə müraciət tapılmadı.", 404);
+  const prev = await pool.query("SELECT 1 FROM otp_codes WHERE phone = $1 AND expires_at > now() + interval '4 minutes'", [a.phone]);
+  if (prev.rowCount) return bad(res, "Kod artıq göndərilib. Yenisini 1 dəqiqədən sonra istəyə bilərsən.", 429);
+  const code = String(crypto.randomInt(100000, 1000000));
+  await pool.query(
+    `INSERT INTO otp_codes (phone, code_hash, expires_at, attempts) VALUES ($1,$2, now() + interval '5 minutes', 0)
+     ON CONFLICT (phone) DO UPDATE SET code_hash = EXCLUDED.code_hash, expires_at = EXCLUDED.expires_at, attempts = 0`,
+    [a.phone, sha(a.phone + code)]);
+  if (SMS_ON) {
+    try { await sendSms(a.phone, `Arzoom Avto: ${a.id} müraciətinə giriş kodu ${code}. Kodu heç kimə deməyin.`); }
+    catch (e) { console.error(e.message); await pool.query("DELETE FROM otp_codes WHERE phone = $1", [a.phone]); return bad(res, "SMS göndərilmədi. Bir az sonra yenidən cəhd et.", 502); }
+  }
+  res.json({ sent: true, phone: maskPhone(a.phone), ...(DEMO_SMS ? { demoCode: code } : {}) });
+});
+
+app.post("/api/lookup/verify", verifyLimit, async (req, res) => {
+  const a = await findApp(req.body?.id, req.body?.fin);
+  if (!a || !(await checkOtp(a.phone, String(req.body?.code || "")))) return bad(res, "Kod yanlışdır və ya vaxtı bitib.", 401);
+  const token = await issueToken(pool, a.id);
+  await logEvent(pool, a.id, "Müştəri", "note", { text: "Müştəri SMS ilə kabinetə daxil oldu" });
+  const { rows } = await pool.query(`SELECT ${CUSTOMER_FIELDS} FROM applications a WHERE a.id = $1`, [a.id]);
+  res.json({ token, application: rows[0] });
+});
+
+// Customer view: needs the key the browser received after the SMS check.
 app.get("/api/applications/:id", lookupLimit, async (req, res) => {
-  const { rows } = await pool.query(
-    "SELECT id, created_at, brand, model, status, offer, updated_at FROM applications WHERE id = $1 AND fin = $2",
-    [req.params.id, String(req.query.fin || "").toUpperCase()]
-  );
+  if (!(await tokenApp(req))) return bad(res, "Giriş müddəti bitib. Müraciəti yenidən SMS kodu ilə tap.", 401);
+  const { rows } = await pool.query(`SELECT ${CUSTOMER_FIELDS} FROM applications a WHERE a.id = $1`, [req.params.id]);
   rows[0] ? res.json(rows[0]) : bad(res, "Müraciət tapılmadı.", 404);
 });
 
 app.post("/api/applications/:id/cancel", lookupLimit, async (req, res) => {
+  if (!(await tokenApp(req))) return bad(res, "İcazə yoxdur.", 401);
   const r = await pool.query(
-    "UPDATE applications SET status = 'cancelled', updated_at = now() WHERE id = $1 AND fin = $2 AND status IN ('review','offer') RETURNING id",
-    [req.params.id, String(req.body.fin || "").toUpperCase()]
-  );
+    "UPDATE applications SET status = 'cancelled', updated_at = now() WHERE id = $1 AND status IN ('review','offer') RETURNING id",
+    [req.params.id]);
   if (!r.rowCount) return bad(res, "Müraciət tapılmadı.", 404);
   await logEvent(pool, req.params.id, "Müştəri", "cancelled");
   res.json({ ok: true });
 });
 
 app.post("/api/applications/:id/decision", lookupLimit, async (req, res) => {
-  const d = req.body.decision;
+  if (!(await tokenApp(req))) return bad(res, "İcazə yoxdur.", 401);
+  const d = req.body?.decision;
   if (!["accepted", "declined"].includes(d)) return bad(res, "Qərar düzgün deyil.");
-  const r = await pool.query(
-    "UPDATE applications SET status = $3, updated_at = now() WHERE id = $1 AND fin = $2 AND status = 'offer' RETURNING id",
-    [req.params.id, String(req.body.fin || "").toUpperCase(), d]
-  );
-  if (!r.rowCount) return bad(res, "Təklif tapılmadı.", 404);
-  await logEvent(pool, req.params.id, "Müştəri", d);
-  res.json({ ok: true });
+  const { rows } = await pool.query("SELECT offer FROM applications WHERE id = $1 AND status = 'offer'", [req.params.id]);
+  if (!rows[0]) return bad(res, "Təklif tapılmadı.", 404);
+  // The customer may only raise the down payment, never lower it below what was offered.
+  let final = null;
+  if (d === "accepted") {
+    const dp = num(req.body?.downPct ?? rows[0].offer.downPct, rows[0].offer.downPct, 70);
+    if (dp == null) return bad(res, `İlkin ödəniş ${rows[0].offer.downPct}% ilə 70% arasında olmalıdır.`);
+    final = { downPct: dp, at: new Date().toISOString() };
+  }
+  await pool.query(
+    `UPDATE applications SET status = $2, updated_at = now(),
+       offer = CASE WHEN $3::jsonb IS NULL THEN offer ELSE jsonb_set(offer, '{final}', $3::jsonb) END
+     WHERE id = $1 AND status = 'offer'`, [req.params.id, d, final]);
+  await logEvent(pool, req.params.id, "Müştəri", d, final);
+  res.json({ ok: true, final });
 });
 
 /* ---------- staff ---------- */
@@ -205,7 +264,6 @@ const admin = (req, res, next) => adminFail(req, res, () => {
   req.staff = name.replace(/[\u0000-\u001f]/g, "").trim().slice(0, 60) || "Əməkdaş";
   next();
 });
-const num = (v, lo, hi) => { const x = +v; return Number.isFinite(x) && x >= lo && x <= hi ? x : null; };
 
 app.get("/api/admin/applications", admin, async (req, res) => {
   const q = String(req.query.q || "").trim().toUpperCase();

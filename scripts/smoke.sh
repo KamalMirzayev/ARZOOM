@@ -23,8 +23,8 @@ apply() { # $1 phone, $2 file
     -F otp="$code" -F "file_work=@$2;type=application/pdf"
 }
 R=$(apply 994501112233 "$TMP/fake.pdf"); echo "$R" | grep -c "PDF və ya şəkil deyil" >/dev/null || fail; echo "✓ saxta fayl rədd edildi"
-R=$(apply 994501112234 "$TMP/arayis.pdf"); ID=$(echo "$R" | J id); echo "✓ müraciət $ID"
-R2=$(apply 994501112235 "$TMP/arayis.pdf"); ID2=$(echo "$R2" | J id)
+R=$(apply 994501112234 "$TMP/arayis.pdf"); ID=$(echo "$R" | J id); TOK=$(echo "$R" | J token); echo "✓ müraciət $ID"
+R2=$(apply 994501112235 "$TMP/arayis.pdf"); ID2=$(echo "$R2" | J id); TOK2=$(echo "$R2" | J token)
 
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H 'x-admin-token: wrong-token-xxxxxxxx' "$B/api/admin/applications")" = 401 ] || fail; echo "✓ yanlış açar 401"
 curl -fsS "${H[@]}" "$B/api/admin/applications?status=review" | grep -c "$ID" >/dev/null || fail
@@ -35,13 +35,25 @@ A=$(curl -fsS -X PUT "${H[@]}" "$B/api/admin/applications/$ID/assessment" \
   -d '{"incomeMonthly":3000,"debtMonthly":200,"activeLoans":1,"maxOverdue":"0","tenureMonths":30,"docsOk":true,"price":45000,"downPct":20,"months":36,"rate":17}')
 [ "$(echo "$A" | J result.verdict)" = approve ] || fail; echo "✓ skor: $(echo "$A" | J result.score) $(echo "$A" | J result.grade)"
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/offer" -d '{"price":45000,"downPct":20,"months":36,"rate":17,"commissionPct":1.5}' >/dev/null
-[ "$(curl -fsS "$B/api/applications/$ID?fin=5ABC12D" | J status)" = offer ] || fail; echo "✓ müştəri təklifi görür"
-curl -fsS -X POST "$B/api/applications/$ID/decision" -H "Content-Type: application/json" -d '{"fin":"5ABC12D","decision":"accepted"}' >/dev/null
-[ "$(curl -fsS "$B/api/applications/$ID?fin=5ABC12D" | J status)" = accepted ] || fail; echo "✓ təklif qəbul edildi"
+[ "$(curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID" | J status)" = offer ] || fail; echo "✓ müştəri təklifi görür"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/applications/$ID/decision" -H "Content-Type: application/json" -d '{"decision":"accepted"}')" = 401 ] || fail; echo "✓ açarsız qərar 401"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/applications/$ID/decision" -H "x-app-token: $TOK" -H "Content-Type: application/json" -d '{"decision":"accepted","downPct":10}')" = 400 ] || fail; echo "✓ ilkin ödəniş azaldıla bilmir"
+curl -fsS -X POST "$B/api/applications/$ID/decision" -H "x-app-token: $TOK" -H "Content-Type: application/json" -d '{"decision":"accepted","downPct":30}' >/dev/null
+[ "$(curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID" | J offer.final.downPct)" = 30 ] || fail; echo "✓ ilkin ödəniş 30%-ə artırıldı"
+[ "$(curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID" | J status)" = accepted ] || fail; echo "✓ təklif qəbul edildi"
 
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID2/reject" -d '{"reason":"DTI 70%"}' >/dev/null
-[ "$(curl -fsS "$B/api/applications/$ID2?fin=5ABC12D" | J status)" = rejected ] || fail; echo "✓ rədd axını"
+[ "$(curl -fsS -H "x-app-token: $TOK2" "$B/api/applications/$ID2" | J status)" = rejected ] || fail; echo "✓ rədd axını"
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID2/notes" -d '{"text":"zəng edildi"}' >/dev/null
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID2" | J 'events.length')" -ge 3 ] || fail; echo "✓ tarixçə"
 curl -fsS "${H[@]}" "$B/api/admin/stats" | grep -c '"accepted"' >/dev/null || fail; echo "✓ statistika"
+# Başqa cihazdan: nömrə + FİN + SMS kodu
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/lookup/otp" -H "Content-Type: application/json" -d "{\"id\":\"$ID2\",\"fin\":\"0000000\"}")" = 404 ] || fail; echo "✓ yanlış FİN tapılmır"
+L=$(curl -fsS -X POST "$B/api/lookup/otp" -H "Content-Type: application/json" -d "{\"id\":\"$ID2\",\"fin\":\"5abc12d\"}")
+echo "$L" | grep -c '\*\*\*' >/dev/null || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/lookup/verify" -H "Content-Type: application/json" -d "{\"id\":\"$ID2\",\"fin\":\"5ABC12D\",\"code\":\"000000\"}")" = 401 ] || fail; echo "✓ yanlış kod 401"
+V=$(curl -fsS -X POST "$B/api/lookup/verify" -H "Content-Type: application/json" -d "{\"id\":\"$ID2\",\"fin\":\"5ABC12D\",\"code\":\"$(echo "$L" | J demoCode)\"}")
+NT=$(echo "$V" | J token); [ "$(echo "$V" | J application.status)" = rejected ] || fail
+[ "$(curl -fsS -H "x-app-token: $NT" "$B/api/applications/$ID2" | J id)" = "$ID2" ] || fail; echo "✓ nömrə + FİN + SMS ilə giriş"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-app-token: $NT" "$B/api/applications/$ID")" = 401 ] || fail; echo "✓ açar yalnız öz müraciətini açır"
 echo "Bütün yoxlamalar keçdi."

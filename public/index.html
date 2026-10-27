@@ -178,12 +178,25 @@ label.btn input{position:absolute;width:1px;height:1px;opacity:0}
 .card .btn{background:#FFFFFF;color:#22348F}
 .card .btn.ghost{background:transparent;color:var(--card-ink);border-color:rgb(255 255 255 / .25)}
 .big{font-family:var(--f-display);font-stretch:112%;font-size:clamp(36px,4.6vw,46px);font-weight:750;line-height:1;letter-spacing:-.02em}
+.dp{margin-top:18px;padding-top:16px;border-top:1px solid var(--card-line);display:grid;gap:8px}
+.dp-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline;font-size:13.5px}
+.dp-head b{font-family:var(--f-mono);font-weight:500;color:var(--card-ink)}
+.dp input[type=range]{width:100%;accent-color:#FFFFFF;height:22px}
+.dp-scale{display:flex;justify-content:space-between;font-size:11.5px;color:var(--card-muted);font-family:var(--f-mono)}
+.save{display:inline-block;margin-top:8px;font-size:12.5px;font-weight:700;color:#0A1030;background:#9DE7BB;border-radius:99px;padding:3px 10px}
 .big small{font-size:.38em;font-weight:600;margin-left:6px;color:var(--card-muted)}
-.next ol{margin:0;padding-left:20px;display:grid;gap:6px;font-size:14px}
+.next ol{margin:0;padding-left:20px;display:grid;gap:9px;font-size:13.5px;color:var(--muted)}
+.next li b{color:var(--ink);font-weight:700}
 .next li::marker{color:var(--red);font-family:var(--f-mono)}
 
 /* applications */
 .apps{display:grid;gap:20px}
+.find{display:grid;gap:16px;margin-bottom:22px;border-color:var(--gold);background:linear-gradient(135deg,var(--gold-soft),transparent 60%),var(--surface)}
+.find h3{font-size:19px;margin-top:4px}
+.find-row{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) auto;gap:10px;align-items:start}
+.find-row .inp{font-family:var(--f-mono);letter-spacing:.06em;text-transform:uppercase}
+.find-code{font-size:22px;text-align:center;letter-spacing:.4em}
+@media (max-width:640px){.find-row{grid-template-columns:1fr}}
 .app-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:18px}
 .app-head h3{font-size:22px;margin-top:4px}
 .status{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;border-radius:99px;padding:5px 12px}
@@ -349,10 +362,12 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-si
         <div class="panel next">
           <span class="eyebrow">Bundan sonra</span>
           <ol style="margin-top:10px">
-            <li>Məlumatlar Arzoom Avto MMC-yə ötürülür</li>
-            <li>Kredit Bürosu yoxlaması aparılır</li>
-            <li>Menecer 1 iş saatı ərzində zəng edir</li>
-            <li>Təklif və ödəniş qrafiki kabinetə gəlir</li>
+            <li><b>Təhlükəsiz ötürmə.</b> Məlumatların şifrələnmiş kanalla Arzoom Avto MMC-yə ötürülür.</li>
+            <li><b>Avtomatik təhlil.</b> Qərar sistemi kredit tarixçəsini, gəliri və risk göstəricilərini təhlil edir.</li>
+            <li><b>Ekspert baxışı.</b> Lazım olduqda kredit eksperti qərarı yoxlayır və təsdiqləyir.</li>
+            <li><b>Fərdi təklif.</b> Təklif və ödəniş qrafiki kabinetinə göndərilir.</li>
+            <li><b>Şərtləri uyğunlaşdır.</b> İstəsən, ilkin ödənişi artıraraq aylıq ödənişi azaldırsan.</li>
+            <li><b>Təsdiq və satış.</b> Son təklifi təsdiqləyirsən, müraciət satış bölməsinə ötürülür.</li>
           </ol>
         </div>
       </aside>
@@ -362,6 +377,23 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-si
   <!-- ============ MY APPLICATIONS ============ -->
   <section id="view-mine" hidden>
     <div class="hero"><span class="eyebrow">Kabinet</span><h1>Müraciətlərim</h1><p>Müraciətin hansı mərhələdə olduğunu buradan izlə. Təklif hazır olanda ödəniş qrafiki də burada açılır.</p></div>
+    <form class="panel find" id="find" novalidate>
+      <div><span class="eyebrow">Müraciətimi tap</span><h3>Müraciət nömrəsi ilə daxil ol</h3>
+        <p class="hint" style="margin:6px 0 0">Başqa cihazdan müraciət etmisənsə, nömrəni və FİN kodu yaz. Müraciətdəki mobil nömrəyə SMS kodu göndərəcəyik.</p></div>
+      <div class="find-row" id="findA">
+        <input class="inp" id="fId" placeholder="AA-2026-123456" aria-label="Müraciət nömrəsi" autocomplete="off" lang="en">
+        <input class="inp" id="fFin" placeholder="FİN kod" aria-label="FİN kod" maxlength="7" autocomplete="off" lang="en">
+        <button type="submit" class="btn" id="fSend">SMS kodu al</button>
+      </div>
+      <div class="find-row" id="findB" hidden>
+        <input class="inp find-code" id="fCode" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="••••••" aria-label="SMS kodu">
+        <button type="submit" class="btn" id="fVerify">Daxil ol</button>
+        <button type="button" class="btn ghost" id="fBack">Nömrəni dəyiş</button>
+      </div>
+      <span class="hint" id="fInfo" hidden></span>
+      <span class="err-msg" id="fErr" hidden></span>
+      <div class="note warn" id="fDemo" hidden></div>
+    </form>
     <div class="apps" id="apps"></div>
   </section>
 
@@ -540,58 +572,81 @@ async function submitApp(){
   try{
     const r=await fetch("/api/applications",{method:"POST",body:fd});const j=await r.json();
     if(!r.ok){err("otp",true,j.error||"Müraciət göndərilmədi.");return}
-    submitLocal(j.id);
+    submitLocal(j.id,j.token);
   }catch(e){err("otp",true,"Bağlantı xətası. Yenidən cəhd et.")}
   finally{sending=false;$("#nextBtn").disabled=false;$("#nextBtn").textContent=step===4?"Təsdiqlə və göndər":"Davam et"}
 }
 function offerFromServer(o){const F=o.price*(1-o.downPct/100),r=o.rate/100/12;
-  return {price:o.price,downPct:o.downPct,down:Math.round(o.price*o.downPct/100),F,rate:o.rate,n:o.months,pmt:F*r/(1-Math.pow(1+r,-o.months)),comm:Math.round(F*o.commissionPct/100),at:o.at}}
+  return {price:o.price,downPct:o.downPct,down:Math.round(o.price*o.downPct/100),F,rate:o.rate,n:o.months,pmt:F*r/(1-Math.pow(1+r,-o.months)),commPct:o.commissionPct,comm:Math.round(F*o.commissionPct/100),at:o.at,final:o.final||null}}
 async function syncApps(){
   if(!API||!apps.length)return;
-  await Promise.all(apps.map(async a=>{try{const r=await fetch(`/api/applications/${encodeURIComponent(a.id)}?fin=${encodeURIComponent(a.fin)}`);if(!r.ok)return;const j=await r.json();
+  await Promise.all(apps.map(async a=>{if(!a.token)return;try{const r=await fetch(`/api/applications/${encodeURIComponent(a.id)}`,{headers:{"x-app-token":a.token}});if(r.status===401){a.gone=true;return}if(!r.ok)return;const j=await r.json();
     if(j.status==="cancelled"){a.gone=true;return}
-    if(j.offer&&!a.offer)a.offer=offerFromServer(j.offer);
+    if(j.offer&&(!a.offer||a.offer.at!==j.offer.at||!!a.offer.final!==!!j.offer.final))a.offer=offerFromServer(j.offer);
     if(j.status==="offer"&&a.state==="review")a.state="offer";
     if(["accepted","declined","rejected"].includes(j.status))a.state=j.status}catch(e){}}));
   apps=apps.filter(a=>!a.gone);saveApps();renderApps();
 }
-function submitLocal(serverId){
+function submitLocal(serverId,token){
   const m=curModel();
   apps.unshift({id:serverId||("AA-2026-"+String(Math.floor(1000+Math.random()*9000))),at:new Date().toISOString(),fin:$("#aFin").value.toUpperCase(),idc:$("#aIdSer").value+" "+$("#aIdNo").value,phone:phoneFull(),
-    brand,model,body:m[1],price:m[3],src:incNames(),voen:voen(),docs:docCount(),state:"review"});
+    brand,model,body:m[1],price:m[3],src:incNames(),voen:voen(),docs:docCount(),state:"review",token});
   saveApps();step=0;$("#cConsent").checked=false;clearInterval(otpT);show("mine");
 }
 /* sample offer until real terms are agreed: 20% down, 36 months, 17% */
 function makeOffer(a){
   const down=Math.round(a.price*0.2),F=a.price-down,rate=17,n=36,r=rate/100/12;
-  a.offer={price:a.price,downPct:20,down,F,rate,n,pmt:F*r/(1-Math.pow(1+r,-n)),comm:Math.round(F*0.015),at:new Date().toISOString()};
+  a.offer={price:a.price,downPct:20,commPct:1.5,down,F,rate,n,pmt:F*r/(1-Math.pow(1+r,-n)),comm:Math.round(F*0.015),at:new Date().toISOString()};
   a.state="offer";
 }
+const DP_MAX=70;
+// Recomputes the offer for the down payment the customer chose (never below what was offered).
+function offerAt(o,dp){
+  dp=Math.max(o.downPct??20,Math.min(DP_MAX,dp));
+  const down=Math.round(o.price*dp/100),F=o.price-down,r=o.rate/100/12;
+  return {...o,downPct:dp,down,F,pmt:r?F*r/(1-Math.pow(1+r,-o.n)):F/o.n,comm:Math.round(F*(o.commPct??1.5)/100)};
+}
+const chosenDp=a=>a.offer.final?.downPct??a.dp??a.offer.downPct??20;
+function figsHtml(a){
+  const o=offerAt(a.offer,chosenDp(a)),base=offerAt(a.offer,a.offer.downPct??20),save=base.pmt-o.pmt;
+  return `<div style="margin-top:14px" class="muted">Aylıq ödəniş</div>
+    <div class="big">${grp(o.pmt)}<small>₼ / ay</small></div>
+    <div class="muted" style="margin-top:6px">${o.n} ay · illik ${o.rate}%</div>
+    ${save>=1?`<span class="save">İlkin təklifdən ${grp(save)} ₼ az</span>`:""}
+    <div class="kv">${kvHtml([["Avtomobilin qiyməti",azn(o.price)],[`İlkin ödəniş, ${o.downPct}%`,azn(o.down)],["Maliyyələşmə məbləği",azn(o.F)],["Birdəfəlik komissiya",azn(o.comm)],["Ümumi faiz xərci",azn(o.pmt*o.n-o.F)]])}</div>`;
+}
+const schedHtml=o=>schedRows(o).map(r=>`<tr><td>${r[0]}</td><td>${m2(r[1])}</td><td>${m2(r[2])}</td><td>${m2(r[3])}</td><td>${m2(r[4])}</td></tr>`).join("");
 function schedRows(o){let bal=o.F;const r=o.rate/100/12,rows=[];for(let t=1;t<=o.n;t++){const i=bal*r,pr=o.pmt-i;bal-=pr;rows.push([t,o.pmt,pr,i,Math.max(0,bal)])}return rows}
 function offerHtml(a){
   const o=a.offer,due=new Date(o.at);due.setDate(due.getDate()+5);
   const dd=String(due.getDate()).padStart(2,"0")+"."+String(due.getMonth()+1).padStart(2,"0")+"."+due.getFullYear();
+  const dp=chosenDp(a),min=o.downPct??20,live=a.state==="offer",cur=offerAt(o,dp);
   return `<div class="card">
-    <div class="chipline"><span class="eyebrow">Arzoom Avto təklifi</span><span class="muted">${dd} tarixinədək</span></div>
-    <div style="margin-top:14px" class="muted">Aylıq ödəniş</div>
-    <div class="big">${grp(o.pmt)}<small>₼ / ay</small></div>
-    <div class="muted" style="margin-top:6px">${o.n} ay · illik ${o.rate}%</div>
-    <div class="kv">${kvHtml([["Avtomobilin qiyməti",azn(o.price)],[`İlkin ödəniş, ${o.downPct??20}%`,azn(o.down)],["Maliyyələşmə məbləği",azn(o.F)],["Birdəfəlik komissiya",azn(o.comm)],["Ümumi faiz xərci",azn(o.pmt*o.n-o.F)]])}</div>
-    ${a.state==="offer"?`<div class="btns" style="margin-top:16px"><button type="button" class="btn" data-accept="${a.id}">Təklifi qəbul et</button><button type="button" class="btn ghost" data-decline="${a.id}">İmtina et</button></div>`:""}
+    <div class="chipline"><span class="eyebrow">${a.state==="accepted"?"Təsdiqlənmiş son təklif":"Arzoom Avto təklifi"}</span><span class="muted">${live?dd+" tarixinədək":""}</span></div>
+    <div id="of-${a.id}">${figsHtml(a)}</div>
+    ${live?`<div class="dp">
+      <div class="dp-head"><span class="muted">İlkin ödənişi artır</span><b id="dpv-${a.id}">${dp}% · ${azn(cur.down)}</b></div>
+      <input type="range" min="${min}" max="${DP_MAX}" step="1" value="${dp}" data-dp="${a.id}" aria-label="İlkin ödəniş faizi">
+      <div class="dp-scale"><span>${min}%</span><span>${DP_MAX}%</span></div>
+      <span class="muted" style="font-size:12.5px">İlkin ödəniş artdıqca aylıq ödəniş və ümumi faiz xərci azalır. Qrafik dərhal yenilənir.</span>
+    </div>
+    <div class="btns" style="margin-top:16px"><button type="button" class="btn" data-accept="${a.id}">Son təklifi təsdiqlə</button><button type="button" class="btn ghost" data-decline="${a.id}">İmtina et</button></div>`:""}
   </div>
-  <details ${a.state==="offer"?"open":""}><summary>Ödəniş qrafiki, ${o.n} ay</summary>
-    <div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Ay</th><th>Ödəniş</th><th>Əsas borc</th><th>Faiz</th><th>Qalıq borc</th></tr></thead><tbody>
-    ${schedRows(o).map(r=>`<tr><td>${r[0]}</td><td>${m2(r[1])}</td><td>${m2(r[2])}</td><td>${m2(r[3])}</td><td>${m2(r[4])}</td></tr>`).join("")}</tbody></table></div></details>`;
+  <details ${live?"open":""}><summary>Ödəniş qrafiki, ${o.n} ay</summary>
+    <div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Ay</th><th>Ödəniş</th><th>Əsas borc</th><th>Faiz</th><th>Qalıq borc</th></tr></thead><tbody id="os-${a.id}">${schedHtml(cur)}</tbody></table></div></details>`;
 }
-const ST={review:["st-warn","Baxılır"],offer:["st-ok","Təklif hazırdır"],accepted:["st-ok","Təklif qəbul edildi"],declined:["st-bad","İmtina edildi"],rejected:["st-bad","Təsdiqlənmədi"]};
+const ST={review:["st-warn","Baxılır"],offer:["st-ok","Təklif hazırdır"],accepted:["st-ok","Təsdiqləndi · satışa ötürüldü"],declined:["st-bad","İmtina edildi"],rejected:["st-bad","Təsdiqlənmədi"]};
 function renderApps(){
   const c=$("#appCount");c.hidden=!apps.length;c.textContent=apps.length;
-  if(!apps.length){$("#apps").innerHTML=`<div class="panel empty"><span class="eyebrow">Kabinet boşdur</span><h3>Hələ müraciət yoxdur</h3><p>Müraciəti göndərdikdən sonra o, burada mərhələləri ilə görünəcək.</p><button class="btn" type="button" data-view="apply">Müraciət et</button></div>`;return}
+  if(!apps.length){$("#apps").innerHTML=`<div class="panel empty"><span class="eyebrow">Kabinet boşdur</span><h3>Hələ müraciət yoxdur</h3><p>Müraciəti göndərdikdən sonra o, burada mərhələləri ilə görünəcək. Başqa cihazdan müraciət etmisənsə, yuxarıda nömrə ilə tap.</p><button class="btn" type="button" data-view="apply">Müraciət et</button></div>`;return}
   $("#apps").innerHTML=apps.map(a=>{
     const t=new Date(a.at),hm=String(t.getHours()).padStart(2,"0")+":"+String(t.getMinutes()).padStart(2,"0");
-    const lvl={review:2,offer:3,accepted:4,declined:3,rejected:3}[a.state];
-    const steps=[["Müraciət SMS ilə təsdiqləndi",`${hm} · ${a.phone}`],["Məlumatlar Arzoom Avto MMC-yə ötürüldü","Müraciət qeydə alındı"],["Müraciətə baxılır","Kredit Bürosu yoxlaması və qərar"],
-      [a.state==="declined"?"Təklifdən imtina edildi":a.state==="rejected"?"Müraciət təsdiqlənmədi":"Təklif və ödəniş qrafiki",a.state==="rejected"?"Hazırda təklif verə bilmirik":"Şərtlər burada görünəcək"],["Müqavilə və təhvil","Sığorta, notarius, DYP qeydiyyatı"]];
+    const lvl={review:2,offer:4,accepted:6,declined:4,rejected:4}[a.state];
+    const steps=[["Müraciət SMS ilə təsdiqləndi",`${hm} · ${a.phone}`],["Məlumatlar təhlükəsiz ötürüldü","Arzoom Avto MMC, şifrələnmiş kanal"],
+      ["Qərar sistemi təhlil edir","Kredit tarixçəsi, gəlir və risk göstəriciləri"],["Kredit ekspertinin baxışı","Lazım olduqda ekspert qərarı yoxlayır"],
+      [a.state==="declined"?"Təklifdən imtina edildi":a.state==="rejected"?"Müraciət təsdiqlənmədi":"Fərdi təklif və ödəniş qrafiki",
+       a.state==="rejected"?"Hazırda təklif verə bilmirik":a.state==="declined"?"Müraciət bağlandı":"İlkin ödənişi artıraraq şərtləri uyğunlaşdıra bilərsən"],
+      ["Son təklif təsdiqləndi, satışa ötürüldü",a.state==="accepted"?`İlkin ödəniş ${chosenDp(a)}% · satış meneceri əlaqə saxlayacaq`:"Müqavilə, sığorta və təhvil satış bölməsində"]];
     const [cls,txt]=ST[a.state];
     return `<article class="panel">
       <div class="app-head"><div><span class="eyebrow mono">${a.id}</span><h3>${esc(a.brand)} ${esc(a.model)}</h3></div><span class="status ${cls}">${txt}</span></div>
@@ -610,6 +665,70 @@ function show(v){
   window.scrollTo({top:0});
 }
 
+
+/* ---------- find an application: number + FİN + SMS code ---------- */
+let findStage=0, findOtp="";
+const fmtPhone=p=>{p=String(p).replace(/\D/g,"");return `+${p.slice(0,3)} ${p.slice(3,5)} ${p.slice(5)}`};
+function findMsg(err,info,demo){
+  $("#fErr").hidden=!err;$("#fErr").textContent=err||"";
+  $("#fInfo").hidden=!info;$("#fInfo").textContent=info||"";
+  $("#fDemo").hidden=!demo;$("#fDemo").textContent=demo||"";
+}
+function findReset(){findStage=0;$("#findA").hidden=false;$("#findB").hidden=true;$("#fCode").value="";findMsg()}
+function appFromServer(j,token){
+  const m=(CATALOG[j.brand]||[]).find(x=>x[0]===j.model)||[j.model,"suv","",0];
+  const names=Object.fromEntries(INC.map(s=>[s.k,s.t]));
+  return {id:j.id,at:j.created_at,fin:j.fin,idc:`${j.id_series} ${j.id_number}`,phone:fmtPhone(j.phone),brand:j.brand,model:j.model,body:m[1],price:m[3],
+    src:j.income_sources.map(k=>names[k]).join(", "),voen:j.voen||"",docs:j.files,state:j.status,offer:j.offer?offerFromServer(j.offer):null,token};
+}
+function showFound(id){
+  findReset();$("#fId").value="";$("#fFin").value="";renderApps();
+  const el=[...document.querySelectorAll("#apps article")].find(a=>a.querySelector(".eyebrow")?.textContent===id);
+  if(el){el.scrollIntoView({behavior:"smooth",block:"start"});el.animate([{boxShadow:"0 0 0 3px var(--gold)"},{boxShadow:"0 0 0 0 transparent"}],{duration:1600})}
+}
+$("#fBack").addEventListener("click",findReset);
+$("#find").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const id=$("#fId").value.trim().toUpperCase(),fin=$("#fFin").value.trim().toUpperCase();
+  if(findStage===0){
+    if(!/^AA-\d{4}-\d{4,6}$/.test(id))return findMsg("Müraciət nömrəsi AA-2026-123456 formatında olmalıdır.");
+    if(!/^[0-9A-Z]{7}$/.test(fin))return findMsg("FİN kod 7 simvoldan ibarətdir.");
+    $("#fSend").disabled=true;
+    try{
+      let phone,demo;
+      if(API){const r=await fetch("/api/lookup/otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,fin})});const j=await r.json();
+        if(!r.ok)return findMsg(j.error||"Kod göndərilmədi.");phone=j.phone;demo=j.demoCode?`Sınaq rejimi: SMS provayderi qoşulana qədər kod burada göstərilir: ${j.demoCode}.`:""}
+      else{const a=apps.find(x=>x.id===id&&x.fin===fin);if(!a)return findMsg("Bu nömrə və FİN ilə müraciət tapılmadı.");
+        phone=a.phone;findOtp=String(Math.floor(100000+Math.random()*900000));demo=`Prototip: real SMS göndərilmir. Sınaq üçün kod ${findOtp}.`}
+      findStage=1;$("#findA").hidden=true;$("#findB").hidden=false;findMsg("",`Kod ${phone} nömrəsinə göndərildi. 5 dəqiqə etibarlıdır.`,demo);
+      setTimeout(()=>$("#fCode").focus(),50);
+    }catch(e){findMsg("Bağlantı xətası. Yenidən cəhd et.")}finally{$("#fSend").disabled=false}
+    return;
+  }
+  const code=$("#fCode").value.replace(/\D/g,"");
+  if(code.length!==6)return findMsg("6 rəqəmli kodu yaz.",$("#fInfo").textContent,$("#fDemo").textContent);
+  $("#fVerify").disabled=true;
+  try{
+    if(API){const r=await fetch("/api/lookup/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,fin,code})});const j=await r.json();
+      if(!r.ok)return findMsg(j.error||"Kod yanlışdır.",$("#fInfo").textContent,$("#fDemo").textContent);
+      if(j.application.status==="cancelled"){findReset();return findMsg("Bu müraciət ləğv edilib.")}
+      apps=apps.filter(x=>x.id!==j.application.id);apps.unshift(appFromServer(j.application,j.token));saveApps()}
+    else if(code!==findOtp)return findMsg("Kod yanlışdır. Yenidən yoxla.",$("#fInfo").textContent,$("#fDemo").textContent);
+    showFound(id);
+  }catch(e){findMsg("Bağlantı xətası. Yenidən cəhd et.")}finally{$("#fVerify").disabled=false}
+});
+
+/* ---------- down payment slider ---------- */
+document.addEventListener("input",e=>{
+  const id=e.target.dataset?.dp;if(!id)return;
+  const a=apps.find(x=>x.id===id);if(!a)return;
+  a.dp=+e.target.value;const o=offerAt(a.offer,a.dp);
+  $(`#of-${CSS.escape(id)}`).innerHTML=figsHtml(a);
+  $(`#dpv-${CSS.escape(id)}`).textContent=`${o.downPct}% · ${azn(o.down)}`;
+  $(`#os-${CSS.escape(id)}`).innerHTML=schedHtml(o);
+  clearTimeout(a._t);a._t=setTimeout(saveApps,400);
+});
+
 /* ---------- events ---------- */
 document.addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
@@ -620,10 +739,13 @@ document.addEventListener("click",e=>{
   if(b.dataset.filter){filter=b.dataset.filter;renderBrands();renderModels()}
   if(b.dataset.model){model=b.dataset.model;err("model",false);renderModels();renderSide()}
   if(b.dataset.sim){makeOffer(A(b.dataset.sim));saveApps();renderApps()}
-  const decide=(id,d)=>{const a=A(id);a.state=d;saveApps();renderApps();if(API)fetch(`/api/applications/${encodeURIComponent(a.id)}/decision`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({fin:a.fin,decision:d})}).catch(()=>{})};
+  const decide=async(id,d)=>{const a=A(id),dp=chosenDp(a);
+    if(API){try{const r=await fetch(`/api/applications/${encodeURIComponent(a.id)}/decision`,{method:"POST",headers:{"Content-Type":"application/json","x-app-token":a.token||""},body:JSON.stringify({decision:d,downPct:dp})});
+      if(!r.ok){const j=await r.json().catch(()=>({}));b.textContent=j.error||"Xəta baş verdi";return}}catch(e){b.textContent="Bağlantı xətası";return}}
+    a.state=d;if(d==="accepted")a.offer.final={downPct:dp,at:new Date().toISOString()};saveApps();renderApps()};
   if(b.dataset.accept)decide(b.dataset.accept,"accepted");
   if(b.dataset.decline)decide(b.dataset.decline,"declined");
-  if(b.dataset.del){const a=A(b.dataset.del);if(API&&a)fetch(`/api/applications/${encodeURIComponent(a.id)}/cancel`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({fin:a.fin})}).catch(()=>{});apps=apps.filter(x=>x.id!==b.dataset.del);saveApps();renderApps()}
+  if(b.dataset.del){const a=A(b.dataset.del);if(API&&a)fetch(`/api/applications/${encodeURIComponent(a.id)}/cancel`,{method:"POST",headers:{"Content-Type":"application/json","x-app-token":a.token||""},body:"{}"}).catch(()=>{});apps=apps.filter(x=>x.id!==b.dataset.del);saveApps();renderApps()}
 });
 $("#mSearch").addEventListener("input",e=>{q=e.target.value.trim();renderModels()});
 $("#prevBtn").addEventListener("click",()=>{if(step){step--;renderStep()}});

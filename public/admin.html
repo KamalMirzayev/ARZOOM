@@ -181,11 +181,11 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const grp=n=>Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");
 const azn=n=>grp(n)+" ₼";
 const dt=s=>{const d=new Date(s);return d.toLocaleDateString("az-AZ",{day:"2-digit",month:"2-digit",year:"numeric"})+" "+d.toLocaleTimeString("az-AZ",{hour:"2-digit",minute:"2-digit"})};
-const STATUS={review:"Baxılır",offer:"Təklif göndərilib",rejected:"Rədd edilib",accepted:"Müştəri qəbul etdi",declined:"Müştəri imtina etdi",cancelled:"Ləğv edilib"};
+const STATUS={review:"Baxılır",offer:"Təklif göndərilib",rejected:"Rədd edilib",accepted:"Satışa ötürülüb",declined:"Müştəri imtina etdi",cancelled:"Ləğv edilib"};
 const INCOME={work:"Rəsmi iş yeri",biz:"Sahibkar",pension:"Pensiya",social:"Sosial yardım"};
 const EVENTS={created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",rejected:"Müraciət rədd edildi",note:"Qeyd",
-  accepted:"Müştəri təklifi qəbul etdi",declined:"Müştəri təklifdən imtina etdi",cancelled:"Müştəri müraciəti ləğv etdi",sms:"SMS"};
-const FILTERS=[["","Hamısı"],["review","Baxılır"],["offer","Təklif"],["accepted","Qəbul"],["rejected","Rədd"],["declined","İmtina"],["cancelled","Ləğv"]];
+  accepted:"Müştəri son təklifi təsdiqlədi, satışa ötürüldü",declined:"Müştəri təklifdən imtina etdi",cancelled:"Müştəri müraciəti ləğv etdi",sms:"SMS"};
+const FILTERS=[["","Hamısı"],["review","Baxılır"],["offer","Təklif"],["accepted","Satış"],["rejected","Rədd"],["declined","İmtina"],["cancelled","Ləğv"]];
 
 let token="",staff="",status="review",query="",cur=null,items=[],counts={};
 try{token=sessionStorage.getItem("az-admin-token")||"";staff=sessionStorage.getItem("az-admin-name")||""}catch(e){}
@@ -246,6 +246,7 @@ async function renderHome(){
         <li><b>Staj ≥ ${P.minTenureMonths} ay</b>6 aydan az −20, 12 aydan az −10 bal</li>
         <li><b>İlkin ödəniş ≥ ${P.minDownPct}%</b>Az olduqda −15, 30% və çox olduqda +5 bal</li>
         <li><b>A ≥ 80 · B ≥ 65 · C ≥ 50</b>A və B təsdiq, C əlavə baxış, D imtina</li>
+        <li><b>Müştəri addımı</b>Təklifdən sonra müştəri ilkin ödənişi 70%-ə qədər artıra və son variantı təsdiqləyə bilər; təsdiqlənən müraciət "Satış" siyahısına düşür</li>
       </ul>
       <p class="muted" style="margin:12px 0 0;font-size:12.5px">Skor tövsiyədir, son qərarı kredit əməkdaşı verir. Qaydalar lib/scoring.js faylındadır.</p>
     </section>`;
@@ -276,6 +277,8 @@ function renderDetail(){
         ${a.voen?`<dt>VÖEN</dt><dd class="mono">${esc(a.voen)}</dd>`:""}
         <dt>Razılıq</dt><dd>${dt(a.consent_at)} · IP ${esc(a.client_ip||"—")}</dd>
         ${a.reject_reason?`<dt>İmtina səbəbi</dt><dd>${esc(a.reject_reason)}</dd>`:""}
+        ${a.offer?`<dt>Təklif</dt><dd>${azn(a.offer.price)}, ilkin ${a.offer.downPct}%, ${a.offer.months} ay, illik ${a.offer.rate}%</dd>`:""}
+        ${a.offer?.final?`<dt>Son şərt (müştəri)</dt><dd style="color:var(--ok)">İlkin ödəniş ${a.offer.final.downPct}% · ${azn(a.offer.price*a.offer.final.downPct/100)} · aylıq ${azn(Scoring.pmt(a.offer.price*(1-a.offer.final.downPct/100),a.offer.rate,a.offer.months))}</dd>`:""}
       </dl>
     </section>
     <section class="panel"><h3>Gəlir sənədləri</h3>
@@ -334,7 +337,7 @@ function evHtml(e){
   const extra=e.kind==="assessed"?`${d.score} bal, ${d.grade} · ${Scoring.VERDICTS[d.verdict]||""}`:
     e.kind==="offer"?`${azn(d.price)}, ilkin ${d.downPct}%, ${d.months} ay, illik ${d.rate}%`:
     e.kind==="rejected"?d.reason:e.kind==="note"?d.text:e.kind==="sms"?(d.error?"Göndərilmədi: "+d.error:d.text):
-    e.kind==="created"?`${d.files||0} sənəd`:"";
+    e.kind==="created"?`${d.files||0} sənəd`:e.kind==="accepted"&&d.downPct!=null?`ilkin ödəniş ${d.downPct}%`:"";
   return `<li><span class="dot" style="${e.kind==="rejected"||d.error?"background:var(--red)":""}"></span><span><b>${EVENTS[e.kind]||e.kind}</b>${extra?` · ${esc(extra)}`:""}<small>${dt(e.at)} · ${esc(e.actor)}</small></span></li>`;
 }
 function inputs(){

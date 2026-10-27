@@ -57,3 +57,12 @@ CREATE TABLE IF NOT EXISTS application_events (
   details        JSONB
 );
 CREATE INDEX IF NOT EXISTS application_events_app_idx ON application_events (application_id, at);
+
+-- Müştəri girişi: SMS ilə təsdiqdən sonra brauzerə verilən açar (yalnız hash saxlanılır)
+CREATE TABLE IF NOT EXISTS app_tokens (
+  token_hash     TEXT PRIMARY KEY,
+  application_id TEXT NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at     TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS app_tokens_app_idx ON app_tokens (application_id);

@@ -51,6 +51,7 @@ PostgreSQL internetə açılmır, ona yalnız tətbiq konteyneri qoşulur. Sayt 
    - `SSH_PORT`: 22 deyilsə
    - `DOMAIN`: sayt domeni, məs. `lizinq.arzoom.az` (yoxdursa, IP ünvanı istifadə olunur)
    - Açar əvəzinə müvəqqəti olaraq `SSH_PASSWORD` da işləyir, amma açar daha təhlükəsizdir.
+   - `POSTGRES_PASSWORD` və `ADMIN_TOKEN` (istəyə bağlı): öz parollarını qoymaq üçün. Yazılmasa, server təsadüfi parol yaradır. Dəyişdirilsə, növbəti deploy-da baza parolu da yenilənir.
 4. `main`-ə push et. İlk dəfə `bootstrap.sh` Docker quraşdırır və `/opt/arzoom/.env` faylını təsadüfi parollarla yaradır.
 
 `ADMIN_TOKEN` serverdə `/opt/arzoom/.env` faylındadır.

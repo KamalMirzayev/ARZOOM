@@ -198,7 +198,7 @@ app.post("/api/applications/:id/decision", lookupLimit, async (req, res) => {
 const tokenHash = sha(ADMIN_TOKEN);
 const admin = (req, res, next) => adminFail(req, res, () => {
   const t = req.get("x-admin-token") || "";
-  if (!ADMIN_TOKEN || ADMIN_TOKEN.length < 16 || !crypto.timingSafeEqual(Buffer.from(sha(t)), Buffer.from(tokenHash))) return bad(res, "İcazə yoxdur.", 401);
+  if (!ADMIN_TOKEN || ADMIN_TOKEN.length < 12 || !crypto.timingSafeEqual(Buffer.from(sha(t)), Buffer.from(tokenHash))) return bad(res, "İcazə yoxdur.", 401);
   adminFail.forgive(req);
   // Staff name comes from the panel; it is recorded on every action.
   let name = ""; try { name = decodeURIComponent(req.get("x-staff-name") || ""); } catch {}

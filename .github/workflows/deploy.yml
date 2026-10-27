@@ -82,7 +82,12 @@ jobs:
       - name: Konteynerləri yenilə
         if: env.HAS_SSH == 'true'
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          DOMAIN: ${{ secrets.DOMAIN || secrets.SSH_HOST }}
+          NEW_POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          NEW_ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
         with:
+          envs: DOMAIN,NEW_POSTGRES_PASSWORD,NEW_ADMIN_TOKEN
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
@@ -91,4 +96,4 @@ jobs:
           script: |
             S=""; [ "$(id -u)" = 0 ] || S=sudo
             $S test -f /opt/arzoom/.env || $S bash /opt/arzoom/deploy/bootstrap.sh
-            $S env DOMAIN='${{ secrets.DOMAIN || secrets.SSH_HOST }}' bash /opt/arzoom/deploy/deploy.sh
+            $S env DOMAIN="$DOMAIN" NEW_POSTGRES_PASSWORD="$NEW_POSTGRES_PASSWORD" NEW_ADMIN_TOKEN="$NEW_ADMIN_TOKEN" bash /opt/arzoom/deploy/deploy.sh

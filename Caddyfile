@@ -1,6 +1,8 @@
 # HTTPS: with a domain Caddy gets and renews a Let's Encrypt certificate itself and redirects HTTP to HTTPS.
 # With only an IP address it uses its own certificate, so browsers show a warning until a domain is set.
 {
+	# Browsers send no SNI when the address is a bare IP; without this the TLS handshake fails.
+	default_sni {$SITE_ADDRESS:localhost}
 	servers {
 		protocols h1 h2 h3
 	}

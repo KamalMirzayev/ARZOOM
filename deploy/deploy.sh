@@ -28,6 +28,8 @@ if [ -n "${NEW_POSTGRES_PASSWORD:-}" ] && [ "$NEW_POSTGRES_PASSWORD" != "$(get_e
 fi
 
 docker compose up -d --build --remove-orphans
+# Caddyfile is a bind-mounted file: recreate Caddy so it reads the new version.
+docker compose up -d --force-recreate --no-deps caddy
 docker image prune -f >/dev/null
 for i in $(seq 1 30); do
   if docker compose exec -T app wget -qO- http://127.0.0.1:3000/api/health >/dev/null 2>&1; then

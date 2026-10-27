@@ -84,90 +84,214 @@ label.chk input{width:17px;height:17px;accent-color:var(--blue);flex:none}
 @media (max-width:960px){.login{grid-template-columns:1fr}.login-side{border-right:0;min-height:100vh}.engine{display:none}}
 .err{color:var(--bad);font-size:13px;min-height:1em}
 
-/* shell */
-header{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--surface);position:sticky;top:0;z-index:5;flex-wrap:wrap}
-header .t{font-family:var(--f-display);font-stretch:118%;font-weight:700}
-header .sp{flex:1}
-.shell{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);min-height:calc(100vh - 62px)}
-aside{border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
-.tools{padding:14px;display:grid;gap:10px;border-bottom:1px solid var(--line)}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chips button{border:1px solid var(--line-2);background:transparent;border-radius:99px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--muted)}
-.chips button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-.chips b{font-family:var(--f-mono);font-weight:500;margin-left:4px}
-.list{overflow:auto;flex:1}
-.item{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;width:100%;text-align:left;background:transparent;border-left:3px solid transparent;border-top:0;border-right:0}
-.item:hover{background:var(--raised)}
-.item[aria-current="true"]{background:var(--blue-soft);border-left-color:var(--blue)}
-.item .id{font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
-.item .car{font-weight:700}
-.item .meta{font-size:12px;color:var(--muted);grid-column:1/-1}
-.empty{padding:40px 20px;text-align:center;color:var(--muted)}
-main{padding:22px;min-width:0}
+/* ---------- app shell: dark navigation rail, list column, workspace ---------- */
+:root{--shadow:0 1px 2px rgb(14 20 48 / .05),0 6px 24px -12px rgb(14 20 48 / .12);--r:16px}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--shadow:0 1px 0 rgb(255 255 255 / .03) inset,0 10px 30px -18px #000}}
+:root[data-theme="dark"]{--shadow:0 1px 0 rgb(255 255 255 / .03) inset,0 10px 30px -18px #000}
+#app{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh}
+.side{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:22px;padding:20px 14px;color:#C9D1F2;overflow:auto;
+  background:radial-gradient(360px 260px at 0% 0%,rgb(82 115 255 / .28),transparent 70%),radial-gradient(300px 240px at 100% 100%,rgb(215 31 41 / .14),transparent 70%),#070B1C}
+.side .brand{display:grid;gap:10px;padding:0 6px}
+.side .brand .logoplate{justify-self:start;box-shadow:none}
+.side .brand small{font-family:var(--f-display);font-stretch:125%;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#8EA2FF;font-weight:600}
+.nav{display:grid;gap:2px}
+.nav h6{margin:0 0 6px;padding:0 10px;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#6E79A6;font-weight:700}
+.nav button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;color:#C9D1F2;border-radius:10px;padding:9px 10px;font-weight:600;font-size:13.5px;cursor:pointer;text-align:left}
+.nav button:hover{background:rgb(255 255 255 / .06);color:#FFFFFF}
+.nav button[aria-pressed="true"]{background:rgb(82 115 255 / .22);color:#FFFFFF;box-shadow:inset 2px 0 0 #8EA2FF}
+.nav button svg{width:17px;height:17px;flex:none;opacity:.85}
+.nav button b{margin-left:auto;font-family:var(--f-mono);font-weight:500;font-size:11.5px;color:#8F9AC4;background:rgb(255 255 255 / .06);border-radius:6px;padding:1px 7px}
+.nav button[aria-pressed="true"] b{color:#FFFFFF;background:rgb(255 255 255 / .14)}
+.nav .sd{width:8px;height:8px;border-radius:50%;flex:none;margin:0 4px 0 5px;background:#6E79A6}
+.sd.s-review{background:#E9BE62}.sd.s-offer{background:#7E95FF}.sd.s-accepted{background:#6FCF97}.sd.s-rejected,.sd.s-declined{background:#F08A80}.sd.s-cancelled{background:#6E79A6}
+.me{margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:rgb(255 255 255 / .05);border:1px solid rgb(255 255 255 / .08)}
+.av{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:13px;color:#FFFFFF;background:linear-gradient(135deg,#5273FF,#8E5BFF);flex:none}
+.me .who{min-width:0;flex:1;font-size:12.5px;line-height:1.3}
+.me .who b{display:block;color:#FFFFFF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.me .who span{color:#8F9AC4}
+.iconbtn{border:0;background:transparent;color:#AEB8E0;border-radius:8px;width:32px;height:32px;display:grid;place-items:center;cursor:pointer;flex:none}
+.iconbtn:hover{background:rgb(255 255 255 / .08);color:#FFFFFF}
+.iconbtn svg{width:17px;height:17px}
 
-.st{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;border-radius:99px;padding:3px 10px;white-space:nowrap}
+.shell{display:grid;grid-template-columns:minmax(290px,330px) minmax(0,1fr);min-height:100vh;min-width:0}
+aside{border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;height:100vh;position:sticky;top:0;background:var(--surface)}
+.tools{padding:18px 16px 12px;display:grid;gap:12px;border-bottom:1px solid var(--line)}
+.lh{display:flex;align-items:baseline;justify-content:space-between}
+.lh h3{font-size:17px}
+.lh span{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.search{position:relative}
+.search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--muted);pointer-events:none}
+.search input{padding-left:34px;border-radius:11px;background:var(--bg)}
+#chips{display:none}
+.list{overflow:auto;flex:1;padding:8px}
+.item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:3px 12px;align-items:center;padding:11px 12px;border-radius:12px;cursor:pointer;width:100%;text-align:left;background:transparent;border:1px solid transparent;margin-bottom:2px}
+.item:hover{background:var(--raised)}
+.item[aria-current="true"]{background:var(--blue-soft);border-color:color-mix(in srgb,var(--blue) 35%,transparent)}
+.tile{grid-row:span 2;width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:13px;letter-spacing:.02em}
+.tile.s-review{background:var(--warn-soft);color:var(--warn)}.tile.s-offer{background:var(--blue-soft);color:var(--blue)}.tile.s-accepted{background:var(--ok-soft);color:var(--ok)}
+.tile.s-rejected,.tile.s-declined{background:var(--bad-soft);color:var(--bad)}.tile.s-cancelled{background:var(--line);color:var(--muted)}
+.item .car{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .ago{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.item .id{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .tags{display:flex;gap:8px;justify-content:flex-end;align-items:center}
+.item .st{justify-self:end}
+.empty{padding:48px 20px;text-align:center;color:var(--muted)}
+.empty svg{width:34px;height:34px;opacity:.5;display:block;margin:0 auto 10px}
+main{padding:26px clamp(18px,2.4vw,34px) 40px;min-width:0;max-width:1240px}
+
+.st{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;border-radius:99px;padding:4px 10px;white-space:nowrap}
 .st::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.st.sm{font-size:11px;padding:2px 8px}
 .s-review{background:var(--warn-soft);color:var(--warn)}
-.s-offer,.s-accepted{background:var(--ok-soft);color:var(--ok)}
+.s-offer{background:var(--blue-soft);color:var(--blue)}
+.s-accepted{background:var(--ok-soft);color:var(--ok)}
 .s-rejected,.s-declined{background:var(--bad-soft);color:var(--bad)}
 .s-cancelled{background:var(--line);color:var(--muted)}
-.grade{font-family:var(--f-mono);font-size:11px;font-weight:500;border-radius:5px;padding:1px 6px;margin-left:6px}
+.grade{font-family:var(--f-mono);font-size:11px;font-weight:500;border-radius:6px;padding:2px 7px;white-space:nowrap}
 .g-A,.g-B{background:var(--ok-soft);color:var(--ok)} .g-C{background:var(--warn-soft);color:var(--warn)} .g-D{background:var(--bad-soft);color:var(--bad)}
 
-.head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-bottom:18px}
-.head h2{font-size:24px;margin-top:4px}
-.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}
-.panel h3{font-size:15px;margin-bottom:12px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;min-width:0;box-shadow:var(--shadow)}
+.ph{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.ph h3{font-size:15px}
+.ph .ico{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--blue-soft);color:var(--blue);flex:none}
+.ph .ico svg{width:16px;height:16px}
+.ph .r{margin-left:auto}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
 .span2{grid-column:1/-1}
-.kv{display:grid;grid-template-columns:auto 1fr;gap:7px 16px;margin:0}
-.kv dt{color:var(--muted)} .kv dd{margin:0;font-weight:600;word-break:break-word}
-.files{display:grid;gap:12px}
-.files h4{margin:0 0 6px;font-size:12.5px;color:var(--muted);font-weight:600}
-.files .row{display:flex;flex-wrap:wrap;gap:6px}
-.fbtn{border:1px solid var(--line-2);background:var(--raised);border-radius:8px;padding:6px 10px;font-size:12.5px;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fbtn:hover{border-color:var(--blue)}
-.form{align-items:end;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
-.form .wide{grid-column:1/-1}
-fieldset{border:0;padding:0;margin:0 0 18px;min-width:0}
-legend{font-family:var(--f-display);font-stretch:118%;font-weight:700;font-size:13px;margin-bottom:10px;padding:0}
 
-.score{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;margin-bottom:14px}
-.ring{--p:0;--c:var(--muted);width:92px;height:92px;border-radius:50%;display:grid;place-items:center;
-  background:conic-gradient(var(--c) calc(var(--p)*1%),var(--line) 0)}
-.ring span{width:74px;height:74px;border-radius:50%;background:var(--surface);display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:26px}
-.verdict{font-family:var(--f-display);font-stretch:115%;font-weight:700;font-size:17px}
-.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden;position:relative;margin-top:6px}
-.bar i{display:block;height:100%;border-radius:99px}
-.bar::after{content:"";position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);left:var(--lim)}
-.mini{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
-.mini div{background:var(--raised);border-radius:10px;padding:10px 12px}
-.mini b{display:block;font-family:var(--f-display);font-size:18px}
-.mini small{color:var(--muted);font-size:11.5px}
-ul.r{margin:0;padding-left:18px;display:grid;gap:4px;font-size:13px}
-ul.r li.stop{color:var(--bad);font-weight:700}
+/* detail hero */
+.hero{display:grid;gap:20px;margin-bottom:18px}
+.hero .top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.hero h2{font-size:28px;margin-top:6px}
+.hero .sub{color:var(--muted);font-size:13px;margin-top:4px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.stat{background:var(--raised);border-radius:12px;padding:12px 14px;border:1px solid var(--line)}
+.stat small{color:var(--muted);font-size:11.5px;display:block}
+.stat b{font-family:var(--f-display);font-stretch:112%;font-size:20px;font-weight:800;display:block;margin-top:2px;white-space:nowrap}
+.steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;list-style:none;margin:0;padding:0;counter-reset:s}
+.steps li{position:relative;display:grid;justify-items:center;text-align:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted)}
+.steps li::before{content:"";position:absolute;top:13px;left:calc(-50% + 16px);right:calc(50% + 16px);height:2px;background:var(--line-2)}
+.steps li:first-child::before{display:none}
+.steps i{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;border:2px solid var(--line-2);background:var(--surface);font-style:normal;font-family:var(--f-mono);font-size:11px;position:relative}
+.steps i svg{width:14px;height:14px}
+.steps .done{color:var(--ink)} .steps .done i{background:var(--ok);border-color:var(--ok);color:#FFFFFF}
+.steps .done::before,.steps .now::before{background:var(--ok)}
+.steps .now{color:var(--blue)} .steps .now i{border-color:var(--blue);color:var(--blue);box-shadow:0 0 0 4px var(--blue-soft)}
+.steps .bad{color:var(--bad)} .steps .bad i{background:var(--bad);border-color:var(--bad);color:#FFFFFF}
+
+.kv{display:grid;grid-template-columns:auto 1fr;gap:10px 18px;margin:0}
+.kv dt{color:var(--muted);font-size:13px} .kv dd{margin:0;font-weight:600;word-break:break-word}
+.kv dd a{color:var(--blue);text-decoration:none}
+.callout{margin-top:14px;border-radius:12px;padding:12px 14px;font-size:13px;background:var(--ok-soft);color:var(--ok);font-weight:600}
+.callout.bad{background:var(--bad-soft);color:var(--bad)}
+.callout small{display:block;font-weight:500;opacity:.85}
+.files{display:grid;gap:14px}
+.files h4{margin:0 0 8px;font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.files .row{display:grid;gap:8px}
+.fbtn{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--raised);border-radius:11px;padding:9px 12px;font-size:13px;cursor:pointer;text-align:left;width:100%;font-weight:600}
+.fbtn:hover{border-color:var(--blue);color:var(--blue)}
+.fbtn svg{width:18px;height:18px;flex:none;color:var(--blue)}
+.fbtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.fbtn em{font-style:normal;font-size:11.5px;color:var(--muted);font-weight:500}
+.nofile{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:13px;border:1px dashed var(--line-2);border-radius:11px;padding:9px 12px}
+
+/* assessment */
+.assess{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,340px);gap:20px;align-items:start}
+.form{align-items:end;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+.form .wide{grid-column:1/-1}
+fieldset{border:1px solid var(--line);border-radius:14px;padding:16px;margin:0 0 14px;min-width:0;background:var(--raised)}
+legend{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-stretch:112%;font-weight:700;font-size:13.5px;padding:0 6px;margin-left:-6px}
+legend i{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;background:var(--blue);color:#FFFFFF;font-style:normal;font-family:var(--f-mono);font-size:11px}
+fieldset input,fieldset select,fieldset textarea{background:var(--surface)}
+.savebar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.rail{display:grid;gap:16px;position:sticky;top:20px}
+.engine-card{border-radius:var(--r);padding:20px;color:#E9EDFF;position:relative;overflow:hidden;
+  background:radial-gradient(320px 220px at 100% 0%,rgb(82 115 255 / .35),transparent 70%),radial-gradient(260px 200px at 0% 100%,rgb(215 31 41 / .16),transparent 70%),#0A1024;border:1px solid #1C2547}
+.engine-card .eyebrow{color:#9DB0FF}
+.engine-card .muted,.engine-card small{color:#9AA5CF}
+.score{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;margin:14px 0 16px}
+.ring{--p:0;--c:#6E79A6;width:96px;height:96px;border-radius:50%;display:grid;place-items:center;
+  background:conic-gradient(var(--c) calc(var(--p)*1%),rgb(255 255 255 / .1) 0);box-shadow:0 0 30px -6px var(--c)}
+.ring span{width:78px;height:78px;border-radius:50%;background:#0A1024;display:grid;place-content:center;text-align:center;font-family:var(--f-display);font-weight:800;font-size:28px;color:#FFFFFF;line-height:1}
+.ring span small{display:block;font-size:10px;font-family:var(--f-mono);font-weight:500;color:#9AA5CF;margin-top:2px}
+.verdict{font-family:var(--f-display);font-stretch:112%;font-weight:700;font-size:18px;line-height:1.2;margin-top:4px}
+.bar{height:8px;border-radius:99px;background:rgb(255 255 255 / .1);overflow:visible;position:relative;margin:7px 0 5px}
+.bar i{display:block;height:100%;border-radius:99px;transition:width .3s}
+.bar::after{content:"";position:absolute;top:-3px;bottom:-3px;width:2px;background:#FFFFFF;left:var(--lim);border-radius:2px}
+.mini{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0}
+.mini div{background:rgb(255 255 255 / .05);border:1px solid rgb(255 255 255 / .07);border-radius:11px;padding:10px 12px}
+.mini b{display:block;font-family:var(--f-display);font-size:17px;color:#FFFFFF;white-space:nowrap}
+.mini small{font-size:11px}
+ul.r{margin:0;padding:0;list-style:none;display:grid;gap:6px;font-size:12.5px}
+ul.r li{display:flex;gap:8px;align-items:flex-start;color:#C9D1F2}
+ul.r li::before{content:"";width:6px;height:6px;border-radius:50%;background:#E9BE62;margin-top:6px;flex:none}
+ul.r li.stop{color:#FFB4AC;font-weight:700} ul.r li.stop::before{background:#F08A80}
+.ok-line{display:flex;gap:8px;align-items:center;color:#9DE7BB;font-size:13px;margin:0}
 .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
-.tl{list-style:none;margin:0;padding:0;display:grid;gap:12px}
-.tl li{display:grid;grid-template-columns:auto 1fr;gap:10px}
-.tl .dot{width:9px;height:9px;border-radius:50%;background:var(--blue);margin-top:6px}
-.tl small{color:var(--muted);display:block}
-.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:20}
+.actions .btn{flex:1}
+.decision h3{font-size:15px;margin-bottom:12px}
+.or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:11.5px;margin:16px 0 4px;text-transform:uppercase;letter-spacing:.1em}
+.or::before,.or::after{content:"";height:1px;background:var(--line);flex:1}
+
+/* timeline */
+.tl{list-style:none;margin:0;padding:0;display:grid;gap:0}
+.tl li{display:grid;grid-template-columns:32px 1fr;gap:12px;position:relative;padding-bottom:16px}
+.tl li::before{content:"";position:absolute;left:15px;top:30px;bottom:0;width:2px;background:var(--line)}
+.tl li:last-child::before{display:none}
+.tl .dot{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:var(--blue-soft);color:var(--blue)}
+.tl .dot svg{width:15px;height:15px}
+.tl .dot.k-sms{background:var(--raised);color:var(--muted);border:1px solid var(--line)}
+.tl .dot.k-bad{background:var(--bad-soft);color:var(--bad)}
+.tl .dot.k-ok{background:var(--ok-soft);color:var(--ok)}
+.tl .body{padding-top:5px;min-width:0}
+.tl .body p{margin:2px 0 0;color:var(--muted);font-size:13px;word-break:break-word}
+.tl small{color:var(--muted);display:block;font-size:11.5px;margin-top:2px}
+.noteform{display:flex;gap:8px;margin-top:6px}
+
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:11px 18px;border-radius:12px;font-weight:600;z-index:20;box-shadow:0 12px 30px -10px rgb(0 0 0 / .4)}
 .back{display:none}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:18px 0 22px}
-.kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;position:relative;overflow:hidden}
-.kpi b{display:block;font-family:var(--f-display);font-stretch:115%;font-weight:800;font-size:30px;line-height:1.1;margin-top:6px}
-.kpi small{color:var(--muted);font-size:12px}
-.kpi.hot{border-color:var(--red)} .kpi.hot b{color:var(--red)}
-.policy{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:0;padding:0;list-style:none}
-.policy li{background:var(--raised);border-radius:10px;padding:11px 13px;font-size:13px}
-.policy b{display:block;font-family:var(--f-mono);font-weight:500;color:var(--blue)}
+
+/* overview */
+.welcome{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+.welcome h2{font-size:30px;margin-top:6px}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;position:relative;overflow:hidden;box-shadow:var(--shadow);display:grid;grid-template-columns:1fr auto;gap:4px}
+.kpi small{color:var(--muted);font-size:12.5px;font-weight:600}
+.kpi b{grid-column:1;font-family:var(--f-display);font-stretch:112%;font-weight:800;font-size:32px;line-height:1.1}
+.kpi .ico{grid-column:2;grid-row:1/span 2;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--blue-soft);color:var(--blue)}
+.kpi .ico svg{width:19px;height:19px}
+.kpi.warn .ico{background:var(--warn-soft);color:var(--warn)} .kpi.ok .ico{background:var(--ok-soft);color:var(--ok)}
+.kpi.hot{border-color:var(--red)} .kpi.hot b{color:var(--red)} .kpi.hot .ico{background:var(--red-soft);color:var(--red)}
+.funnel{display:grid;gap:12px}
+.funnel div{display:grid;grid-template-columns:130px 1fr 40px;gap:12px;align-items:center;font-size:13px}
+.funnel span{color:var(--muted);font-weight:600}
+.funnel em{font-style:normal;font-family:var(--f-mono);text-align:right}
+.funnel i{display:block;height:10px;border-radius:99px;background:var(--line);position:relative;overflow:hidden}
+.funnel i::after{content:"";position:absolute;inset:0;width:var(--w);border-radius:99px;background:var(--c)}
+.queue{display:grid;gap:4px}
+.queue button{display:grid;grid-template-columns:auto 1fr auto;gap:2px 12px;align-items:center;border:0;background:transparent;border-radius:11px;padding:9px 10px;text-align:left;cursor:pointer;width:100%}
+.queue button:hover{background:var(--raised)}
+.queue .tile{width:36px;height:36px;font-size:12px}
+.policy{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin:0;padding:0;list-style:none}
+.policy li{background:var(--raised);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--muted)}
+.policy b{display:block;font-family:var(--f-mono);font-weight:500;color:var(--blue);margin-bottom:3px}
+
+@media (max-width:1280px){.assess{grid-template-columns:1fr}.rail{position:static}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:1100px){#app{grid-template-columns:72px minmax(0,1fr)}.side{padding:16px 10px}.side .brand,.nav h6,.nav button span.t,.nav button b,.me .who{display:none}
+  .nav button{justify-content:center;padding:10px}.nav .sd{margin:0}.me{flex-direction:column;padding:8px}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:900px){
+  #app{grid-template-columns:1fr}
+  .side{position:sticky;height:auto;flex-direction:row;align-items:center;gap:6px;padding:10px 12px;overflow-x:auto;z-index:6}
+  .side .brand{display:none}.nav{display:flex;gap:4px}.nav h6{display:none}.nav button{width:auto;padding:8px 10px}
+  .nav button b,.nav button span.t{display:inline}.me{margin:0 0 0 auto;flex-direction:row;background:none;border:0;padding:0}.me .av{display:none}
   .shell{grid-template-columns:1fr}
-  aside{border-right:0}
+  aside{border-right:0;height:auto;position:static}
   .shell.open aside{display:none}
   .shell:not(.open) main{display:none}
   .back{display:inline-flex}
-  .grid{grid-template-columns:1fr}
+  .grid,.kpis{grid-template-columns:1fr}
+  .stats{grid-template-columns:1fr 1fr}
+  .steps li{font-size:10.5px}
   main{padding:16px}
 }
 </style>
@@ -243,20 +367,25 @@ ul.r li.stop{color:var(--bad);font-weight:700}
 </div>
 
 <div id="app" hidden>
-  <header>
-    <span class="logoplate"><img src="/logo.png" alt="Arzoom Avto"></span>
-    <span class="t">Qiymətləndirmə</span>
-    <span class="sp"></span>
-    <span class="muted" id="who"></span>
-    <button class="btn ghost sm" id="usersBtn" type="button" hidden>İstifadəçilər</button>
-    <button class="btn ghost sm" id="pwBtn" type="button">Parolu dəyiş</button>
-    <button class="btn ghost sm" id="logout" type="button">Çıxış</button>
-  </header>
+  <nav class="side" aria-label="Panel">
+    <div class="brand"><span class="logoplate"><img src="/logo.png" alt="Arzoom Avto"></span><small>Qiymətləndirmə</small></div>
+    <div class="nav"><h6>Panel</h6>
+      <button type="button" id="homeBtn" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span class="t">Ümumi baxış</span></button>
+    </div>
+    <div class="nav" id="statusNav"><h6>Müraciətlər</h6></div>
+    <div class="nav"><h6>Hesab</h6>
+      <button type="button" id="usersBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></svg><span class="t">İstifadəçilər</span></button>
+      <button type="button" id="pwBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg><span class="t">Parolu dəyiş</span></button>
+    </div>
+    <div class="me"><span class="av" id="av"></span><span class="who" id="who"></span>
+      <button class="iconbtn" id="logout" type="button" title="Çıxış" aria-label="Çıxış"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3"/></svg></button></div>
+  </nav>
   <div class="shell" id="shell">
     <aside>
       <div class="tools">
-        <input id="q" type="search" placeholder="Axtar: müraciət nömrəsi, FİN, telefon, model">
-        <div class="chips" id="chips"></div>
+        <div class="lh"><h3 id="listTitle">Müraciətlər</h3><span id="listCount"></span></div>
+        <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Nömrə, FİN, telefon, model" aria-label="Axtar"></label>
+        <div id="chips"></div>
       </div>
       <div class="list" id="list"></div>
     </aside>
@@ -272,11 +401,35 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const grp=n=>Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");
 const azn=n=>grp(n)+" ₼";
 const dt=s=>{const d=new Date(s);return d.toLocaleDateString("az-AZ",{day:"2-digit",month:"2-digit",year:"numeric"})+" "+d.toLocaleTimeString("az-AZ",{hour:"2-digit",minute:"2-digit"})};
-const STATUS={review:"Baxılır",offer:"Təklif göndərilib",rejected:"Rədd edilib",accepted:"Təsdiqləndi · anderraytinq və satış",declined:"Müştəri imtina etdi",cancelled:"Ləğv edilib"};
+const STATUS={review:"Baxılır",offer:"Təklif göndərilib",rejected:"Rədd edilib",accepted:"Satışa ötürülüb",declined:"Müştəri imtina etdi",cancelled:"Ləğv edilib"};
 const INCOME={work:"Rəsmi iş yeri",biz:"Sahibkar",pension:"Pensiya",social:"Sosial yardım"};
 const EVENTS={created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",rejected:"Müraciət rədd edildi",note:"Qeyd",
   accepted:"Müştəri son təklifi təsdiqlədi: anderraytinqə və satışa ötürüldü",declined:"Müştəri təklifdən imtina etdi",cancelled:"Müştəri müraciəti ləğv etdi",sms:"SMS"};
 const FILTERS=[["","Hamısı"],["review","Baxılır"],["offer","Təklif"],["accepted","Satış"],["rejected","Rədd"],["declined","İmtina"],["cancelled","Ləğv"]];
+
+const SVG=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const IC={
+  user:SVG('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'),
+  doc:SVG('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>'),
+  gauge:SVG('<path d="M12 14l4-4"/><path d="M3.3 17a9 9 0 1 1 17.4 0"/>'),
+  clock:SVG('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  inbox:SVG('<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/>'),
+  alert:SVG('<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>'),
+  check:SVG('<path d="M20 6 9 17l-5-5"/>'),
+  x:SVG('<path d="M18 6 6 18M6 6l12 12"/>'),
+  trend:SVG('<path d="m3 17 6-6 4 4 8-8"/><path d="M14 7h7v7"/>'),
+  star:SVG('<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>'),
+  cart:SVG('<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.7 12.4a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L21 7H6"/>'),
+  msg:SVG('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'),
+  pen:SVG('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>'),
+  send:SVG('<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>'),
+  shield:SVG('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
+  plus:SVG('<path d="M12 5v14M5 12h14"/>'),
+  car:SVG('<path d="M5 17h14M5 17a2 2 0 1 0 4 0M15 17a2 2 0 1 0 4 0M3 17v-5l2-5h14l2 5v5"/><path d="M3 12h18"/>')
+};
+const ago=s=>{const m=Math.round((Date.now()-new Date(s))/60000);return m<1?"indicə":m<60?m+" dəq":m<1440?Math.round(m/60)+" saat":Math.round(m/1440)+" gün"};
+const initials=a=>(String(a.brand||"?")[0]+String(a.model||"")[0]).toUpperCase();
+const ph=(icon,title,right="")=>`<div class="ph"><span class="ico">${IC[icon]}</span><h3>${title}</h3>${right?`<span class="r">${right}</span>`:""}</div>`;
 
 let token="",me=null,staff="",status="review",query="",cur=null,items=[],counts={};
 try{token=sessionStorage.getItem("az-admin-session")||""}catch(e){}
@@ -306,12 +459,13 @@ $("#loginForm").addEventListener("submit",async e=>{
 $("#logout").onclick=()=>logout();
 async function start(){me=await api("/me");staff=me.name;await loadList();enter()}
 function enter(){$("#login").hidden=true;$("#app").hidden=false;
-  $("#who").textContent=`${me.name} · ${ROLES[me.role]}`;$("#usersBtn").hidden=me.role!=="admin";
+  $("#who").innerHTML=`<b>${esc(me.name)}</b><span>${ROLES[me.role]}</span>`;$("#av").textContent=me.name.split(/\s+/).map(w=>w[0]).join("").slice(0,2).toUpperCase();
+  $("#usersBtn").hidden=me.role!=="admin";
   if(!cur)renderHome()}
 
 /* ---------- account: password and staff users ---------- */
 const ROLES={admin:"Admin",expert:"Kredit eksperti",sales:"Satış mütəxəssisi"};
-function back(){cur=null;$("#shell").classList.add("open");renderList()}
+function back(){cur=null;$("#detail").dataset.page="account";$("#shell").classList.add("open");renderList()}
 $("#pwBtn").onclick=()=>{back();$("#detail").innerHTML=`<span class="eyebrow">Hesab</span><h2 style="margin:6px 0 18px">Parolu dəyiş</h2>
   <form class="panel" id="pwForm" style="max-width:440px;display:grid;gap:12px">
     <label class="f">Hazırkı parol<input type="password" id="pwCur" autocomplete="current-password" required></label>
@@ -362,8 +516,8 @@ document.addEventListener("click",async e=>{
   const b=e.target.closest("button");if(!b)return;
   const upd=async(id,body,msg)=>{try{await api("/users/"+id,{method:"POST",body:JSON.stringify(body)});toast(msg);renderUsers()}catch(err){toast(err.message)}};
   if(b.dataset.uphone){const row=b.closest("div").parentElement;if(row.querySelector(".phrow"))return;
-    row.insertAdjacentHTML("beforeend",`<div class="phrow" style="display:flex;gap:6px;width:100%;margin-top:8px"><input class="ph" inputmode="tel" placeholder="Məs. 50 123 45 67" value="${b.dataset.cur?"+"+esc(b.dataset.cur):""}" style="flex:1"><button class="btn sm" type="button" data-phsave="${b.dataset.uphone}">Yadda saxla</button></div>`);row.querySelector(".ph").focus()}
-  if(b.dataset.phsave)upd(b.dataset.phsave,{phone:b.closest(".phrow").querySelector(".ph").value},"Nömrə yadda saxlanıldı. Boş qoysan silinir.");
+    row.insertAdjacentHTML("beforeend",`<div class="phrow" style="display:flex;gap:6px;width:100%;margin-top:8px"><input class="phin" inputmode="tel" placeholder="Məs. 50 123 45 67" value="${b.dataset.cur?"+"+esc(b.dataset.cur):""}" style="flex:1"><button class="btn sm" type="button" data-phsave="${b.dataset.uphone}">Yadda saxla</button></div>`);row.querySelector(".phin").focus()}
+  if(b.dataset.phsave)upd(b.dataset.phsave,{phone:b.closest(".phrow").querySelector(".phin").value},"Nömrə yadda saxlanıldı. Boş qoysan silinir.");
   if(b.dataset.uact)upd(b.dataset.uact,{active:b.dataset.to==="true"},b.dataset.to==="true"?"Hesab aktiv edildi":"Hesab söndürüldü");
   if(b.dataset.upw){
     const pw=Array.from(crypto.getRandomValues(new Uint8Array(9)),x=>"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"[x%55]).join("")+"7!";
@@ -378,42 +532,64 @@ async function loadList(){
 }
 function renderList(){
   const total=Object.values(counts).reduce((a,b)=>a+b,0);
-  $("#chips").innerHTML=FILTERS.map(([k,t])=>`<button type="button" data-st="${k}" aria-pressed="${status===k}">${t}<b>${k?counts[k]||0:total}</b></button>`).join("");
+  $("#statusNav").innerHTML=`<h6>Müraciətlər</h6>`+FILTERS.map(([k,t])=>`<button type="button" data-st="${k}" aria-pressed="${status===k}"><i class="sd s-${k||"all"}"></i><span class="t">${t}</span><b>${k?counts[k]||0:total}</b></button>`).join("");
+  $("#listTitle").textContent=status?FILTERS.find(f=>f[0]===status)[1]:"Bütün müraciətlər";
+  $("#listCount").textContent=items.length+" nəticə";
+  $("#homeBtn").setAttribute("aria-pressed",String(!cur&&!$("#detail").dataset.page));
   $("#list").innerHTML=items.length?items.map(a=>`<button type="button" class="item" data-id="${a.id}" aria-current="${cur&&cur.id===a.id}">
-      <span class="car">${esc(a.brand)} ${esc(a.model)}</span><span class="st s-${a.status}">${STATUS[a.status]}</span>
-      <span class="id">${a.id} · ${esc(a.fin)}</span><span class="id">${dt(a.created_at)}</span>
-      <span class="meta">${a.income_sources.map(s=>INCOME[s]).join(", ")}${a.grade?`<span class="grade g-${a.grade}">Skor ${a.score} · ${a.grade}</span>`:""}</span></button>`).join(""):`<div class="empty">Bu filtrdə müraciət yoxdur.</div>`;
+      <span class="tile s-${a.status}">${esc(initials(a))}</span>
+      <span class="car">${esc(a.brand)} ${esc(a.model)}</span><span class="st sm s-${a.status}">${STATUS[a.status]}</span>
+      <span class="id">${a.id} · ${esc(a.fin)}</span>
+      <span class="tags">${a.grade?`<span class="grade g-${a.grade}">${a.score} · ${a.grade}</span>`:""}<span class="ago">${ago(a.created_at)}</span></span></button>`).join(""):`<div class="empty">${IC.inbox}Bu filtrdə müraciət yoxdur.</div>`;
 }
-$("#chips").addEventListener("click",e=>{const b=e.target.closest("[data-st]");if(!b)return;status=b.dataset.st;loadList().catch(err=>toast(err.message))});
+$("#statusNav").addEventListener("click",e=>{const b=e.target.closest("[data-st]");if(!b)return;status=b.dataset.st;loadList().catch(err=>toast(err.message))});
 let qT;$("#q").addEventListener("input",e=>{clearTimeout(qT);qT=setTimeout(()=>{query=e.target.value.trim();loadList().catch(err=>toast(err.message))},250)});
 $("#list").addEventListener("click",e=>{const b=e.target.closest("[data-id]");if(b)openApp(b.dataset.id)});
 
 /* ---------- overview ---------- */
 async function renderHome(){
   let k={};try{k=await api("/stats")}catch(e){}
+  cur=null;$("#detail").dataset.page="";renderList();
   const rate=k.decided30?Math.round(k.approved30/k.decided30*100)+"%":"—";
-  const P=Scoring.POLICY;
-  $("#detail").innerHTML=`<span class="eyebrow">Ümumi vəziyyət</span><h2 style="margin-top:6px">Xoş gəldin, ${esc(staff)}</h2>
+  const P=Scoring.POLICY,total=Object.values(counts).reduce((a,b)=>a+b,0)||1;
+  const hour=new Date().getHours(),hi=hour<12?"Sabahınız xeyir":hour<18?"Günortanız xeyir":"Axşamınız xeyir";
+  const D=new Date(),today=`${D.getDate()} ${["yanvar","fevral","mart","aprel","may","iyun","iyul","avqust","sentyabr","oktyabr","noyabr","dekabr"][D.getMonth()]}, ${["bazar","bazar ertəsi","çərşənbə axşamı","çərşənbə","cümə axşamı","cümə","şənbə"][D.getDay()]}`;
+  const COL={review:"var(--warn)",offer:"var(--blue)",accepted:"var(--ok)",rejected:"var(--bad)",declined:"var(--bad)",cancelled:"var(--muted)"};
+  const queue=items.filter(a=>a.status==="review").slice(0,6);
+  $("#detail").innerHTML=`<div class="welcome"><div><span class="eyebrow">Ümumi baxış · ${esc(today)}</span><h2>${hi}, ${esc(staff.split(" ")[0])}</h2></div>
+      <button class="btn" type="button" data-st-go="review">${k.waiting?k.waiting+" müraciət baxılmağı gözləyir":"Gözləyən müraciətlər"}</button></div>
     <div class="kpis">
-      <div class="kpi"><small>Bu gün daxil olub</small><b>${k.today??"—"}</b></div>
-      <div class="kpi"><small>Baxılmağı gözləyir</small><b>${k.waiting??"—"}</b></div>
-      <div class="kpi ${k.overdue?"hot":""}"><small>24 saatdan çox gözləyir</small><b>${k.overdue??"—"}</b></div>
-      <div class="kpi"><small>Təsdiq faizi, 30 gün</small><b>${rate}</b></div>
-      <div class="kpi"><small>Orta skor</small><b>${k.avg_score??"—"}</b></div>
-      <div class="kpi"><small>Qəbul edilmiş təkliflər</small><b>${k.accepted??"—"}</b></div>
+      <div class="kpi"><small>Bu gün daxil olub</small><span class="ico">${IC.inbox}</span><b>${k.today??"—"}</b></div>
+      <div class="kpi warn"><small>Baxılmağı gözləyir</small><span class="ico">${IC.clock}</span><b>${k.waiting??"—"}</b></div>
+      <div class="kpi ${k.overdue?"hot":""}"><small>24 saatdan çox gözləyir</small><span class="ico">${IC.alert}</span><b>${k.overdue??"—"}</b></div>
+      <div class="kpi ok"><small>Təsdiq faizi, 30 gün</small><span class="ico">${IC.trend}</span><b>${rate}</b></div>
+      <div class="kpi"><small>Orta skor</small><span class="ico">${IC.gauge}</span><b>${k.avg_score??"—"}</b></div>
+      <div class="kpi ok"><small>Satışa ötürülüb</small><span class="ico">${IC.cart}</span><b>${k.accepted??"—"}</b></div>
     </div>
-    <section class="panel"><h3>Skorinq siyasəti</h3>
+    <div class="grid" style="margin-bottom:18px">
+      <section class="panel">${ph("trend","Status bölgüsü",`<span class="muted mono" style="font-size:12px">${Object.values(counts).reduce((a,b)=>a+b,0)} müraciət</span>`)}
+        <div class="funnel">${FILTERS.slice(1).map(([s,t])=>`<div><span>${t}</span><i style="--w:${Math.round((counts[s]||0)/total*100)}%;--c:${COL[s]}"></i><em>${counts[s]||0}</em></div>`).join("")}</div>
+      </section>
+      <section class="panel">${ph("clock","Növbədə")}
+        <div class="queue">${queue.length?queue.map(a=>`<button type="button" data-id="${a.id}"><span class="tile s-${a.status}">${esc(initials(a))}</span>
+          <span><b>${esc(a.brand)} ${esc(a.model)}</b><br><small class="muted mono">${a.id}</small></span><small class="muted">${ago(a.created_at)}</small></button>`).join(""):`<div class="empty" style="padding:24px">${IC.check}Növbədə müraciət yoxdur.</div>`}</div>
+      </section>
+    </div>
+    <section class="panel">${ph("shield","Skorinq siyasəti")}
       <ul class="policy">
         <li><b>DTI ≤ ${P.maxDti*100}%</b>Bütün aylıq borclar xalis gəlirin yarısını keçmir; ${P.stopDti*100}%-dən yuxarı imtina tövsiyəsi</li>
         <li><b>Aktiv gecikmə</b>AKB-də cari gecikmə və ya 90+ gün keçmiş gecikmə dayandırıcı amildir</li>
         <li><b>Staj ≥ ${P.minTenureMonths} ay</b>6 aydan az −20, 12 aydan az −10 bal</li>
         <li><b>İlkin ödəniş ≥ ${P.minDownPct}%</b>Az olduqda −15, 30% və çox olduqda +5 bal</li>
         <li><b>A ≥ 80 · B ≥ 65 · C ≥ 50</b>A və B təsdiq, C əlavə baxış, D imtina</li>
-        <li><b>Müştəri addımı</b>Təklifdən sonra müştəri ilkin ödənişi 70%-ə qədər artıra və son variantı təsdiqləyə bilər; təsdiqlənən müraciət "Satış" siyahısına düşür</li>
+        <li><b>Müştəri addımı</b>Müştəri ilkin ödənişi 70%-ə qədər artırıb son variantı təsdiqləyir; SMS müştəriyə, anderraytinqə və satışa gedir</li>
       </ul>
-      <p class="muted" style="margin:12px 0 0;font-size:12.5px">Skor tövsiyədir, son qərarı kredit əməkdaşı verir. Qaydalar lib/scoring.js faylındadır.</p>
+      <p class="muted" style="margin:12px 0 0;font-size:12.5px">Skor tövsiyədir, son qərarı kredit əməkdaşı verir.</p>
     </section>`;
 }
+$("#homeBtn").onclick=()=>{$("#shell").classList.add("open");renderHome()};
+document.addEventListener("click",e=>{const b=e.target.closest("[data-st-go]");if(b){status=b.dataset.stGo;$("#shell").classList.remove("open");loadList().catch(err=>toast(err.message))}});
+$("#detail").addEventListener("click",e=>{const b=e.target.closest(".queue [data-id]");if(b)openApp(b.dataset.id)});
 
 /* ---------- detail ---------- */
 async function openApp(id){
@@ -421,66 +597,86 @@ async function openApp(id){
   $("#shell").classList.add("open");renderList();renderDetail();window.scrollTo({top:0});
 }
 const val=(a,k,d="")=>a.assessment?.inputs?.[k]??a.offer?.[k]??d;
+function steps(a){
+  const st=a.status,offered=["offer","accepted","declined"].includes(st);
+  const S=[["Daxil oldu",1],["Qiymətləndirmə",a.assessment||st!=="review"?1:"now"],
+    ["Təklif",st==="rejected"?"bad":offered?1:a.assessment?"now":0],
+    ["Müştəri təsdiqi",st==="accepted"?1:st==="declined"||st==="cancelled"?"bad":st==="offer"?"now":0],
+    ["Satış",st==="accepted"?"now":0]];
+  return `<ol class="steps">${S.map(([t,v],i)=>`<li class="${v===1?"done":v||""}"><i>${v===1?IC.check:v==="bad"?IC.x:i+1}</i>${t}</li>`).join("")}</ol>`;
+}
 function renderDetail(){
   const a=cur,open=["review","offer","rejected"].includes(a.status);
   const bySrc={};a.files.forEach(f=>(bySrc[f.income_source]??=[]).push(f));
+  const res=a.assessment?.result,o=a.offer,fin=o?.final;
+  const dp=fin?.downPct??o?.downPct,pay=o?Scoring.pmt(o.price*(1-dp/100),o.rate,o.months):res?.pay;
+  const price=o?.price??a.assessment?.inputs?.price;
+  $("#detail").dataset.page="";
   $("#detail").innerHTML=`
   <button type="button" class="btn ghost sm back" id="back" style="margin-bottom:12px">← Siyahı</button>
-  <div class="head">
-    <div><span class="eyebrow mono">${a.id}</span><h2>${esc(a.brand)} ${esc(a.model)}</h2><div class="muted">Daxil olub: ${dt(a.created_at)}${a.decided_by?` · Qərar: ${esc(a.decided_by)}`:""}</div></div>
-    <span class="st s-${a.status}">${STATUS[a.status]}</span>
-  </div>
+  <section class="panel hero">
+    <div class="top">
+      <div><span class="eyebrow mono">${a.id}</span><h2>${esc(a.brand)} ${esc(a.model)}</h2>
+        <div class="sub">Daxil olub ${dt(a.created_at)}${a.decided_by?` · Qərar: ${esc(a.decided_by)}`:""}</div></div>
+      <span class="st s-${a.status}">${STATUS[a.status]}</span>
+    </div>
+    <div class="stats">
+      <div class="stat"><small>Skor</small><b>${res?`${res.score} <span class="grade g-${res.grade}">${res.grade}</span>`:"—"}</b></div>
+      <div class="stat"><small>Avtomobilin qiyməti</small><b>${price?azn(price):"—"}</b></div>
+      <div class="stat"><small>İlkin ödəniş${fin?" (son)":""}</small><b>${dp!=null&&price?`${dp}% · ${azn(price*dp/100)}`:"—"}</b></div>
+      <div class="stat"><small>Aylıq ödəniş</small><b>${pay?azn(pay):"—"}</b></div>
+    </div>
+    ${steps(a)}
+  </section>
   <div class="grid">
-    <section class="panel"><h3>Müştəri</h3>
+    <section class="panel">${ph("user","Müştəri")}
       <dl class="kv">
         <dt>FİN kod</dt><dd class="mono" lang="en">${esc(a.fin)}</dd>
         <dt>Şəxsiyyət vəsiqəsi</dt><dd class="mono">${esc(a.id_series)} ${esc(a.id_number)}</dd>
-        <dt>Mobil</dt><dd><a href="tel:+${esc(a.phone)}" style="color:inherit">+${esc(a.phone)}</a></dd>
+        <dt>Mobil</dt><dd><a href="tel:+${esc(a.phone)}">+${esc(a.phone)}</a></dd>
         <dt>Gəlir mənbəyi</dt><dd>${a.income_sources.map(s=>INCOME[s]).join(", ")}</dd>
         ${a.voen?`<dt>VÖEN</dt><dd class="mono">${esc(a.voen)}</dd>`:""}
         <dt>Razılıq</dt><dd>${dt(a.consent_at)} · IP ${esc(a.client_ip||"—")}</dd>
-        ${a.reject_reason?`<dt>İmtina səbəbi</dt><dd>${esc(a.reject_reason)}</dd>`:""}
-        ${a.offer?`<dt>Təklif</dt><dd>${azn(a.offer.price)}, ilkin ${a.offer.downPct}%, ${a.offer.months} ay, illik ${a.offer.rate}%</dd>`:""}
-        ${a.offer?.final?`<dt>Son şərt (müştəri)</dt><dd style="color:var(--ok)">İlkin ödəniş ${a.offer.final.downPct}% · ${azn(a.offer.price*a.offer.final.downPct/100)} · aylıq ${azn(Scoring.pmt(a.offer.price*(1-a.offer.final.downPct/100),a.offer.rate,a.offer.months))}</dd>`:""}
+        ${o?`<dt>Təklif</dt><dd>${azn(o.price)}, ilkin ${o.downPct}%, ${o.months} ay, illik ${o.rate}%</dd>`:""}
       </dl>
+      ${fin?`<div class="callout">Müştəri son təklifi təsdiqlədi<small>İlkin ödəniş ${fin.downPct}% · ${azn(o.price*fin.downPct/100)} · aylıq ${azn(pay)} · ${dt(fin.at)}</small></div>`:""}
+      ${a.reject_reason?`<div class="callout bad">İmtina səbəbi<small>${esc(a.reject_reason)}</small></div>`:""}
     </section>
-    <section class="panel"><h3>Gəlir sənədləri</h3>
-      <div class="files">${a.income_sources.map(s=>`<div><h4>${INCOME[s]}</h4><div class="row">${(bySrc[s]||[]).map(f=>`<button type="button" class="fbtn" data-file="${esc(f.stored_name)}" title="${esc(f.original_name)}">${esc(f.original_name)}</button>`).join("")||`<span class="muted">Sənəd yüklənməyib</span>`}</div></div>`).join("")}</div>
+    <section class="panel">${ph("doc","Gəlir sənədləri",`<span class="muted" style="font-size:12px">${a.files.length} fayl</span>`)}
+      <div class="files">${a.income_sources.map(s=>`<div><h4>${INCOME[s]}</h4><div class="row">${(bySrc[s]||[]).map(f=>`<button type="button" class="fbtn" data-file="${esc(f.stored_name)}" title="${esc(f.original_name)}">${IC.doc}<span>${esc(f.original_name)}</span><em>${f.size_bytes?Math.max(1,Math.round(f.size_bytes/1024))+" KB":""}</em></button>`).join("")||`<span class="nofile">Sənəd yüklənməyib</span>`}</div></div>`).join("")}</div>
     </section>
 
-    <section class="panel span2"><h3>Qiymətləndirmə</h3>
-      <div class="grid">
+    <section class="panel span2">${ph("gauge","Qiymətləndirmə",a.assessment?`<span class="muted" style="font-size:12px">Son: ${esc(a.assessment.by)}, ${dt(a.assessment.at)}</span>`:"")}
+      <div class="assess">
         <form id="aForm" autocomplete="off">
-          <fieldset><legend>Kredit Bürosu (AKB) hesabatı</legend><div class="form">
+          <fieldset><legend><i>1</i>Kredit Bürosu (AKB) hesabatı</legend><div class="form">
             <label class="chk wide"><input type="checkbox" name="overdueNow" ${val(a,"overdueNow",false)?"checked":""}> Hazırda aktiv gecikmə var</label>
             <label class="f">Ən böyük keçmiş gecikmə<select name="maxOverdue">${["0","1-30","31-90","90+"].map(o=>`<option value="${o}" ${val(a,"maxOverdue","0")===o?"selected":""}>${o==="0"?"Gecikmə olmayıb":o+" gün"}</option>`).join("")}</select></label>
             <label class="f">Aktiv kreditlərin sayı<input name="activeLoans" type="number" min="0" value="${val(a,"activeLoans",0)}"></label>
             <label class="f">Mövcud aylıq ödənişlər, ₼<input name="debtMonthly" type="number" min="0" value="${val(a,"debtMonthly",0)}"></label>
             <label class="f wide">AKB üzrə qeyd<textarea name="akbNote" placeholder="Məs. 2 kredit kartı, limit 3 000 ₼">${esc(val(a,"akbNote"))}</textarea></label>
           </div></fieldset>
-          <fieldset><legend>Gəlir</legend><div class="form">
-            <label class="f">Təsdiqlənmiş xalis aylıq gəlir, ₼<input name="incomeMonthly" type="number" min="0" value="${val(a,"incomeMonthly","")}"></label>
-            <label class="f">İş / fəaliyyət stajı, ay<input name="tenureMonths" type="number" min="0" value="${val(a,"tenureMonths","")}"></label>
+          <fieldset><legend><i>2</i>Gəlir</legend><div class="form">
+            <label class="f">Təsdiqlənmiş xalis aylıq gəlir, ₼<input name="incomeMonthly" type="number" min="0" placeholder="Məs. 2 500" value="${val(a,"incomeMonthly","")}"></label>
+            <label class="f">İş / fəaliyyət stajı, ay<input name="tenureMonths" type="number" min="0" placeholder="Məs. 24" value="${val(a,"tenureMonths","")}"></label>
             <label class="chk wide"><input type="checkbox" name="docsOk" ${val(a,"docsOk",false)?"checked":""}> Sənədlər yoxlanılıb və uyğundur</label>
           </div></fieldset>
-          <fieldset><legend>Lizinq şərtləri</legend><div class="form">
-            <label class="f">Avtomobilin qiyməti, ₼<input name="price" type="number" min="0" step="100" value="${val(a,"price","")}"></label>
+          <fieldset><legend><i>3</i>Lizinq şərtləri</legend><div class="form">
+            <label class="f">Avtomobilin qiyməti, ₼<input name="price" type="number" min="0" step="100" placeholder="Məs. 45 000" value="${val(a,"price","")}"></label>
             <label class="f">İlkin ödəniş, %<input name="downPct" type="number" min="0" max="90" value="${val(a,"downPct",20)}"></label>
             <label class="f">Müddət<select name="months">${[12,24,36,48,60].map(m=>`<option value="${m}" ${+val(a,"months",36)===m?"selected":""}>${m} ay</option>`).join("")}</select></label>
             <label class="f">İllik faiz, %<input name="rate" type="number" min="0" step="0.1" value="${val(a,"rate",17)}"></label>
-            <label class="f">Komissiya, %<input name="commissionPct" type="number" min="0" step="0.1" value="${a.offer?.commissionPct??1.5}"></label>
+            <label class="f">Komissiya, %<input name="commissionPct" type="number" min="0" step="0.1" value="${o?.commissionPct??1.5}"></label>
           </div></fieldset>
-          <button class="btn ghost" type="submit">Qiymətləndirməni saxla</button>
-          ${a.assessment?`<span class="muted" style="margin-left:10px;font-size:12.5px">Son: ${esc(a.assessment.by)}, ${dt(a.assessment.at)}</span>`:""}
+          <div class="savebar"><button class="btn ghost" type="submit">Qiymətləndirməni saxla</button><span class="muted" style="font-size:12.5px">Skor serverdə yenidən hesablanır.</span></div>
         </form>
-        <div>
-          <div id="result"></div>
-          <div class="panel" style="background:var(--raised);margin-top:16px">
+        <div class="rail">
+          <div class="engine-card" id="result"></div>
+          <div class="panel decision">
             <h3>Qərar</h3>
-            <div class="actions" style="margin-top:0">
-              <button class="btn" type="button" id="sendOffer" ${open?"":"disabled"}>Təklifi müştəriyə göndər</button>
-            </div>
-            <label class="f" style="margin-top:14px">İmtina səbəbi (müştəriyə göstərilmir)<textarea id="reason" placeholder="Məs. AKB-də aktiv gecikmə, borc yükü 64%"></textarea></label>
+            <button class="btn" type="button" id="sendOffer" style="width:100%" ${open?"":"disabled"}>Təklifi müştəriyə göndər</button>
+            <div class="or">və ya</div>
+            <label class="f">İmtina səbəbi, müştəriyə göstərilmir<textarea id="reason" placeholder="Məs. AKB-də aktiv gecikmə, borc yükü 64%"></textarea></label>
             <div class="actions"><button class="btn danger" type="button" id="reject" ${["review","offer"].includes(a.status)?"":"disabled"}>Müraciəti rədd et</button></div>
             ${open?"":`<p class="muted" style="margin:10px 0 0;font-size:12.5px">Müraciət bağlanıb, qərar dəyişdirilə bilməz.</p>`}
           </div>
@@ -488,9 +684,9 @@ function renderDetail(){
       </div>
     </section>
 
-    <section class="panel span2"><h3>Tarixçə və qeydlər</h3>
+    <section class="panel span2">${ph("clock","Tarixçə və qeydlər")}
       <ol class="tl">${a.events.map(evHtml).join("")||`<li class="muted">Hələ hadisə yoxdur.</li>`}</ol>
-      <form id="nForm" style="display:flex;gap:8px;margin-top:16px"><input id="note" placeholder="Qeyd əlavə et, məs. müştəriyə zəng edildi"><button class="btn ghost" type="submit">Əlavə et</button></form>
+      <form id="nForm" class="noteform"><input id="note" placeholder="Qeyd əlavə et, məs. müştəriyə zəng edildi"><button class="btn ghost" type="submit">Əlavə et</button></form>
     </section>
   </div>`;
   liveResult();
@@ -498,13 +694,16 @@ function renderDetail(){
     ["#sendOffer","#reject","#reason"].forEach(q=>{const el=$(q);if(el)el.disabled=true});
     $("#sendOffer")?.closest(".panel").insertAdjacentHTML("beforeend",`<p class="muted" style="margin:10px 0 0;font-size:12.5px">Qərarı kredit eksperti verir. Satış mütəxəssisi qeyd yaza bilər.</p>`)}
 }
+const EV_IC={created:["inbox",""],assessed:["gauge",""],offer:["send",""],rejected:["x","k-bad"],note:["pen",""],accepted:["check","k-ok"],declined:["x","k-bad"],cancelled:["x","k-bad"],sms:["msg","k-sms"]};
 function evHtml(e){
   const d=e.details||{};
   const extra=e.kind==="assessed"?`${d.score} bal, ${d.grade} · ${Scoring.VERDICTS[d.verdict]||""}`:
     e.kind==="offer"?`${azn(d.price)}, ilkin ${d.downPct}%, ${d.months} ay, illik ${d.rate}%`:
-    e.kind==="rejected"?d.reason:e.kind==="note"?d.text:e.kind==="sms"?(d.to?d.to+": ":"")+(d.error?"Göndərilmədi: "+d.error:d.text)+(d.demo?" (SMS provayderi qoşulmayıb, göndərilmədi)":""):
+    e.kind==="rejected"?d.reason:e.kind==="note"?d.text:e.kind==="sms"?(d.error?"Göndərilmədi: "+d.error:d.text)+(d.demo?" (SMS provayderi qoşulmayıb, göndərilmədi)":""):
     e.kind==="created"?`${d.files||0} sənəd`:e.kind==="accepted"&&d.downPct!=null?`ilkin ödəniş ${d.downPct}%`:"";
-  return `<li><span class="dot" style="${e.kind==="rejected"||d.error?"background:var(--red)":""}"></span><span><b>${EVENTS[e.kind]||e.kind}</b>${extra?` · ${esc(extra)}`:""}<small>${dt(e.at)} · ${esc(e.actor)}</small></span></li>`;
+  const [ic,cls]=EV_IC[e.kind]||["clock",""];
+  const title=e.kind==="sms"?`SMS${d.to?" → "+d.to:""}`:EVENTS[e.kind]||e.kind;
+  return `<li><span class="dot ${d.error?"k-bad":cls}">${IC[ic]}</span><div class="body"><b>${esc(title)}</b>${extra?`<p>${esc(extra)}</p>`:""}<small>${dt(e.at)} · ${esc(e.actor)}</small></div></li>`;
 }
 function inputs(){
   const f=$("#aForm"),o={};
@@ -513,25 +712,25 @@ function inputs(){
 }
 function liveResult(){
   const i=inputs(),r=Scoring.assess(i),lim=Scoring.POLICY.maxDti;
-  const col=r.verdict==="approve"?"var(--ok)":r.verdict==="reject"?"var(--bad)":r.verdict==="incomplete"?"var(--muted)":"var(--warn)";
-  const dtiW=r.dti==null?100:Math.min(100,r.dti*100);
-  const dtiC=r.dti==null?"var(--line-2)":r.dti>Scoring.POLICY.stopDti?"var(--bad)":r.dti>lim?"var(--warn)":"var(--ok)";
-  const comm=r.financed*(+i.commissionPct||0)/100;
-  $("#result").innerHTML=`
-    <div class="score"><div class="ring" style="--p:${r.verdict==="incomplete"?0:r.score};--c:${col}"><span>${r.verdict==="incomplete"?"—":r.score}</span></div>
-      <div><span class="eyebrow">${r.verdict==="incomplete"?"İlkin hesablama":"Skor · "+r.grade}</span><div class="verdict" style="color:${col}">${Scoring.VERDICTS[r.verdict]}</div>
-      <div class="muted" style="font-size:12.5px">${i.incomeMonthly?"":"Gəliri daxil et. "}${i.price?"":"Qiyməti daxil et."}</div></div></div>
-    <div><div style="display:flex;justify-content:space-between;font-size:12.5px"><span class="muted">Borc yükü (DTI)</span><b>${r.dti==null?"—":Math.round(r.dti*100)+"%"}</b></div>
+  const col=r.verdict==="approve"?"#6FCF97":r.verdict==="reject"?"#F08A80":r.verdict==="incomplete"?"#6E79A6":"#E9BE62";
+  const dtiW=r.dti==null?0:Math.min(100,r.dti*100);
+  const dtiC=r.dti==null?"transparent":r.dti>Scoring.POLICY.stopDti?"#F08A80":r.dti>lim?"#E9BE62":"#6FCF97";
+  const comm=r.financed*(+i.commissionPct||0)/100,inc=r.verdict==="incomplete";
+  $("#result").innerHTML=`<span class="eyebrow">Decision engine · canlı</span>
+    <div class="score"><div class="ring" style="--p:${inc?0:r.score};--c:${col}"><span>${inc?"—":r.score}<small>${inc?"skor":"bal · "+r.grade}</small></span></div>
+      <div><small>Tövsiyə</small><div class="verdict" style="color:${col}">${Scoring.VERDICTS[r.verdict]}</div>
+      <div class="muted" style="font-size:12.5px;margin-top:4px">${inc?(i.incomeMonthly?"":"Gəliri daxil et. ")+(i.price?"":"Qiyməti daxil et."):"Son qərar ekspertə məxsusdur."}</div></div></div>
+    <div><div style="display:flex;justify-content:space-between;font-size:12.5px"><small>Borc yükü (DTI)</small><b>${r.dti==null?"—":Math.round(r.dti*100)+"%"}</b></div>
       <div class="bar" style="--lim:${lim*100}%"><i style="width:${dtiW}%;background:${dtiC}"></i></div>
-      <small class="muted">Hədd ${Math.round(lim*100)}%, imtina ${Math.round(Scoring.POLICY.stopDti*100)}%-dən yuxarı</small></div>
+      <small>Hədd ${Math.round(lim*100)}%, imtina ${Math.round(Scoring.POLICY.stopDti*100)}%-dən yuxarı</small></div>
     <div class="mini">
       <div><small>Yeni aylıq ödəniş</small><b>${r.pay?azn(r.pay):"—"}</b></div>
-      <div><small>Maliyyələşmə məbləği</small><b>${r.financed?azn(r.financed):"—"}</b></div>
-      <div><small>Gəlirə görə maks. ödəniş</small><b>${azn(r.maxPayment)}</b></div>
-      <div><small>Gəlirə görə maks. qiymət</small><b>${azn(r.maxPrice)}</b></div>
+      <div><small>Maliyyələşmə</small><b>${r.financed?azn(r.financed):"—"}</b></div>
+      <div><small>Maks. aylıq ödəniş</small><b>${azn(r.maxPayment)}</b></div>
+      <div><small>Maks. avtomobil qiyməti</small><b>${azn(r.maxPrice)}</b></div>
     </div>
-    ${r.stops.length||r.notes.length?`<ul class="r">${r.stops.map(s=>`<li class="stop">${esc(s)}</li>`).join("")}${r.notes.map(s=>`<li>${esc(s)}</li>`).join("")}</ul>`:`<p class="muted" style="margin:0">Risk faktoru yoxdur.</p>`}
-    ${comm?`<p class="muted" style="font-size:12.5px;margin:10px 0 0">Komissiya: ${azn(comm)}</p>`:""}`;
+    ${r.stops.length||r.notes.length?`<ul class="r">${r.stops.map(s=>`<li class="stop">${esc(s)}</li>`).join("")}${r.notes.map(s=>`<li>${esc(s)}</li>`).join("")}</ul>`:`<p class="ok-line">${IC.check.replace("<svg",'<svg width="16" height="16"')} Risk faktoru yoxdur</p>`}
+    ${comm?`<p style="font-size:12.5px;margin:12px 0 0"><small>Komissiya: ${azn(comm)}</small></p>`:""}`;
 }
 
 document.addEventListener("input",e=>{if(e.target.closest("#aForm"))liveResult()});

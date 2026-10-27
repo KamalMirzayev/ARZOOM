@@ -39,6 +39,7 @@ PostgreSQL internetə açılmır, ona yalnız tətbiq konteyneri qoşulur. Yükl
    - `SSH_USER`: istifadəçi adı (sudo icazəsi olmalıdır)
    - `SSH_KEY`: `arzoom_deploy` faylının məzmunu (gizli açar)
    - `SSH_PORT`: 22 deyilsə
+   - Açar əvəzinə müvəqqəti olaraq `SSH_PASSWORD` da işləyir, amma açar daha təhlükəsizdir.
 4. `main`-ə push et. İlk dəfə `bootstrap.sh` Docker quraşdırır və `/opt/arzoom/.env` faylını təsadüfi parollarla yaradır.
 
 `ADMIN_TOKEN` serverdə `/opt/arzoom/.env` faylındadır.

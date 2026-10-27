@@ -35,12 +35,13 @@
   color-scheme:light}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
+.inp::placeholder{color:var(--muted);opacity:.5;font-weight:400;text-transform:none;letter-spacing:.02em;font-size:15px}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;
   background-image:radial-gradient(900px 420px at 85% -10%,var(--bg-glow),transparent 70%),radial-gradient(700px 360px at -10% 20%,var(--gold-soft),transparent 70%),radial-gradient(500px 260px at 110% 60%,var(--red-soft),transparent 70%);background-attachment:fixed}
-.wrap{max-width:1200px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:22px 56px}
-h1,h2,h3{font-family:var(--f-display);font-stretch:118%;font-weight:700;text-wrap:balance;margin:0;letter-spacing:-.01em}
+.wrap{max-width:1360px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:22px 56px}
+h1,h2,h3{font-family:var(--f-display);font-stretch:106%;font-weight:700;text-wrap:balance;margin:0;letter-spacing:-.01em}
 .mono{font-family:var(--f-mono)}
-.eyebrow{font-family:var(--f-display);font-stretch:125%;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);font-weight:600}
+.eyebrow{font-family:var(--f-display);font-stretch:112%;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);font-weight:600}
 .hint{font-size:13px;color:var(--muted);font-weight:400}
 button,input,select{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--gold);outline-offset:2px}
@@ -64,7 +65,7 @@ nav.tabs .count{display:inline-grid;place-items:center;min-width:19px;height:19p
 .hero h1 em{font-style:normal;color:var(--gold)}
 .hero p{margin:0;color:var(--muted);max-width:58ch;font-size:16px}
 
-.grid{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:24px;align-items:start}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,410px);gap:clamp(20px,2.4vw,36px);align-items:start}
 @media (max-width:940px){.grid{grid-template-columns:minmax(0,1fr)}}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:28px;box-shadow:var(--shadow)}
 @media (max-width:520px){.panel{padding:20px}}
@@ -164,7 +165,7 @@ label.btn input{position:absolute;width:1px;height:1px;opacity:0}
 .card .muted{color:var(--card-muted);font-size:13px}
 .card .carsvg{width:100%;height:96px;color:var(--card-accent);margin:6px 0 2px}
 .card .carsvg .wheel{fill:#05070A}
-.card .carname{font-family:var(--f-display);font-stretch:118%;font-size:24px;font-weight:700;line-height:1.15}
+.card .carname{font-family:var(--f-display);font-stretch:106%;font-size:24px;font-weight:700;line-height:1.15}
 .card .kv{display:grid;margin-top:16px;font-size:14px}
 .card .kv div{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:10px 0;border-top:1px solid var(--card-line)}
 .card .kv span:first-child{color:var(--card-muted)}
@@ -177,7 +178,7 @@ label.btn input{position:absolute;width:1px;height:1px;opacity:0}
 .card .chip{width:30px;height:30px;border-radius:50%;border:3px solid var(--red);background:radial-gradient(circle,var(--red) 0 4px,transparent 5px);opacity:.95}
 .card .btn{background:#FFFFFF;color:#22348F}
 .card .btn.ghost{background:transparent;color:var(--card-ink);border-color:rgb(255 255 255 / .25)}
-.big{font-family:var(--f-display);font-stretch:112%;font-size:clamp(36px,4.6vw,46px);font-weight:750;line-height:1;letter-spacing:-.02em}
+.big{font-family:var(--f-display);font-stretch:104%;font-size:clamp(36px,4.6vw,46px);font-weight:750;line-height:1;letter-spacing:-.02em}
 .dp{margin-top:18px;padding-top:16px;border-top:1px solid var(--card-line);display:grid;gap:8px}
 .dp-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline;font-size:13.5px}
 .dp-head b{font-family:var(--f-mono);font-weight:500;color:var(--card-ink)}
@@ -282,19 +283,19 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-si
         <div class="fields" data-step="0">
           <div class="step-head"><span class="eyebrow">Addım 1</span><h2>Şəxsiyyət məlumatları</h2></div>
           <div class="field"><label for="aFin">FİN kod <span class="hint">7 simvol, vəsiqənin üzərində</span></label>
-            <input class="inp mono" lang="en" id="aFin" maxlength="7" value="5ABC7KD" autocomplete="off" style="text-transform:uppercase;letter-spacing:.3em;font-size:18px">
+            <input class="inp mono" lang="en" id="aFin" maxlength="7" placeholder="Məs. 5ABC7KD" autocomplete="off" style="text-transform:uppercase;letter-spacing:.3em;font-size:18px">
             <span class="err-msg" data-err="aFin" hidden>FİN kod 7 simvol olmalıdır: rəqəm və latın hərfləri.</span></div>
           <div class="field"><label for="aIdNo">Şəxsiyyət vəsiqəsinin seriyası və nömrəsi</label>
             <div class="combo">
               <select class="inp mono" id="aIdSer" aria-label="Seriya"><option>AZE</option><option>AA</option><option>AB</option></select>
-              <input class="inp mono" id="aIdNo" inputmode="numeric" maxlength="8" value="12345678" autocomplete="off" style="letter-spacing:.12em">
+              <input class="inp mono" id="aIdNo" inputmode="numeric" maxlength="8" placeholder="Məs. 12345678" autocomplete="off" style="letter-spacing:.12em">
             </div>
             <span class="hint" id="idHint">AZE seriyası üçün 8 rəqəm.</span>
             <span class="err-msg" data-err="aIdNo" hidden></span></div>
           <div class="field"><label for="aPhone">Mobil nömrə <span class="hint">SMS təsdiq kodu bu nömrəyə gələcək</span></label>
             <div class="combo">
               <select class="inp mono" id="aOp" aria-label="Operator kodu"><option>050</option><option>051</option><option>010</option><option>055</option><option>099</option><option>070</option><option>077</option></select>
-              <input class="inp mono" id="aPhone" type="tel" inputmode="numeric" maxlength="9" value="123 45 67" autocomplete="tel-local">
+              <input class="inp mono" id="aPhone" type="tel" inputmode="numeric" maxlength="9" placeholder="Məs. 123 45 67" autocomplete="tel-local">
             </div>
             <span class="err-msg" data-err="aPhone" hidden>Nömrə 7 rəqəmdən ibarət olmalıdır.</span></div>
           <div class="note"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 7v4M8 4.6v.1"/></svg>Ad, soyad və ata adı FİN kod əsasında dövlət reyestrindən avtomatik gətiriləcək.</div>
@@ -381,8 +382,8 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-si
       <div><span class="eyebrow">Müraciətimi tap</span><h3>Müraciət nömrəsi ilə daxil ol</h3>
         <p class="hint" style="margin:6px 0 0">Başqa cihazdan müraciət etmisənsə, nömrəni və FİN kodu yaz. Müraciətdəki mobil nömrəyə SMS kodu göndərəcəyik.</p></div>
       <div class="find-row" id="findA">
-        <input class="inp" id="fId" placeholder="AA-2026-123456" aria-label="Müraciət nömrəsi" autocomplete="off" lang="en">
-        <input class="inp" id="fFin" placeholder="FİN kod" aria-label="FİN kod" maxlength="7" autocomplete="off" lang="en">
+        <input class="inp" id="fId" placeholder="Məs. AA-2026-123456" aria-label="Müraciət nömrəsi" autocomplete="off" lang="en">
+        <input class="inp" id="fFin" placeholder="Məs. 5ABC7KD" aria-label="FİN kod" maxlength="7" autocomplete="off" lang="en">
         <button type="submit" class="btn" id="fSend">SMS kodu al</button>
       </div>
       <div class="find-row" id="findB" hidden>
@@ -467,7 +468,7 @@ function renderInc(){
     <label class="check" for="inc-${s.k}"><input type="checkbox" id="inc-${s.k}" data-inc="${s.k}" ${st.on?"checked":""}><span><b>${s.t}</b><small>${s.h}</small></span></label>
     ${st.on?`<div class="upl">
       ${s.k==="biz"?`<label class="hint" for="aVoen" style="color:var(--ink);font-weight:600">VÖEN <span class="hint">məcburi, 10 rəqəm</span></label>
-        <input class="inp mono" id="aVoen" data-voen inputmode="numeric" maxlength="10" placeholder="1234567890" value="${esc(st.voen||"")}" style="letter-spacing:.12em">
+        <input class="inp mono" id="aVoen" data-voen inputmode="numeric" maxlength="10" placeholder="Məs. 1234567890" value="${esc(st.voen||"")}" style="letter-spacing:.12em">
         <span class="err-msg" data-err="aVoen" hidden>VÖEN 10 rəqəmdən ibarət olmalıdır.</span>`:""}
       <small class="hint">${s.d}</small>
       ${fl.map((f,i)=>`<span class="file" style="display:flex;gap:8px;align-items:center;max-width:100%"><span style="overflow:hidden;text-overflow:ellipsis">✓ ${esc(f)}</span><button type="button" class="rmfile" data-rm="${s.k}:${i}" aria-label="${esc(f)} faylını sil">×</button></span>`).join("")}
@@ -495,7 +496,7 @@ function renderSide(){
   $("#sBrand").textContent=m?`${brand} · ${BODYNAME[m[1]]}${m[2]?" · "+PT[m[2]][0].toLocaleUpperCase("az")+PT[m[2]].slice(1):""}`:(step>=2?brand:"Avtomobil");
   $("#sCar").textContent=m?model:(step>=2?"Model seçin":"Hələ seçilməyib");
   $("#sStep").textContent=`Addım ${step+1} / 5 · ${STEPS[step]}`;$("#sBar").style.width=((step+1)/5*100)+"%";
-  const rows=[["FİN kod",$("#aFin").value.toUpperCase()||"—"],["Şəxsiyyət vəsiqəsi",$("#aIdSer").value+" "+$("#aIdNo").value],["Mobil nömrə",phoneFull()]];
+  const rows=[["FİN kod",$("#aFin").value.toUpperCase()||"—"],["Şəxsiyyət vəsiqəsi",$("#aIdNo").value?$("#aIdSer").value+" "+$("#aIdNo").value:"—"],["Mobil nömrə",$("#aPhone").value?phoneFull():"—"]];
   if(step>=1)rows.push(["Gəlir mənbəyi",incNames()]);
   $("#sKv").innerHTML=kvHtml(rows);
 }
@@ -751,7 +752,7 @@ $("#mSearch").addEventListener("input",e=>{q=e.target.value.trim();renderModels(
 $("#prevBtn").addEventListener("click",()=>{if(step){step--;renderStep()}});
 $("#appForm").addEventListener("submit",e=>{e.preventDefault();if(!validate())return;if(step<STEPS.length-1){step++;renderStep();$("#appForm").scrollIntoView({block:"start",behavior:"smooth"})}else submitApp()});
 ["#aFin","#aIdNo","#aPhone"].forEach(s=>$(s).addEventListener("input",renderSide));
-$("#aIdSer").addEventListener("change",e=>{const len=e.target.value==="AZE"?8:7;$("#aIdNo").maxLength=len;$("#idHint").textContent=`${e.target.value} seriyası üçün ${len} rəqəm.`;renderSide()});
+$("#aIdSer").addEventListener("change",e=>{const len=e.target.value==="AZE"?8:7;$("#aIdNo").maxLength=len;$("#aIdNo").placeholder=len===8?"Məs. 12345678":"Məs. 1234567";$("#idHint").textContent=`${e.target.value} seriyası üçün ${len} rəqəm.`;renderSide()});
 $("#aOp").addEventListener("change",renderSide);
 $("#incSrc").addEventListener("change",e=>{const k=e.target.dataset.inc,f=e.target.dataset.file;
   if(k){inc[k]=inc[k]||{};inc[k].on=e.target.checked;renderInc()}

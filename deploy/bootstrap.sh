@@ -12,7 +12,7 @@ if [ ! -f "$APP_DIR/.env" ]; then
 POSTGRES_PASSWORD=$(openssl rand -hex 24)
 ADMIN_TOKEN=$(openssl rand -hex 24)
 DEMO_SMS=true
-HTTP_PORT=80
+SITE_ADDRESS=localhost
 ENV
   chmod 600 "$APP_DIR/.env"
   echo ".env yaradıldı: $APP_DIR/.env (ADMIN_TOKEN burada saxlanılır)"

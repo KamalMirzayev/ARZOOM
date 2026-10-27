@@ -9,10 +9,11 @@ Müştəri səhifəsi + Node.js API + PostgreSQL. Docker Compose ilə işləyir,
 | API | `server.js` |
 | Verilənlər bazası sxemi | `db/schema.sql` (tətbiq açılanda avtomatik yaradılır) |
 | Konteynerlər | `Dockerfile`, `docker-compose.yml` |
+| HTTPS | `Caddyfile` |
 | CI/CD | `.github/workflows/deploy.yml` |
 | Server skriptləri | `deploy/bootstrap.sh`, `deploy/deploy.sh` |
 
-PostgreSQL internetə açılmır, ona yalnız tətbiq konteyneri qoşulur. Yüklənən sənədlər `uploads` volume-unda saxlanılır.
+PostgreSQL internetə açılmır, ona yalnız tətbiq konteyneri qoşulur. Sayt Caddy vasitəsilə HTTPS ilə açılır: domen olanda Let's Encrypt sertifikatı avtomatik alınır və yenilənir, HTTP sorğuları HTTPS-ə yönləndirilir. Yüklənən sənədlər `uploads` volume-unda saxlanılır.
 
 ## API
 | Metod | Yol | Nə edir |
@@ -39,6 +40,7 @@ PostgreSQL internetə açılmır, ona yalnız tətbiq konteyneri qoşulur. Yükl
    - `SSH_USER`: istifadəçi adı (sudo icazəsi olmalıdır)
    - `SSH_KEY`: `arzoom_deploy` faylının məzmunu (gizli açar)
    - `SSH_PORT`: 22 deyilsə
+   - `DOMAIN`: sayt domeni, məs. `lizinq.arzoom.az` (yoxdursa, IP ünvanı istifadə olunur)
    - Açar əvəzinə müvəqqəti olaraq `SSH_PASSWORD` da işləyir, amma açar daha təhlükəsizdir.
 4. `main`-ə push et. İlk dəfə `bootstrap.sh` Docker quraşdırır və `/opt/arzoom/.env` faylını təsadüfi parollarla yaradır.
 
@@ -48,11 +50,11 @@ PostgreSQL internetə açılmır, ona yalnız tətbiq konteyneri qoşulur. Yükl
 ```bash
 cp .env.example .env   # dəyərləri dəyiş
 docker compose up -d --build
-# http://localhost
+# https://localhost
 ```
 
 ## Real istifadədən əvvəl
 - SMS provayderini `server.js`-dəki `TODO` yerinə qoşmaq və `DEMO_SMS=false` etmək.
-- Domen və HTTPS (məsələn, Caddy və ya Nginx + Let's Encrypt).
+- Domenin A qeydini serverin IP-sinə yönləndirmək və serverdə 80/443 portlarını açmaq.
 - Razılıq mətnlərini hüquqşünasa yoxlatmaq.
 - Əməkdaşlar üçün müraciət paneli (indi yalnız admin API var).

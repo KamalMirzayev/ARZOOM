@@ -37,6 +37,10 @@ jobs:
           curl -fsS localhost:3000/api/health
           curl -fsS localhost:3000/ | grep -q "Arzoom Avto Lizinq"
       - run: docker build -t arzoom-lizinq .
+      - name: Compose və Caddy konfiqurasiyası
+        run: |
+          POSTGRES_PASSWORD=x ADMIN_TOKEN=x SITE_ADDRESS=example.com docker compose config -q
+          docker run --rm -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" -e SITE_ADDRESS=example.com caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile
 
   deploy:
     needs: check
@@ -61,7 +65,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          source: "server.js,package.json,package-lock.json,Dockerfile,docker-compose.yml,.dockerignore,db,public,deploy"
+          source: "server.js,package.json,package-lock.json,Dockerfile,docker-compose.yml,Caddyfile,.dockerignore,db,public,deploy"
           target: /opt/arzoom
       - name: Konteynerləri yenilə
         if: env.HAS_SSH == 'true'
@@ -74,4 +78,4 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             test -f /opt/arzoom/.env || sudo bash /opt/arzoom/deploy/bootstrap.sh
-            bash /opt/arzoom/deploy/deploy.sh
+            DOMAIN='${{ secrets.DOMAIN || secrets.SSH_HOST }}' bash /opt/arzoom/deploy/deploy.sh

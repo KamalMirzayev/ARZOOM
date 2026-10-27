@@ -1,0 +1,14 @@
+# HTTPS: with a domain Caddy gets and renews a Let's Encrypt certificate itself.
+# With only an IP address it uses its own (self-signed) certificate, so browsers show a warning.
+{$SITE_ADDRESS:localhost} {
+	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+	request_body {
+		max_size 60MB
+	}
+	reverse_proxy app:3000
+}

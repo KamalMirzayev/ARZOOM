@@ -34,6 +34,7 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD}
       ADMIN_TOKEN: ${ADMIN_TOKEN:?ADMIN_TOKEN .env faylında yazılmalıdır}
       DEMO_SMS: ${DEMO_SMS:-true}
+      DEMO_OTP: ${DEMO_OTP:-123456}
       SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
       SMS_URL: ${SMS_URL:-}
       SMS_METHOD: ${SMS_METHOD:-GET}

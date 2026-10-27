@@ -504,13 +504,13 @@ function renderSide(){
 /* ---------- OTP ---------- */
 const otpVal=()=>$$("#otp input").map(i=>i.value).join("");
 function startOtp(){
-  otp=String(Math.floor(100000+Math.random()*900000));
+  otp="123456";
   $("#otpPhone").textContent=phoneFull();
   $("#otp").innerHTML=Array.from({length:6},(_,i)=>`<input class="inp" id="otp${i}" inputmode="numeric" maxlength="6" aria-label="Rəqəm ${i+1}" ${i===0?'autocomplete="one-time-code"':""}>`).join("");
   if(API){otp="";$("#otpDemo").hidden=true;
     fetch("/api/otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({phone:phoneFull()})})
       .then(r=>r.json().then(j=>({ok:r.ok,j}))).then(({ok,j})=>{if(!ok){err("otp",true,j.error);return}
-        if(j.demoCode){otp=j.demoCode;$("#otpDemo").hidden=false;$("#otpDemo").textContent=`Sınaq rejimi: SMS provayderi qoşulana qədər kod burada göstərilir: ${j.demoCode}.`}})
+        if(j.demoCode){otp=j.demoCode;$("#otpDemo").hidden=false;$("#otpDemo").textContent=`Sınaq rejimi: SMS provayderi qoşulana qədər kod ${j.demoCode}.`}})
       .catch(()=>err("otp",true,"Kod göndərilmədi. Yenidən cəhd et."))}
   else $("#otpDemo").textContent=`Prototip: real SMS göndərilmir. Sınaq üçün kod ${otp}.`;
   err("otp",false);
@@ -698,9 +698,9 @@ $("#find").addEventListener("submit",async e=>{
     try{
       let phone,demo;
       if(API){const r=await fetch("/api/lookup/otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,fin})});const j=await r.json();
-        if(!r.ok)return findMsg(j.error||"Kod göndərilmədi.");phone=j.phone;demo=j.demoCode?`Sınaq rejimi: SMS provayderi qoşulana qədər kod burada göstərilir: ${j.demoCode}.`:""}
+        if(!r.ok)return findMsg(j.error||"Kod göndərilmədi.");phone=j.phone;demo=j.demoCode?`Sınaq rejimi: SMS provayderi qoşulana qədər kod ${j.demoCode}.`:""}
       else{const a=apps.find(x=>x.id===id&&x.fin===fin);if(!a)return findMsg("Bu nömrə və FİN ilə müraciət tapılmadı.");
-        phone=a.phone;findOtp=String(Math.floor(100000+Math.random()*900000));demo=`Prototip: real SMS göndərilmir. Sınaq üçün kod ${findOtp}.`}
+        phone=a.phone;findOtp="123456";demo=`Prototip: real SMS göndərilmir. Sınaq üçün kod ${findOtp}.`}
       findStage=1;$("#findA").hidden=true;$("#findB").hidden=false;findMsg("",`Kod ${phone} nömrəsinə göndərildi. 5 dəqiqə etibarlıdır.`,demo);
       setTimeout(()=>$("#fCode").focus(),50);
     }catch(e){findMsg("Bağlantı xətası. Yenidən cəhd et.")}finally{$("#fSend").disabled=false}

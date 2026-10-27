@@ -17,6 +17,8 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
 // Until an SMS provider is connected (SMS_URL) the code is returned to the page so the flow can be tested.
 const DEMO_SMS = !SMS_ON && process.env.DEMO_SMS !== "false";
+// Until SMS works every code is DEMO_OTP (123456 by default); with a provider codes are random.
+const newCode = () => DEMO_SMS ? (process.env.DEMO_OTP || "123456") : String(crypto.randomInt(100000, 1000000));
 const SITE_URL = process.env.SITE_ADDRESS && process.env.SITE_ADDRESS !== "localhost" ? `https://${process.env.SITE_ADDRESS}` : "";
 const INCOME = ["work", "biz", "pension", "social"];
 const SERIES = { AZE: 8, AA: 7, AB: 7 };
@@ -80,7 +82,7 @@ app.post("/api/otp", otpLimit, async (req, res) => {
   if (!/^994\d{9}$/.test(phone)) return bad(res, "Mobil nömrə düzgün deyil.");
   const prev = await pool.query("SELECT 1 FROM otp_codes WHERE phone = $1 AND expires_at > now() + interval '4 minutes'", [phone]);
   if (prev.rowCount) return bad(res, "Kod artıq göndərilib. Yenisini 1 dəqiqədən sonra istəyə bilərsən.", 429);
-  const code = String(crypto.randomInt(100000, 1000000));
+  const code = newCode();
   await pool.query(
     `INSERT INTO otp_codes (phone, code_hash, expires_at, attempts) VALUES ($1,$2, now() + interval '5 minutes', 0)
      ON CONFLICT (phone) DO UPDATE SET code_hash = EXCLUDED.code_hash, expires_at = EXCLUDED.expires_at, attempts = 0`,
@@ -195,7 +197,7 @@ app.post("/api/lookup/otp", otpLimit, async (req, res) => {
   if (!a) return bad(res, "Bu nömrə və FİN ilə müraciət tapılmadı.", 404);
   const prev = await pool.query("SELECT 1 FROM otp_codes WHERE phone = $1 AND expires_at > now() + interval '4 minutes'", [a.phone]);
   if (prev.rowCount) return bad(res, "Kod artıq göndərilib. Yenisini 1 dəqiqədən sonra istəyə bilərsən.", 429);
-  const code = String(crypto.randomInt(100000, 1000000));
+  const code = newCode();
   await pool.query(
     `INSERT INTO otp_codes (phone, code_hash, expires_at, attempts) VALUES ($1,$2, now() + interval '5 minutes', 0)
      ON CONFLICT (phone) DO UPDATE SET code_hash = EXCLUDED.code_hash, expires_at = EXCLUDED.expires_at, attempts = 0`,

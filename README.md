@@ -72,7 +72,12 @@ docker compose up -d --build
 ```
 
 ## Əməkdaş paneli
-`https://DOMEN/admin` ünvanında açılır. Giriş üçün ad və `.env`-dəki `ADMIN_TOKEN` lazımdır; hər addım əməkdaşın adı ilə tarixçəyə yazılır.
+`https://DOMEN/admin` ünvanında açılır. Hər əməkdaşın öz istifadəçi adı və parolu var, hər addım onun adı ilə tarixçəyə yazılır.
+
+- İlk girişdə: istifadəçi adı `admin`, parol `.env`-dəki `ADMIN_TOKEN`. Daxil olandan sonra "Parolu dəyiş" ilə dəyiş.
+- Rollar: **Kredit eksperti** müraciətləri qiymətləndirir, təklif və imtina göndərir; **Admin** bundan əlavə "İstifadəçilər" bölməsində hesab yaradır, söndürür, parol sıfırlayır.
+- Parollar scrypt ilə saxlanılır, sessiya 12 saatdır, 15 dəqiqədə 10 uğursuz girişdən sonra IP bloklanır.
+- Admin parolu unudulsa: `cd /opt/arzoom && sudo docker compose exec app node reset-password.js admin 'YeniParol123'`
 
 Axın: müraciəti aç → sənədlərə bax → AKB hesabatından gecikmələri və aylıq borcları, sənədlərdən xalis gəliri və stajı yaz → qiymət və şərtləri daxil et → skor və borc yükü canlı hesablanır → "Təklifi müştəriyə göndər" və ya səbəb yazıb "Müraciəti rədd et". Müştəri nəticəni "Müraciətlərim" bölməsində görür, SMS qoşulubsa, bildiriş də gedir.
 

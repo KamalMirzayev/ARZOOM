@@ -77,7 +77,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          source: "server.js,package.json,package-lock.json,Dockerfile,docker-compose.yml,Caddyfile,.dockerignore,lib,db,public,deploy"
+          source: "server.js,reset-password.js,package.json,package-lock.json,Dockerfile,docker-compose.yml,Caddyfile,.dockerignore,lib,db,public,deploy"
           target: /opt/arzoom
       - name: Konteynerləri yenilə
         if: env.HAS_SSH == 'true'

@@ -5,7 +5,10 @@ B=${BASE_URL:-http://localhost:3000}
 T=${ADMIN_TOKEN:?ADMIN_TOKEN lazımdır}
 J() { node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const o=JSON.parse(d);console.log(eval("o."+process.argv[1]))})' "$1"; }
 fail() { echo "✗ yoxlama alınmadı, sətir ${BASH_LINENO[0]}"; exit 1; }
-H=(-H "x-admin-token: $T" -H "x-staff-name: CI" -H "Content-Type: application/json")
+# İlk admin: istifadəçi adı admin, parol ADMIN_TOKEN
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/admin/login" -H "Content-Type: application/json" -d '{"username":"admin","password":"yanlis-parol-123"}')" = 401 ] || { echo "✗ yanlış parol qəbul edildi"; exit 1; }
+S=$(curl -fsS -X POST "$B/api/admin/login" -H "Content-Type: application/json" -d "{\"username\":\"admin\",\"password\":\"$T\"}" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>console.log(JSON.parse(d).token))')
+H=(-H "x-admin-token: $S" -H "Content-Type: application/json")
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 printf '%%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%%%EOF\n' > "$TMP/arayis.pdf"
 echo '<script>alert(1)</script>' > "$TMP/fake.pdf"
@@ -56,4 +59,12 @@ V=$(curl -fsS -X POST "$B/api/lookup/verify" -H "Content-Type: application/json"
 NT=$(echo "$V" | J token); [ "$(echo "$V" | J application.status)" = rejected ] || fail
 [ "$(curl -fsS -H "x-app-token: $NT" "$B/api/applications/$ID2" | J id)" = "$ID2" ] || fail; echo "✓ nömrə + FİN + SMS ilə giriş"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-app-token: $NT" "$B/api/applications/$ID")" = 401 ] || fail; echo "✓ açar yalnız öz müraciətini açır"
+# İstifadəçilər: admin ekspert yaradır, ekspert istifadəçiləri idarə edə bilmir
+U="ekspert$RANDOM"
+curl -fsS -X POST "${H[@]}" "$B/api/admin/users" -d "{\"username\":\"$U\",\"name\":\"Test Ekspert\",\"password\":\"Ekspert-Parol-1\",\"role\":\"expert\"}" >/dev/null
+ES=$(curl -fsS -X POST "$B/api/admin/login" -H "Content-Type: application/json" -d "{\"username\":\"$U\",\"password\":\"Ekspert-Parol-1\"}" | J token)
+[ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/users")" = 403 ] || fail
+curl -fsS -H "x-admin-token: $ES" "$B/api/admin/stats" >/dev/null || fail; echo "✓ ekspert hesabı: panel var, istifadəçi idarəsi yox"
+curl -fsS -X POST -H "x-admin-token: $ES" "$B/api/admin/logout" >/dev/null
+[ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/stats")" = 401 ] || fail; echo "✓ çıxışdan sonra sessiya bağlanır"
 echo "Bütün yoxlamalar keçdi."

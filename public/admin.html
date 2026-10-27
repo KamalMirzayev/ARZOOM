@@ -145,11 +145,11 @@ ul.r li.stop{color:var(--bad);font-weight:700}
   <form id="loginForm">
     <span class="logoplate" style="justify-self:start"><img src="/logo.png" alt="Arzoom Avto"></span>
     <div><span class="eyebrow">Əməkdaş girişi</span><h2 style="margin-top:6px">Müraciətlərin qiymətləndirilməsi</h2></div>
-    <label class="f">Adın və soyadın<input id="lName" autocomplete="name" required placeholder="Məs. Aysel Məmmədova"></label>
-    <label class="f">Giriş açarı<input id="lToken" type="password" autocomplete="current-password" required></label>
+    <label class="f">İstifadəçi adı<input id="lUser" autocomplete="username" autocapitalize="off" spellcheck="false" required placeholder="Məs. aysel.m"></label>
+    <label class="f">Parol<input id="lPass" type="password" autocomplete="current-password" required></label>
     <div class="err" id="lErr"></div>
     <button class="btn" type="submit">Daxil ol</button>
-    <p class="muted" style="margin:0;font-size:12.5px">Açar serverdəki .env faylında ADMIN_TOKEN kimi saxlanılır.</p>
+    <p class="muted" style="margin:0;font-size:12.5px">Hesabı admin yaradır. Parolu unutmusansa, admin ilə əlaqə saxla.</p>
   </form>
 </div>
 
@@ -159,6 +159,8 @@ ul.r li.stop{color:var(--bad);font-weight:700}
     <span class="t">Qiymətləndirmə</span>
     <span class="sp"></span>
     <span class="muted" id="who"></span>
+    <button class="btn ghost sm" id="usersBtn" type="button" hidden>İstifadəçilər</button>
+    <button class="btn ghost sm" id="pwBtn" type="button">Parolu dəyiş</button>
     <button class="btn ghost sm" id="logout" type="button">Çıxış</button>
   </header>
   <div class="shell" id="shell">
@@ -187,26 +189,90 @@ const EVENTS={created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offe
   accepted:"Müştəri son təklifi təsdiqlədi, satışa ötürüldü",declined:"Müştəri təklifdən imtina etdi",cancelled:"Müştəri müraciəti ləğv etdi",sms:"SMS"};
 const FILTERS=[["","Hamısı"],["review","Baxılır"],["offer","Təklif"],["accepted","Satış"],["rejected","Rədd"],["declined","İmtina"],["cancelled","Ləğv"]];
 
-let token="",staff="",status="review",query="",cur=null,items=[],counts={};
-try{token=sessionStorage.getItem("az-admin-token")||"";staff=sessionStorage.getItem("az-admin-name")||""}catch(e){}
+let token="",me=null,staff="",status="review",query="",cur=null,items=[],counts={};
+try{token=sessionStorage.getItem("az-admin-session")||""}catch(e){}
 
 async function api(path,opts={}){
-  const r=await fetch("/api/admin"+path,{...opts,headers:{"Content-Type":"application/json","x-admin-token":token,"x-staff-name":encodeURIComponent(staff),...(opts.headers||{})}});
-  if(r.status===401){logout();throw new Error("Giriş açarı yanlışdır.")}
+  const r=await fetch("/api/admin"+path,{...opts,headers:{"Content-Type":"application/json","x-admin-token":token,...(opts.headers||{})}});
+  if(r.status===401&&path!=="/login"){logout(true);throw new Error("Sessiya bitib, yenidən daxil ol.")}
   const j=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error(j.error||"Xəta baş verdi.");
   return j;
 }
 function toast(t){const e=$("#toast");e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,2600)}
-function logout(){token="";try{sessionStorage.removeItem("az-admin-token")}catch(e){}$("#app").hidden=true;$("#login").hidden=false}
+function logout(expired){
+  if(!expired&&token)fetch("/api/admin/logout",{method:"POST",headers:{"x-admin-token":token}}).catch(()=>{});
+  token="";me=null;try{sessionStorage.removeItem("az-admin-session")}catch(e){}$("#app").hidden=true;$("#login").hidden=false;
+  if(expired)$("#lErr").textContent="Sessiya bitib, yenidən daxil ol.";
+}
 
 $("#loginForm").addEventListener("submit",async e=>{
-  e.preventDefault();token=$("#lToken").value.trim();staff=$("#lName").value.trim();
-  try{await loadList();try{sessionStorage.setItem("az-admin-token",token);sessionStorage.setItem("az-admin-name",staff)}catch(e){}enter()}
-  catch(err){$("#lErr").textContent=err.message;$("#login").hidden=false}
+  e.preventDefault();$("#lErr").textContent="";
+  try{
+    const j=await api("/login",{method:"POST",body:JSON.stringify({username:$("#lUser").value.trim(),password:$("#lPass").value})});
+    token=j.token;try{sessionStorage.setItem("az-admin-session",token)}catch(e){}
+    $("#lPass").value="";await start();
+  }catch(err){$("#lErr").textContent=err.message}
 });
-$("#logout").onclick=logout;
-function enter(){$("#login").hidden=true;$("#app").hidden=false;$("#who").textContent=staff;if(!cur)renderHome()}
+$("#logout").onclick=()=>logout();
+async function start(){me=await api("/me");staff=me.name;await loadList();enter()}
+function enter(){$("#login").hidden=true;$("#app").hidden=false;
+  $("#who").textContent=`${me.name} · ${me.role==="admin"?"Admin":"Kredit eksperti"}`;$("#usersBtn").hidden=me.role!=="admin";
+  if(!cur)renderHome()}
+
+/* ---------- account: password and staff users ---------- */
+const ROLES={admin:"Admin",expert:"Kredit eksperti"};
+function back(){cur=null;$("#shell").classList.add("open");renderList()}
+$("#pwBtn").onclick=()=>{back();$("#detail").innerHTML=`<span class="eyebrow">Hesab</span><h2 style="margin:6px 0 18px">Parolu dəyiş</h2>
+  <form class="panel" id="pwForm" style="max-width:440px;display:grid;gap:12px">
+    <label class="f">Hazırkı parol<input type="password" id="pwCur" autocomplete="current-password" required></label>
+    <label class="f">Yeni parol, ən azı 10 simvol<input type="password" id="pwNew" autocomplete="new-password" minlength="10" required></label>
+    <label class="f">Yeni parol təkrar<input type="password" id="pwNew2" autocomplete="new-password" required></label>
+    <button class="btn" type="submit">Yadda saxla</button>
+    <p class="muted" style="margin:0;font-size:12.5px">Digər cihazlardakı girişlər bağlanacaq.</p>
+  </form>`};
+async function renderUsers(){
+  back();let list=[];try{list=await api("/users")}catch(e){toast(e.message);return}
+  $("#detail").innerHTML=`<span class="eyebrow">Admin</span><h2 style="margin:6px 0 18px">İstifadəçilər</h2>
+  <div class="grid">
+    <section class="panel"><h3>Hesablar</h3>
+      <div style="display:grid;gap:10px">${list.map(u=>`<div style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line)">
+        <div><b>${esc(u.name)}</b> <span class="muted mono" style="font-size:12px">${esc(u.username)}</span><br>
+          <small class="muted">${ROLES[u.role]} · ${u.active?"Aktiv":"Söndürülüb"} · son giriş: ${u.last_login?dt(u.last_login):"—"}</small></div>
+        ${u.id==me.id?`<span class="muted" style="font-size:12.5px">Sənin hesabın</span>`:`<div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn ghost sm" type="button" data-urole="${u.id}" data-to="${u.role==="admin"?"expert":"admin"}">${u.role==="admin"?"Eksperti et":"Admin et"}</button>
+          <button class="btn ghost sm" type="button" data-upw="${u.id}">Parolu sıfırla</button>
+          <button class="btn ${u.active?"danger":""} sm" type="button" data-uact="${u.id}" data-to="${!u.active}">${u.active?"Söndür":"Aktiv et"}</button></div>`}
+      </div>`).join("")}</div>
+    </section>
+    <form class="panel" id="uForm" style="display:grid;gap:12px;align-content:start"><h3 style="margin:0">Yeni istifadəçi</h3>
+      <label class="f">Ad və soyad<input id="uName" required placeholder="Məs. Aysel Məmmədova"></label>
+      <label class="f">İstifadəçi adı<input id="uUser" required autocapitalize="off" spellcheck="false" placeholder="Məs. aysel.m"></label>
+      <label class="f">Müvəqqəti parol, ən azı 10 simvol<input id="uPass" required minlength="10" autocomplete="new-password"></label>
+      <label class="f">Rol<select id="uRole"><option value="expert">Kredit eksperti</option><option value="admin">Admin</option></select></label>
+      <button class="btn" type="submit">Yarat</button>
+      <p class="muted" style="margin:0;font-size:12.5px">Kredit eksperti müraciətləri qiymətləndirir, təklif və imtina göndərir. Admin bundan əlavə istifadəçiləri idarə edir.</p>
+    </form>
+  </div>`;
+}
+$("#usersBtn").onclick=renderUsers;
+document.addEventListener("submit",async e=>{
+  if(e.target.id==="pwForm"){e.preventDefault();
+    if($("#pwNew").value!==$("#pwNew2").value){toast("Yeni parollar eyni deyil.");return}
+    try{await api("/me/password",{method:"POST",body:JSON.stringify({current:$("#pwCur").value,next:$("#pwNew").value})});toast("Parol dəyişdirildi");renderHome()}catch(err){toast(err.message)}}
+  if(e.target.id==="uForm"){e.preventDefault();
+    try{await api("/users",{method:"POST",body:JSON.stringify({name:$("#uName").value,username:$("#uUser").value,password:$("#uPass").value,role:$("#uRole").value})});toast("İstifadəçi yaradıldı");renderUsers()}catch(err){toast(err.message)}}
+});
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("button");if(!b)return;
+  const upd=async(id,body,msg)=>{try{await api("/users/"+id,{method:"POST",body:JSON.stringify(body)});toast(msg);renderUsers()}catch(err){toast(err.message)}};
+  if(b.dataset.urole)upd(b.dataset.urole,{role:b.dataset.to},"Rol dəyişdirildi");
+  if(b.dataset.uact)upd(b.dataset.uact,{active:b.dataset.to==="true"},b.dataset.to==="true"?"Hesab aktiv edildi":"Hesab söndürüldü");
+  if(b.dataset.upw){
+    const pw=Array.from(crypto.getRandomValues(new Uint8Array(9)),x=>"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"[x%55]).join("")+"7!";
+    try{await api("/users/"+b.dataset.upw,{method:"POST",body:JSON.stringify({password:pw})});
+      b.closest("div").insertAdjacentHTML("afterend",`<div class="panel" style="grid-column:1/-1;padding:12px;margin-top:6px">Yeni müvəqqəti parol: <b class="mono">${pw}</b><br><small class="muted">Əməkdaşa ötür, daxil olandan sonra dəyişsin.</small></div>`)}catch(err){toast(err.message)}}
+});
 
 /* ---------- list ---------- */
 async function loadList(){
@@ -403,7 +469,7 @@ function confirmInline(b,text){
   return false;
 }
 
-if(token){$("#lName").value=staff;loadList().then(enter).catch(()=>{})}
+if(token)start().catch(()=>{});
 setInterval(()=>{if(token&&!$("#app").hidden)loadList().catch(()=>{})},60000);
 </script>
 </body>

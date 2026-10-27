@@ -10,6 +10,7 @@ const { sendSms, configured: SMS_ON } = require("./lib/sms");
 const Scoring = require("./lib/scoring");
 const { rateLimit } = require("./lib/ratelimit");
 const { sniff } = require("./lib/filecheck");
+const { hashPassword, checkPassword, weakPassword } = require("./lib/passwords");
 
 const PORT = +process.env.PORT || 3000;
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
@@ -254,15 +255,83 @@ app.post("/api/applications/:id/decision", lookupLimit, async (req, res) => {
 });
 
 /* ---------- staff ---------- */
-const tokenHash = sha(ADMIN_TOKEN);
-const admin = (req, res, next) => adminFail(req, res, () => {
-  const t = req.get("x-admin-token") || "";
-  if (!ADMIN_TOKEN || ADMIN_TOKEN.length < 12 || !crypto.timingSafeEqual(Buffer.from(sha(t)), Buffer.from(tokenHash))) return bad(res, "İcazə yoxdur.", 401);
+// Staff sign in with their own username and password; the panel then sends a 12-hour session key.
+const admin = (req, res, next) => adminFail(req, res, async () => {
+  const t = String(req.get("x-admin-token") || "");
+  const { rows } = t.length < 20 ? { rows: [] } : await pool.query(
+    `SELECT u.id, u.username, u.name, u.role FROM staff_sessions s JOIN staff_users u ON u.id = s.user_id
+     WHERE s.token_hash = $1 AND s.expires_at > now() AND u.active`, [sha(t)]);
+  if (!rows[0]) return bad(res, "Sessiya bitib, yenidən daxil ol.", 401);
   adminFail.forgive(req);
-  // Staff name comes from the panel; it is recorded on every action.
-  let name = ""; try { name = decodeURIComponent(req.get("x-staff-name") || ""); } catch {}
-  req.staff = name.replace(/[\u0000-\u001f]/g, "").trim().slice(0, 60) || "Əməkdaş";
+  req.user = rows[0];
+  req.staff = rows[0].name;
   next();
+});
+const adminOnly = (req, res, next) => req.user.role === "admin" ? next() : bad(res, "Bu əməliyyat yalnız admin üçündür.", 403);
+
+app.post("/api/admin/login", adminFail, async (req, res) => {
+  const username = String(req.body?.username || "").trim().toLowerCase();
+  const { rows } = await pool.query("SELECT id, name, role, password_hash, active FROM staff_users WHERE username = $1", [username]);
+  const u = rows[0];
+  // Same answer for an unknown user and a wrong password.
+  if (!u || !u.active || !checkPassword(req.body?.password, u.password_hash)) return bad(res, "İstifadəçi adı və ya parol yanlışdır.", 401);
+  adminFail.forgive(req);
+  const token = crypto.randomBytes(32).toString("base64url");
+  await pool.query("INSERT INTO staff_sessions (token_hash, user_id, expires_at) VALUES ($1,$2, now() + interval '12 hours')", [sha(token), u.id]);
+  await pool.query("UPDATE staff_users SET last_login = now() WHERE id = $1", [u.id]);
+  await pool.query("DELETE FROM staff_sessions WHERE expires_at < now()");
+  res.json({ token, user: { username, name: u.name, role: u.role } });
+});
+
+app.post("/api/admin/logout", admin, async (req, res) => {
+  await pool.query("DELETE FROM staff_sessions WHERE token_hash = $1", [sha(req.get("x-admin-token"))]);
+  res.json({ ok: true });
+});
+
+app.get("/api/admin/me", admin, (req, res) => res.json(req.user));
+
+app.post("/api/admin/me/password", admin, async (req, res) => {
+  const { rows } = await pool.query("SELECT password_hash FROM staff_users WHERE id = $1", [req.user.id]);
+  if (!checkPassword(req.body?.current, rows[0].password_hash)) return bad(res, "Hazırkı parol yanlışdır.");
+  const w = weakPassword(req.body?.next); if (w) return bad(res, w);
+  await pool.query("UPDATE staff_users SET password_hash = $2 WHERE id = $1", [req.user.id, hashPassword(req.body.next)]);
+  // Other devices are signed out; this one keeps its session.
+  await pool.query("DELETE FROM staff_sessions WHERE user_id = $1 AND token_hash <> $2", [req.user.id, sha(req.get("x-admin-token"))]);
+  res.json({ ok: true });
+});
+
+app.get("/api/admin/users", admin, adminOnly, async (_req, res) => {
+  const { rows } = await pool.query("SELECT id, username, name, role, active, created_at, last_login FROM staff_users ORDER BY created_at");
+  res.json(rows);
+});
+
+app.post("/api/admin/users", admin, adminOnly, async (req, res) => {
+  const b = req.body || {};
+  const username = String(b.username || "").trim().toLowerCase();
+  const name = String(b.name || "").trim().slice(0, 60);
+  if (!/^[a-z0-9._-]{3,32}$/.test(username)) return bad(res, "İstifadəçi adı 3–32 simvol: kiçik latın hərfləri, rəqəm, nöqtə, tire.");
+  if (!name) return bad(res, "Ad və soyadı yaz.");
+  const w = weakPassword(b.password); if (w) return bad(res, w);
+  const role = b.role === "admin" ? "admin" : "expert";
+  const r = await pool.query(
+    "INSERT INTO staff_users (username, name, password_hash, role) VALUES ($1,$2,$3,$4) ON CONFLICT (username) DO NOTHING RETURNING id",
+    [username, name, hashPassword(b.password), role]);
+  r.rowCount ? res.status(201).json({ id: r.rows[0].id }) : bad(res, "Bu istifadəçi adı artıq var.", 409);
+});
+
+app.post("/api/admin/users/:id", admin, adminOnly, async (req, res) => {
+  const b = req.body || {}, id = +req.params.id;
+  if (id === +req.user.id && (b.active === false || b.role === "expert")) return bad(res, "Öz admin hesabını söndürə və ya rolunu dəyişə bilməzsən.");
+  if (b.password != null) { const w = weakPassword(b.password); if (w) return bad(res, w); }
+  const r = await pool.query(
+    `UPDATE staff_users SET
+       active = COALESCE($2, active), role = COALESCE($3, role), password_hash = COALESCE($4, password_hash)
+     WHERE id = $1 RETURNING id`,
+    [id, typeof b.active === "boolean" ? b.active : null, ["admin", "expert"].includes(b.role) ? b.role : null,
+     b.password != null ? hashPassword(b.password) : null]);
+  if (!r.rowCount) return bad(res, "İstifadəçi tapılmadı.", 404);
+  if (b.active === false || b.password != null) await pool.query("DELETE FROM staff_sessions WHERE user_id = $1", [id]);
+  res.json({ ok: true });
 });
 
 app.get("/api/admin/applications", admin, async (req, res) => {
@@ -390,6 +459,12 @@ async function start() {
   for (let i = 1; ; i++) {
     try { await pool.query(fs.readFileSync(path.join(__dirname, "db/schema.sql"), "utf8")); break; }
     catch (e) { if (i >= 30) throw e; console.log(`DB gözlənilir (${i})...`); await new Promise(r => setTimeout(r, 2000)); }
+  }
+  // First start: the "admin" account gets ADMIN_TOKEN from .env as its password; change it after signing in.
+  const users = await pool.query("SELECT count(*)::int AS n FROM staff_users");
+  if (!users.rows[0].n && ADMIN_TOKEN) {
+    await pool.query("INSERT INTO staff_users (username, name, password_hash, role) VALUES ('admin', 'Administrator', $1, 'admin')", [hashPassword(ADMIN_TOKEN)]);
+    console.log("İlk admin hesabı yaradıldı: istifadəçi adı admin, parol .env-dəki ADMIN_TOKEN.");
   }
   app.listen(PORT, () => console.log(`Arzoom lizinq: http://localhost:${PORT} (SMS provayderi: ${SMS_ON ? "qoşulub" : "yoxdur"}, demo SMS: ${DEMO_SMS})`));
 }

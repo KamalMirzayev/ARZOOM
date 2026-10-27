@@ -66,3 +66,20 @@ CREATE TABLE IF NOT EXISTS app_tokens (
   expires_at     TIMESTAMPTZ NOT NULL
 );
 CREATE INDEX IF NOT EXISTS app_tokens_app_idx ON app_tokens (application_id);
+
+-- Əməkdaş hesabları (parollar scrypt ilə saxlanılır) və giriş sessiyaları
+CREATE TABLE IF NOT EXISTS staff_users (
+  id            BIGSERIAL PRIMARY KEY,
+  username      TEXT UNIQUE NOT NULL,
+  name          TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  role          TEXT NOT NULL DEFAULT 'expert' CHECK (role IN ('admin','expert')),
+  active        BOOLEAN NOT NULL DEFAULT true,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_login    TIMESTAMPTZ
+);
+CREATE TABLE IF NOT EXISTS staff_sessions (
+  token_hash  TEXT PRIMARY KEY,
+  user_id     BIGINT NOT NULL REFERENCES staff_users(id) ON DELETE CASCADE,
+  expires_at  TIMESTAMPTZ NOT NULL
+);

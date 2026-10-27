@@ -37,6 +37,14 @@ PostgreSQL internetə açılmır, ona yalnız tətbiq konteyneri qoşulur. Sayt 
 | POST | `/api/admin/applications/:id/notes` | Tarixçəyə qeyd əlavə edir |
 | GET | `/api/admin/files/:stored_name` | Yüklənmiş sənədi açır |
 
+## Serverə bir əmrlə quraşdırma
+Serverə SSH ilə daxil ol və işə sal (parolları özününkü ilə əvəz et):
+```bash
+curl -fsSL https://raw.githubusercontent.com/KamalMirzayev/ARZOOM/main/deploy/install.sh \
+  | sudo NEW_POSTGRES_PASSWORD='PAROL' NEW_ADMIN_TOKEN='PANEL_ACARI' bash
+```
+Docker, firewall, PostgreSQL, HTTPS və tətbiq qurulur. Yeniləmək üçün eyni əmri təkrar işlət. Domen olanda `DOMAIN='lizinq.arzoom.az'` də əlavə et.
+
 ## CI/CD qurulması (bir dəfə)
 1. GitHub-da boş repo yarat və bu qovluğu ora push et.
 2. Serverdə deploy üçün SSH açarı əlavə et (parol yox):

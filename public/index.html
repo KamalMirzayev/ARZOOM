@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Arzoom Avto Lizinq</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: showroom. Dark-first stage, hairline-framed form on the left, a "membership card" for the application on the right that reflects the chosen car. */
+:root{
+  --bg:#080B16; --bg-glow:#16204A; --surface:#0F1426; --raised:#151B32; --ink:#ECEFF8; --muted:#8C95B4; --line:#1F2742; --line-2:#2D3758;
+  --gold:#5273FF; --gold-2:#3550D6; --gold-ink:#FFFFFF; --gold-soft:rgb(82 115 255 / .14); --red:#E8323C; --red-soft:rgb(215 31 41 / .16);
+  --ok:#6FCF97; --ok-soft:rgb(111 207 151 / .13); --warn:#E9BE62; --warn-soft:rgb(233 190 98 / .13); --bad:#F08A80; --bad-soft:rgb(240 138 128 / .13);
+  --card:#0A1030; --card-2:#22348F; --card-ink:#F3F5FF; --card-muted:#A9B3DA; --card-line:rgb(255 255 255 / .12); --card-accent:#9DB0FF;
+  --f-display:"Archivo","Manrope",system-ui,sans-serif;
+  --f-body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:14px; --shadow:0 1px 0 rgb(255 255 255 / .03) inset, 0 20px 50px -20px rgb(0 0 0 / .6);
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
+  --bg:#F3F5FB; --bg-glow:#FFFFFF; --surface:#FFFFFF; --raised:#F7F8FD; --ink:#0E1430; --muted:#5A6386; --line:#E2E6F2; --line-2:#CBD2E6;
+  --gold:#3F5FF2; --gold-2:#8FA4FF; --gold-ink:#FFFFFF; --gold-soft:rgb(82 115 255 / .09); --red:#D71F29; --red-soft:rgb(215 31 41 / .08);
+  --ok:#1C7A46; --ok-soft:#E1F3E8; --warn:#9A6400; --warn-soft:#FBF0D6; --bad:#B23A30; --bad-soft:#F9E1DE;
+  --shadow:0 1px 2px rgb(16 24 40 / .04), 0 18px 40px -22px rgb(16 24 40 / .18);
+  color-scheme:light}}
+:root[data-theme="light"]{
+  --bg:#F3F5FB; --bg-glow:#FFFFFF; --surface:#FFFFFF; --raised:#F7F8FD; --ink:#0E1430; --muted:#5A6386; --line:#E2E6F2; --line-2:#CBD2E6;
+  --gold:#3F5FF2; --gold-2:#8FA4FF; --gold-ink:#FFFFFF; --gold-soft:rgb(82 115 255 / .09); --red:#D71F29; --red-soft:rgb(215 31 41 / .08);
+  --ok:#1C7A46; --ok-soft:#E1F3E8; --warn:#9A6400; --warn-soft:#FBF0D6; --bad:#B23A30; --bad-soft:#F9E1DE;
+  --shadow:0 1px 2px rgb(16 24 40 / .04), 0 18px 40px -22px rgb(16 24 40 / .18);
+  color-scheme:light}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;
+  background-image:radial-gradient(900px 420px at 85% -10%,var(--bg-glow),transparent 70%),radial-gradient(700px 360px at -10% 20%,var(--gold-soft),transparent 70%),radial-gradient(500px 260px at 110% 60%,var(--red-soft),transparent 70%);background-attachment:fixed}
+.wrap{max-width:1200px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:22px 56px}
+h1,h2,h3{font-family:var(--f-display);font-stretch:118%;font-weight:700;text-wrap:balance;margin:0;letter-spacing:-.01em}
+.mono{font-family:var(--f-mono)}
+.eyebrow{font-family:var(--f-display);font-stretch:125%;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);font-weight:600}
+.hint{font-size:13px;color:var(--muted);font-weight:400}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+/* header */
+header.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;padding-bottom:18px;border-bottom:1px solid var(--line);margin-bottom:34px}
+.brand{display:flex;align-items:center;gap:14px}
+.brand svg{width:40px;height:40px;flex:none}
+.logoplate{background:#FFFFFF;border-radius:10px;padding:9px 14px;display:inline-flex;box-shadow:0 0 0 1px var(--line)}
+.brand .logo{height:24px;width:auto;display:block}
+.brand .sub{font-size:12.5px;color:var(--muted);font-weight:500;padding-left:14px;border-left:1px solid var(--line-2)}
+.wordmark{font-family:var(--f-display);font-stretch:125%;font-weight:800;font-size:18px;letter-spacing:.16em;line-height:1}
+.wordmark small{display:block;font-family:var(--f-body);font-stretch:100%;font-weight:500;font-size:12px;letter-spacing:.02em;color:var(--muted);margin-top:5px}
+nav.tabs{display:flex;gap:2px;border:1px solid var(--line);padding:4px;border-radius:99px;background:var(--surface)}
+nav.tabs button{border:0;background:transparent;padding:8px 18px;border-radius:99px;cursor:pointer;font-weight:600;font-size:14px;color:var(--muted)}
+nav.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+nav.tabs .count{display:inline-grid;place-items:center;min-width:19px;height:19px;border-radius:99px;background:var(--red);color:#FFFFFF;font-size:11px;margin-left:7px;padding:0 6px;font-weight:700}
+
+.hero{display:grid;gap:10px;margin-bottom:28px;max-width:760px}
+.hero h1{font-size:clamp(28px,4.6vw,50px);line-height:1.04;font-weight:750}
+.hero h1 em{font-style:normal;color:var(--gold)}
+.hero p{margin:0;color:var(--muted);max-width:58ch;font-size:16px}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:24px;align-items:start}
+@media (max-width:940px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:28px;box-shadow:var(--shadow)}
+@media (max-width:520px){.panel{padding:20px}}
+.stack{display:grid;gap:20px;grid-template-columns:minmax(0,1fr);align-content:start}
+.fields{display:grid;gap:20px}
+.step-head{display:grid;gap:4px}
+.step-head h2{font-size:22px}
+.field{display:grid;gap:7px;min-width:0}
+.field>label{font-weight:600;font-size:13.5px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.inp{border:1px solid var(--line-2);background:var(--raised);border-radius:10px;padding:12px 14px;width:100%;min-width:0;transition:border-color .15s,box-shadow .15s}
+.inp:focus{border-color:var(--gold);outline:none;box-shadow:0 0 0 4px var(--gold-soft)}
+.inp.err{border-color:var(--bad)}
+.err-msg{font-size:12.5px;color:var(--bad)}
+.combo{display:grid;grid-template-columns:100px minmax(0,1fr);gap:8px}
+.note{font-size:13.5px;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--raised);color:var(--muted);display:flex;gap:10px;align-items:flex-start}
+.note svg{flex:none;width:16px;height:16px;margin-top:2px;color:var(--gold)}
+.note.warn{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
+
+/* stepper (a real sequence, so numbered) */
+.steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:0 0 28px;padding:0}
+.steps li{list-style:none;display:grid;gap:8px;font-size:12.5px;color:var(--muted);font-weight:600;min-width:0}
+.steps li::before{content:"";height:3px;border-radius:99px;background:var(--line-2)}
+.steps li.done::before{background:var(--gold-2)}
+.steps li.cur::before{background:var(--gold)}
+.steps li.cur{color:var(--ink)}
+.steps span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.steps b{font-family:var(--f-mono);font-weight:500;margin-right:6px;color:var(--gold)}
+@media (max-width:560px){.steps li:not(.cur) span{visibility:hidden}.steps li.cur span{overflow:visible}}
+
+/* option tiles */
+.opts{display:grid;gap:10px}
+.opt{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;justify-content:space-between;border:1px solid var(--line-2);border-radius:12px;padding:14px 16px;background:var(--raised);transition:border-color .15s,background .15s}
+.opt.on{border-color:var(--gold);background:var(--gold-soft)}
+.check{display:flex;gap:14px;align-items:center;cursor:pointer;flex:1 1 230px;min-width:0}
+.check input{appearance:none;width:22px;height:22px;border-radius:7px;border:1.5px solid var(--line-2);display:grid;place-items:center;flex:none;margin:0;cursor:pointer;background:var(--surface)}
+.check input:checked{background:var(--gold);border-color:var(--gold)}
+.check input:checked::after{content:"";width:6px;height:11px;border:solid var(--gold-ink);border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.check b{display:block;font-size:15px}
+.check small{color:var(--muted);font-size:13px}
+.upl{display:grid;gap:6px;justify-items:start;flex:1 1 220px;min-width:0}
+.rmfile{border:0;background:var(--line);color:var(--ink);width:20px;height:20px;border-radius:50%;cursor:pointer;line-height:1;flex:none;font-size:13px}
+.upl .file{font-family:var(--f-mono);font-size:12px;color:var(--ok);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn{border:0;border-radius:11px;padding:13px 20px;font-weight:700;cursor:pointer;background:var(--gold);color:var(--gold-ink);text-align:center;letter-spacing:.01em;transition:transform .1s,filter .15s}
+.btn:hover{filter:brightness(1.06)}
+.btn:active{transform:translateY(1px)}
+.btn.ghost{background:transparent;border:1px solid var(--line-2);color:var(--ink)}
+.btn.sm{padding:8px 14px;font-size:13.5px;border-radius:9px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+.btns .btn{flex:1 1 150px}
+label.btn{position:relative;display:inline-block}
+label.btn input{position:absolute;width:1px;height:1px;opacity:0}
+
+/* brands + models */
+.brands{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px}
+.brandtile{border:1px solid var(--line-2);border-radius:12px;background:var(--raised);padding:18px 12px 14px;cursor:pointer;display:grid;gap:6px;justify-items:center;transition:border-color .15s,background .15s,transform .15s}
+.brandtile:hover{transform:translateY(-1px);border-color:var(--muted)}
+.brandtile[aria-pressed="true"]{border-color:var(--gold);background:var(--gold-soft);box-shadow:0 0 0 1px var(--gold) inset}
+.brandtile .wm{font-family:var(--f-display);font-stretch:100%;font-weight:800;font-size:13.5px;letter-spacing:.08em;text-transform:uppercase;max-width:100%;text-align:center;white-space:nowrap}
+.brandtile small{color:var(--muted);font-size:11.5px}
+.mtools{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.mtools .inp{flex:1 1 200px;padding-left:38px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238C94A1' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-size:16px;background-position:13px center}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{border:1px solid var(--line-2);background:transparent;border-radius:99px;padding:6px 12px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--muted)}
+.chips button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.models{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;max-height:430px;overflow-y:auto;padding:2px;margin:-2px}
+.model{border:1px solid var(--line);border-radius:11px;background:var(--raised);padding:10px 12px 12px;cursor:pointer;text-align:left;display:grid;gap:2px;transition:border-color .15s}
+.model:hover{border-color:var(--line-2)}
+.model[aria-pressed="true"]{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset;background:var(--gold-soft)}
+.model svg{width:100%;height:38px;color:var(--muted)}
+.model[aria-pressed="true"] svg{color:var(--gold)}
+.model b{font-size:14px;line-height:1.25}
+.model small{font-size:11.5px;color:var(--muted)}
+.tag{display:inline-block;font-family:var(--f-mono);font-size:10.5px;border-radius:4px;padding:0 5px;margin-left:4px;vertical-align:1px;background:var(--ok-soft);color:var(--ok)}
+.empty-models{grid-column:1/-1;color:var(--muted);padding:20px;text-align:center;border:1px dashed var(--line-2);border-radius:11px}
+
+/* review list */
+.review{display:grid;font-size:14px}
+.review div{display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid var(--line)}
+.review div:last-child{border-bottom:0}
+.review div span:first-child{color:var(--muted)}
+.review div span:last-child{text-align:right;font-weight:600;min-width:0;overflow-wrap:anywhere}
+.clink{color:var(--gold);font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.consent{border:1px solid var(--gold);background:var(--gold-soft);border-radius:12px;padding:16px 18px;font-size:14.5px;line-height:1.6}
+
+/* OTP */
+.otp{display:grid;grid-template-columns:repeat(6,minmax(0,52px));gap:8px}
+.otp input{text-align:center;font-family:var(--f-mono);font-size:24px;padding:12px 0;border-radius:11px}
+
+/* application card (always dark: a physical card object) */
+.card{position:relative;border-radius:18px;padding:24px;color:var(--card-ink);overflow:hidden;
+  background:linear-gradient(150deg,var(--card-2) 0%,var(--card) 55%);
+  box-shadow:0 0 0 1px var(--card-line) inset,0 30px 60px -28px rgb(0 0 0 / .7)}
+.card::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;background:linear-gradient(140deg,var(--card-accent),transparent 40%,transparent 70%,var(--red));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.card .eyebrow{color:var(--card-accent)}
+.card .muted{color:var(--card-muted);font-size:13px}
+.card .carsvg{width:100%;height:96px;color:var(--card-accent);margin:6px 0 2px}
+.card .carsvg .wheel{fill:#05070A}
+.card .carname{font-family:var(--f-display);font-stretch:118%;font-size:24px;font-weight:700;line-height:1.15}
+.card .kv{display:grid;margin-top:16px;font-size:14px}
+.card .kv div{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:10px 0;border-top:1px solid var(--card-line)}
+.card .kv span:first-child{color:var(--card-muted)}
+.card .kv span:first-child{flex:none}
+.card .kv span:last-child{font-weight:600;text-align:right;min-width:0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.card .progress{display:flex;align-items:center;gap:10px;margin-top:16px;font-size:12.5px;color:var(--card-muted)}
+.card .progress i{flex:1;height:3px;border-radius:99px;background:var(--card-line);overflow:hidden;position:relative}
+.card .progress i b{position:absolute;inset:0 auto 0 0;background:var(--card-accent);border-radius:99px;transition:width .3s}
+.card .chipline{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.card .chip{width:30px;height:30px;border-radius:50%;border:3px solid var(--red);background:radial-gradient(circle,var(--red) 0 4px,transparent 5px);opacity:.95}
+.card .btn{background:#FFFFFF;color:#22348F}
+.card .btn.ghost{background:transparent;color:var(--card-ink);border-color:rgb(255 255 255 / .25)}
+.big{font-family:var(--f-display);font-stretch:112%;font-size:clamp(36px,4.6vw,46px);font-weight:750;line-height:1;letter-spacing:-.02em}
+.big small{font-size:.38em;font-weight:600;margin-left:6px;color:var(--card-muted)}
+.next ol{margin:0;padding-left:20px;display:grid;gap:6px;font-size:14px}
+.next li::marker{color:var(--red);font-family:var(--f-mono)}
+
+/* applications */
+.apps{display:grid;gap:20px}
+.app-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:18px}
+.app-head h3{font-size:22px;margin-top:4px}
+.status{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;border-radius:99px;padding:5px 12px}
+.status::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.st-ok{background:var(--ok-soft);color:var(--ok)}
+.st-warn{background:var(--warn-soft);color:var(--warn)}
+.st-bad{background:var(--bad-soft);color:var(--bad)}
+.app-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:24px}
+.tl{margin:0;padding:0;display:grid}
+.tl li{list-style:none;display:grid;grid-template-columns:24px 1fr;gap:14px;padding-bottom:16px;position:relative}
+.tl li::before{content:"";position:absolute;left:11px;top:24px;bottom:0;width:1px;background:var(--line-2)}
+.tl li:last-child::before{display:none}
+.tl .dot{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--line-2);background:var(--surface);display:grid;place-items:center;font-size:11px}
+.tl li.done .dot{background:var(--gold);border-color:var(--gold);color:var(--gold-ink)}
+.tl li.done::before{background:var(--gold-2)}
+.tl li.now .dot{border-color:var(--gold);box-shadow:0 0 0 5px var(--gold-soft)}
+.tl b{display:block;font-size:14px}
+.tl small{color:var(--muted);font-size:12.5px}
+.tablewrap{overflow:auto;max-height:340px;border:1px solid var(--line);border-radius:11px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:8px 12px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+th{position:sticky;top:0;background:var(--raised);font-weight:700;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+td{border-top:1px solid var(--line);font-family:var(--f-mono)}
+th:first-child,td:first-child{text-align:left}
+details summary{cursor:pointer;font-weight:700;font-size:14px}
+.waiting{border:1px dashed var(--line-2);border-radius:14px;padding:28px 22px;text-align:center;display:grid;gap:8px;justify-items:center;color:var(--muted)}
+.waiting h3{color:var(--ink);font-size:18px}
+.empty{text-align:center;padding:56px 20px;color:var(--muted);display:grid;gap:10px;justify-items:center}
+.empty h3{color:var(--ink);font-size:22px}
+footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+
+/* consent document modal */
+.modal{position:fixed;inset:0;z-index:50;background:rgb(5 8 20 / .62);display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.sheet{background:#FFFFFF;color:#111;width:min(760px,100%);max-height:100%;overflow:auto;border-radius:14px;box-shadow:0 30px 80px -20px rgb(0 0 0 / .6);display:grid;grid-template-rows:auto 1fr auto}
+.sheet-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid #E3E6EE;position:sticky;top:0;background:#FFFFFF}
+.sheet-bar b{font-size:14px}
+.sheet-x{border:0;background:#EEF1F7;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;color:#111}
+.paper{padding:26px 28px;font-family:"Times New Roman",Times,serif;font-size:14px;line-height:1.45}
+.paper .heads{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;text-align:center;margin-bottom:22px}
+.paper .heads img{height:22px;margin:0 auto 8px;display:block}
+.paper .heads p{margin:0 0 3px}
+.paper .lead{text-align:center;margin:0 auto 16px;max-width:62ch}
+.paper h4{text-align:center;letter-spacing:.35em;font-weight:400;margin:0 0 6px;font-size:14px}
+.paper table{width:100%;border-collapse:collapse;font-size:14px}
+.paper td{border:1px solid #111;padding:6px 8px;vertical-align:top;white-space:normal;text-align:left;font-family:inherit}
+.paper .clauses{margin:0;padding-left:34px;display:grid;gap:4px;text-align:justify}
+.paper .clauses li{padding-left:8px}
+.paper .clauses li::marker{font-weight:700}
+.paper td.c{text-align:center}
+.paper td.optc{width:34%;white-space:nowrap}
+.paper .box{font-family:system-ui,sans-serif;margin-right:4px}
+.sheet-foot{padding:14px 18px;border-top:1px solid #E3E6EE;display:flex;justify-content:flex-end;gap:10px;position:sticky;bottom:0;background:#FFFFFF}
+.sheet-foot .btn{flex:0 1 auto}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap" lang="az">
+  <header class="top">
+    <div class="brand" id="brandMark">
+      <span class="logoplate"><img class="logo" src="data:image/png;base64,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" alt="Arzoom" width="160" height="26"></span>
+      <span class="sub">Onlayn lizinq kabineti</span>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Bölmələr">
+      <button role="tab" id="tab-apply" aria-selected="true" data-view="apply">Müraciət</button>
+      <button role="tab" id="tab-mine" aria-selected="false" data-view="mine">Müraciətlərim<span class="count" id="appCount" hidden>0</span></button>
+    </nav>
+  </header>
+
+  <!-- ============ APPLICATION ============ -->
+  <section id="view-apply">
+    <div class="hero">
+      <span class="eyebrow">Avtomobil lizinqi</span>
+      <h1>Arzuladığın avtomobilə <em>onlayn müraciət</em></h1>
+      <p>Beş addım, təxminən iki dəqiqə. Filiala gəlməyə ehtiyac yoxdur: müraciəti SMS kodu ilə təsdiqləyirsən, təklif və ödəniş qrafiki kabinetinə gəlir.</p>
+    </div>
+    <div class="grid">
+      <form class="panel" id="appForm" novalidate>
+        <ol class="steps" id="stepBar"></ol>
+
+        <!-- step 1: identity -->
+        <div class="fields" data-step="0">
+          <div class="step-head"><span class="eyebrow">Addım 1</span><h2>Şəxsiyyət məlumatları</h2></div>
+          <div class="field"><label for="aFin">FİN kod <span class="hint">7 simvol, vəsiqənin üzərində</span></label>
+            <input class="inp mono" lang="en" id="aFin" maxlength="7" value="5ABC7KD" autocomplete="off" style="text-transform:uppercase;letter-spacing:.3em;font-size:18px">
+            <span class="err-msg" data-err="aFin" hidden>FİN kod 7 simvol olmalıdır: rəqəm və latın hərfləri.</span></div>
+          <div class="field"><label for="aIdNo">Şəxsiyyət vəsiqəsinin seriyası və nömrəsi</label>
+            <div class="combo">
+              <select class="inp mono" id="aIdSer" aria-label="Seriya"><option>AZE</option><option>AA</option><option>AB</option></select>
+              <input class="inp mono" id="aIdNo" inputmode="numeric" maxlength="8" value="12345678" autocomplete="off" style="letter-spacing:.12em">
+            </div>
+            <span class="hint" id="idHint">AZE seriyası üçün 8 rəqəm.</span>
+            <span class="err-msg" data-err="aIdNo" hidden></span></div>
+          <div class="field"><label for="aPhone">Mobil nömrə <span class="hint">SMS təsdiq kodu bu nömrəyə gələcək</span></label>
+            <div class="combo">
+              <select class="inp mono" id="aOp" aria-label="Operator kodu"><option>050</option><option>051</option><option>010</option><option>055</option><option>099</option><option>070</option><option>077</option></select>
+              <input class="inp mono" id="aPhone" type="tel" inputmode="numeric" maxlength="9" value="123 45 67" autocomplete="tel-local">
+            </div>
+            <span class="err-msg" data-err="aPhone" hidden>Nömrə 7 rəqəmdən ibarət olmalıdır.</span></div>
+          <div class="note"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 7v4M8 4.6v.1"/></svg>Ad, soyad və ata adı FİN kod əsasında dövlət reyestrindən avtomatik gətiriləcək.</div>
+          <label class="consent check" for="cConsent" style="align-items:flex-start">
+            <input type="checkbox" id="cConsent">
+            <span><b style="margin-bottom:4px">Razılıq</b>“Davam et” düyməsinə klikləməklə <a href="#" class="clink" data-doc="akb">Azərbaycan Kredit Bürosu</a> və <a href="#" class="clink" data-doc="asan">ASAN Finans</a> vasitəsilə məlumatlarımın ARZOOM AVTO MMC-yə təqdim edilməsinə razılıq verirəm.</span>
+          </label>
+          <span class="err-msg" data-err="cConsent" hidden>Davam etmək üçün razılığı təsdiqlə.</span>
+        </div>
+
+        <!-- step 2: income -->
+        <div class="fields" data-step="1" hidden>
+          <div class="step-head"><span class="eyebrow">Addım 2</span><h2>Gəlir haqqında məlumat</h2>
+            <span class="hint">Gəlir mənbəyini seç, bir neçəsini birlikdə seçmək olar. Hər mənbə üçün təsdiqedici sənəd yükləyə bilərsən.</span></div>
+          <div class="opts" id="incSrc"></div>
+          <span class="err-msg" data-err="inc" hidden>Ən azı bir gəlir mənbəyi seç.</span>
+        </div>
+
+        <!-- step 3: car -->
+        <div class="fields" data-step="2" hidden>
+          <div class="step-head"><span class="eyebrow">Addım 3</span><h2>Marka və model</h2></div>
+          <div class="brands" id="brands"></div>
+          <div class="mtools">
+            <input class="inp" id="mSearch" type="search" placeholder="Model axtar" aria-label="Model axtar">
+            <div class="chips" id="mFilter"></div>
+          </div>
+          <div class="models" id="models"></div>
+          <span class="err-msg" data-err="model" hidden>Modeli seç.</span>
+        </div>
+
+        <!-- step 4: consent -->
+        <div class="fields" data-step="3" hidden>
+          <div class="step-head"><span class="eyebrow">Addım 4</span><h2>Məlumatları yoxla</h2></div>
+          <div class="review" id="revAll"></div>
+        </div>
+
+        <!-- step 5: OTP -->
+        <div class="fields" data-step="4" hidden>
+          <div class="step-head"><span class="eyebrow">Addım 5</span><h2>SMS ilə təsdiq</h2>
+            <span class="hint">6 rəqəmli kod <b class="mono" id="otpPhone" style="color:var(--ink)"></b> nömrəsinə göndərildi.</span></div>
+          <div class="otp" id="otp" role="group" aria-label="Təsdiq kodu"></div>
+          <span class="err-msg" data-err="otp" hidden>Kod yanlışdır. Yenidən yoxla.</span>
+          <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+            <button type="button" class="btn ghost sm" id="resend" disabled>Kodu yenidən göndər</button>
+            <span class="hint" id="otpTimer"></span>
+          </div>
+          <div class="note warn" id="otpDemo"></div>
+        </div>
+
+        <div class="btns" style="margin-top:28px">
+          <button type="button" class="btn ghost" id="prevBtn">Geri</button>
+          <button type="submit" class="btn" id="nextBtn">Davam et</button>
+        </div>
+      </form>
+
+      <aside class="stack" style="position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px)">
+        <div class="card">
+          <div class="chipline"><span class="eyebrow">Lizinq müraciətiniz</span><span class="chip" aria-hidden="true"></span></div>
+          <svg class="carsvg" id="sCarSvg" viewBox="0 0 122 46" aria-hidden="true"></svg>
+          <div class="muted" id="sBrand">Avtomobil</div>
+          <div class="carname" id="sCar">Hələ seçilməyib</div>
+          <div class="progress"><span id="sStep">Addım 1 / 5</span><i><b id="sBar"></b></i></div>
+          <div class="kv" id="sKv"></div>
+        </div>
+        <div class="panel next">
+          <span class="eyebrow">Bundan sonra</span>
+          <ol style="margin-top:10px">
+            <li>Məlumatlar Arzoom Avto MMC-yə ötürülür</li>
+            <li>Kredit Bürosu yoxlaması aparılır</li>
+            <li>Menecer 1 iş saatı ərzində zəng edir</li>
+            <li>Təklif və ödəniş qrafiki kabinetə gəlir</li>
+          </ol>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============ MY APPLICATIONS ============ -->
+  <section id="view-mine" hidden>
+    <div class="hero"><span class="eyebrow">Kabinet</span><h1>Müraciətlərim</h1><p>Müraciətin hansı mərhələdə olduğunu buradan izlə. Təklif hazır olanda ödəniş qrafiki də burada açılır.</p></div>
+    <div class="apps" id="apps"></div>
+  </section>
+
+  <footer>Bu səhifə prototipdir. Müraciət məlumatları heç yerə göndərilmir və SMS real deyil, hər şey yalnız bu brauzerdə saxlanılır. Təklifdəki rəqəmlər nümunədir.</footer>
+</div>
+
+
+<div class="modal" id="docModal" hidden role="dialog" aria-modal="true" aria-labelledby="docTitle">
+  <div class="sheet">
+    <div class="sheet-bar"><b id="docTitle">Razılıq ərizəsi</b><button type="button" class="sheet-x" id="docClose" aria-label="Bağla">×</button></div>
+    <div class="paper" id="docBody"></div>
+    <div class="sheet-foot"><button type="button" class="btn" id="docOk">Oxudum</button></div>
+  </div>
+</div>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const grp=n=>Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");
+const azn=n=>grp(n)+" ₼";
+const m2=n=>{const [i,f]=n.toFixed(2).split(".");return grp(+i)+","+f+" ₼"};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const kvHtml=a=>a.map(([k,v])=>`<div><span>${k}</span><span>${esc(v)}</span></div>`).join("");
+
+/* ---------- silhouettes by body type ---------- */
+const BODY={
+  sedan:['M5 35 Q6 28 19 26 L37 15 Q45 11 69 12 L88 23 Q108 25 117 31 L117 35 Z','M41 16 L68 14 L82 23 L35 24 Z'],
+  hatch:['M7 35 Q8 27 19 25 L35 12 Q41 9 70 9 L84 12 Q95 22 108 26 Q115 28 115 35 Z','M39 13 L70 12 L80 22 L33 23 Z'],
+  suv:['M6 35 L6 22 Q7 15 20 14 L31 3 Q35 1 80 1 Q88 1 95 13 Q112 15 116 22 L116 35 Z','M36 5 L78 4.5 L86 14 L28 14 Z'],
+  pickup:['M5 35 L5 25 Q7 20 17 19 L29 8 Q33 6 58 6 L61 19 L117 19 L117 35 Z','M33 9 L56 9 L57 18 L26 18 Z'],
+  van:['M7 35 L7 13 Q8 6 19 6 L91 6 Q99 6 105 15 L114 23 Q117 26 117 35 Z','M12 10 L88 10 Q96 10 101 18 L12 18 Z'],
+  sport:['M3 35 Q5 30 21 28 L43 18 Q53 15 72 16 L95 24 Q113 26 119 32 L119 35 Z','M47 19 L71 17.5 L86 24 L41 25 Z']
+};
+const carSvg=t=>{const [b,w]=BODY[t]||BODY.sedan;return `<path d="${b}" fill="currentColor"/><path d="${w}" fill="#000" opacity=".3"/><circle class="wheel" cx="29" cy="35" r="7.5" fill="var(--ink)"/><circle cx="29" cy="35" r="3.2" fill="currentColor"/><circle class="wheel" cx="94" cy="35" r="7.5" fill="var(--ink)"/><circle cx="94" cy="35" r="3.2" fill="currentColor"/>`};
+const BODYNAME={sedan:"Sedan",hatch:"Hetçbek",suv:"Krossover / SUV",pickup:"Pikap",van:"Miniven / furqon",sport:"İdman"};
+const FILTERS=[["all","Hamısı"],["sedan","Sedan"],["hatch","Hetçbek"],["suv","SUV"],["pickup","Pikap"],["van","Miniven"],["sport","İdman"],["e","Elektrik / hibrid"]];
+
+/* ---------- catalogue: [model, body, powertrain (H hibrid, P plug-in, E elektrik), sample price ₼ for the demo offer] ---------- */
+const CATALOG={
+  "Toyota":[["Yaris","hatch","H",34900],["Yaris Cross","suv","H",42900],["Corolla","sedan","H",46900],["Corolla Cross","suv","H",54900],["Camry","sedan","H",79900],["Crown","sedan","H",99000],["Prius","hatch","P",64900],["C-HR","suv","H",56900],["RAV4","suv","H",69900],["bZ4X","suv","E",74900],["Highlander","suv","H",104900],["Grand Highlander","suv","H",119000],["Fortuner","suv","",84900],["Land Cruiser Prado","suv","",129000],["Land Cruiser 300","suv","",219000],["Sequoia","suv","H",189000],["4Runner","suv","",109000],["Hilux","pickup","",74900],["Tacoma","pickup","",89900],["Tundra","pickup","H",139000],["Sienna","van","H",99000],["Alphard","van","H",179000],["Hiace","van","",79900],["GR86","sport","",79900],["GR Supra","sport","",139000]],
+  "Mitsubishi":[["Mirage","hatch","",24900],["Attrage","sedan","",26900],["ASX","suv","",39900],["Xforce","suv","",41900],["Eclipse Cross","suv","",49900],["Outlander","suv","",62900],["Outlander PHEV","suv","P",79900],["Xpander","van","",37900],["Pajero Sport","suv","",72900],["Pajero","suv","",79900],["L200 / Triton","pickup","",62900],["Destinator","suv","",54900]],
+  "Mazda":[["Mazda2","hatch","",31900],["Mazda3 Sedan","sedan","",44900],["Mazda3 Hatchback","hatch","",44900],["Mazda6","sedan","",56900],["CX-3","suv","",39900],["CX-30","suv","",49900],["CX-5","suv","",62900],["CX-50","suv","",69900],["CX-60","suv","P",89900],["CX-70","suv","H",104900],["CX-80","suv","P",109000],["CX-90","suv","H",114900],["MX-30","suv","E",64900],["MX-5","sport","",69900],["EZ-6","sedan","E",62900]],
+  "Ford":[["Fiesta","hatch","",29900],["Focus","hatch","",39900],["Puma","suv","H",44900],["Kuga","suv","P",59900],["Escape","suv","H",54900],["Bronco Sport","suv","",62900],["Bronco","suv","",99000],["Territory","suv","",49900],["Edge","suv","",72900],["Explorer","suv","H",99000],["Everest","suv","",89900],["Expedition","suv","",149000],["Mustang","sport","",109000],["Mustang Mach-E","suv","E",99000],["Ranger","pickup","",72900],["Maverick","pickup","H",59900],["F-150","pickup","",129000],["Transit Custom","van","",79900],["Tourneo Custom","van","",89900],["Transit","van","",84900]],
+  "Honda":[["City","sedan","",32900],["Jazz / Fit","hatch","H",34900],["Civic","sedan","H",49900],["Civic Type R","sport","",99000],["Accord","sedan","H",69900],["WR-V","suv","",34900],["Elevate","suv","",39900],["HR-V","suv","H",49900],["ZR-V","suv","H",59900],["CR-V","suv","H",69900],["e:Ny1","suv","E",64900],["Passport","suv","",84900],["Pilot","suv","",99000],["Prologue","suv","E",94900],["Odyssey","van","",89900],["Ridgeline","pickup","",89900]],
+  "Subaru":[["Impreza","hatch","",44900],["Crosstrek / XV","suv","H",52900],["WRX","sedan","",72900],["Legacy","sedan","",62900],["Levorg","hatch","",64900],["Outback","suv","",74900],["Forester","suv","H",69900],["Ascent","suv","",89900],["Solterra","suv","E",84900],["BRZ","sport","",72900]],
+  "BYD":[["Seagull","hatch","E",24900],["Dolphin","hatch","E",34900],["Atto 2","suv","E",36900],["Atto 3 / Yuan Plus","suv","E",44900],["Yuan Up","suv","E",32900],["Qin Plus","sedan","P",32900],["Qin L","sedan","P",36900],["Destroyer 05","sedan","P",34900],["Seal","sedan","E",62900],["Seal 06","sedan","P",44900],["Han","sedan","P",74900],["Song Pro","suv","P",42900],["Song Plus / Seal U","suv","P",49900],["Song L","suv","E",59900],["Sealion 7","suv","E",69900],["Tang","suv","P",84900],["Frigate 07","suv","P",54900],["M6 / Song Max","van","E",49900],["Denza D9","van","P",109000],["Shark 6","pickup","P",79900]]
+};
+const ORIGIN={"Toyota":"Yaponiya","Mitsubishi":"Yaponiya","Mazda":"Yaponiya","Ford":"ABŞ","Honda":"Yaponiya","Subaru":"Yaponiya","BYD":"Çin"};
+const PT={H:"hibrid",P:"plug-in",E:"elektrik"};
+
+/* ---------- state ---------- */
+const STEPS=["Şəxsiyyət","Gəlir","Avtomobil","Yoxlama","SMS təsdiq"];
+let step=0, otp="", otpT=null, brand="Toyota", model=null, filter="all", q="";
+const INC=[
+  {k:"work",t:"Rəsmi iş yeri",h:"Əmək müqaviləsi ilə işləyirəm",d:"Əmək haqqı arayışı və ya bank çıxarışı"},
+  {k:"biz",t:"Sahibkar",h:"VÖEN üzrə fəaliyyət göstərirəm",d:"VÖEN çıxarışı və ya son 6 ayın bank çıxarışı"},
+  {k:"pension",t:"Pensiya",h:"Pensiya alıram",d:"Pensiya vəsiqəsi və ya ödəniş arayışı"},
+  {k:"social",t:"Sosial yardım",h:"Sosial yardım və ya müavinət alıram",d:"Təyinat haqqında arayış"}
+];
+const inc={work:{on:true},pension:{on:true}};
+const incNames=()=>INC.filter(s=>inc[s.k]?.on).map(s=>s.t).join(", ")||"—";
+const docCount=()=>INC.reduce((n,s)=>n+(inc[s.k]?.on?(inc[s.k].files||[]).length:0),0);
+const voen=()=>inc.biz?.on?(inc.biz.voen||""):"";
+const phoneFull=()=>`+994 ${$("#aOp").value.slice(1)} ${$("#aPhone").value}`;
+const curModel=()=>model&&CATALOG[brand].find(m=>m[0]===model);
+const appCar=()=>model?`${brand} ${model}`:"—";
+
+/* ---------- income ---------- */
+function renderInc(){
+  $("#incSrc").innerHTML=INC.map(s=>{const st=inc[s.k]||{},fl=st.files||[];return `<div class="opt ${st.on?"on":""}">
+    <label class="check" for="inc-${s.k}"><input type="checkbox" id="inc-${s.k}" data-inc="${s.k}" ${st.on?"checked":""}><span><b>${s.t}</b><small>${s.h}</small></span></label>
+    ${st.on?`<div class="upl">
+      ${s.k==="biz"?`<label class="hint" for="aVoen" style="color:var(--ink);font-weight:600">VÖEN <span class="hint">məcburi, 10 rəqəm</span></label>
+        <input class="inp mono" id="aVoen" data-voen inputmode="numeric" maxlength="10" placeholder="1234567890" value="${esc(st.voen||"")}" style="letter-spacing:.12em">
+        <span class="err-msg" data-err="aVoen" hidden>VÖEN 10 rəqəmdən ibarət olmalıdır.</span>`:""}
+      <small class="hint">${s.d}</small>
+      ${fl.map((f,i)=>`<span class="file" style="display:flex;gap:8px;align-items:center;max-width:100%"><span style="overflow:hidden;text-overflow:ellipsis">✓ ${esc(f)}</span><button type="button" class="rmfile" data-rm="${s.k}:${i}" aria-label="${esc(f)} faylını sil">×</button></span>`).join("")}
+      <label class="btn ghost sm" for="f-${s.k}">${fl.length?"Daha sənəd əlavə et":"Sənəd yüklə"}<input type="file" id="f-${s.k}" data-file="${s.k}" accept="image/*,.pdf" multiple></label></div>`:""}
+  </div>`}).join("");
+  renderSide();
+}
+
+/* ---------- brands & models ---------- */
+function renderBrands(){
+  $("#brands").innerHTML=Object.keys(CATALOG).map(b=>`<button type="button" class="brandtile" data-brand="${b}" aria-pressed="${b===brand}"><span class="wm" lang="en">${b}</span><small>${CATALOG[b].length} model · ${ORIGIN[b]}</small></button>`).join("");
+  $("#mFilter").innerHTML=FILTERS.filter(([k])=>k==="all"||CATALOG[brand].some(m=>k==="e"?m[2]:m[1]===k)).map(([k,t])=>`<button type="button" data-filter="${k}" aria-pressed="${k===filter}">${t}</button>`).join("");
+}
+function renderModels(){
+  const list=CATALOG[brand].filter(m=>(filter==="all"||(filter==="e"?m[2]:m[1]===filter))&&m[0].toLowerCase().includes(q.toLowerCase()));
+  $("#models").innerHTML=list.length?list.map(m=>`<button type="button" class="model" data-model="${esc(m[0])}" aria-pressed="${m[0]===model}">
+    <svg viewBox="0 0 122 46" aria-hidden="true">${carSvg(m[1])}</svg><b>${esc(m[0])}${m[2]?`<span class="tag">${PT[m[2]]}</span>`:""}</b><small>${BODYNAME[m[1]]}</small></button>`).join("")
+    :`<div class="empty-models">“${esc(q)}” üzrə model tapılmadı.</div>`;
+}
+
+/* ---------- side card ---------- */
+function renderSide(){
+  const m=curModel();
+  $("#sCarSvg").innerHTML=carSvg(m?m[1]:"suv");
+  $("#sBrand").textContent=m?`${brand} · ${BODYNAME[m[1]]}${m[2]?" · "+PT[m[2]][0].toLocaleUpperCase("az")+PT[m[2]].slice(1):""}`:(step>=2?brand:"Avtomobil");
+  $("#sCar").textContent=m?model:(step>=2?"Model seçin":"Hələ seçilməyib");
+  $("#sStep").textContent=`Addım ${step+1} / 5 · ${STEPS[step]}`;$("#sBar").style.width=((step+1)/5*100)+"%";
+  const rows=[["FİN kod",$("#aFin").value.toUpperCase()||"—"],["Şəxsiyyət vəsiqəsi",$("#aIdSer").value+" "+$("#aIdNo").value],["Mobil nömrə",phoneFull()]];
+  if(step>=1)rows.push(["Gəlir mənbəyi",incNames()]);
+  $("#sKv").innerHTML=kvHtml(rows);
+}
+
+/* ---------- OTP ---------- */
+const otpVal=()=>$$("#otp input").map(i=>i.value).join("");
+function startOtp(){
+  otp=String(Math.floor(100000+Math.random()*900000));
+  $("#otpPhone").textContent=phoneFull();
+  $("#otp").innerHTML=Array.from({length:6},(_,i)=>`<input class="inp" id="otp${i}" inputmode="numeric" maxlength="6" aria-label="Rəqəm ${i+1}" ${i===0?'autocomplete="one-time-code"':""}>`).join("");
+  if(API){otp="";$("#otpDemo").hidden=true;
+    fetch("/api/otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({phone:phoneFull()})})
+      .then(r=>r.json().then(j=>({ok:r.ok,j}))).then(({ok,j})=>{if(!ok){err("otp",true,j.error);return}
+        if(j.demoCode){otp=j.demoCode;$("#otpDemo").hidden=false;$("#otpDemo").textContent=`Sınaq rejimi: SMS provayderi qoşulana qədər kod burada göstərilir: ${j.demoCode}.`}})
+      .catch(()=>err("otp",true,"Kod göndərilmədi. Yenidən cəhd et."))}
+  else $("#otpDemo").textContent=`Prototip: real SMS göndərilmir. Sınaq üçün kod ${otp}.`;
+  err("otp",false);
+  let left=60;$("#resend").disabled=true;clearInterval(otpT);
+  const tick=()=>{$("#otpTimer").textContent=left>0?`Yeni kod ${left} saniyədən sonra istənə bilər.`:"";if(left--<=0){clearInterval(otpT);$("#resend").disabled=false}};
+  tick();otpT=setInterval(tick,1000);
+  setTimeout(()=>$("#otp0").focus(),50);
+}
+
+/* ---------- wizard ---------- */
+function renderStep(){
+  $("#stepBar").innerHTML=STEPS.map((s,i)=>`<li class="${i<step?"done":i===step?"cur":""}"><span><b>${i+1}</b>${s}</span></li>`).join("");
+  $$("[data-step]").forEach(el=>el.hidden=+el.dataset.step!==step);
+  $("#prevBtn").style.visibility=step?"visible":"hidden";
+  $("#nextBtn").textContent=step===4?"Təsdiqlə və göndər":"Davam et";
+  $("#nextBtn").disabled=step===0&&!$("#cConsent").checked;
+  if(step===1)renderInc();
+  if(step===2){renderBrands();renderModels()}
+  if(step===3)$("#revAll").innerHTML=kvHtml([["FİN kod",$("#aFin").value.toUpperCase()],["Şəxsiyyət vəsiqəsi",$("#aIdSer").value+" "+$("#aIdNo").value],["Mobil",phoneFull()],
+    ["Gəlir mənbəyi",incNames()],...(voen()?[["VÖEN",voen()]]:[]),["Yüklənmiş sənədlər",docCount()+" sənəd"],["Avtomobil",appCar()]]);
+  if(step===4)startOtp(); else clearInterval(otpT);
+  renderSide();
+}
+function err(k,on,msg){const e=$(`[data-err="${k}"]`);if(e){e.hidden=!on;if(msg)e.textContent=msg}const el=$("#"+k);if(el)el.classList.toggle("err",on);return on}
+function validate(){
+  let bad=false;
+  if(step===0){
+    bad|=err("aFin",!/^[0-9A-Z]{7}$/i.test($("#aFin").value.trim()));
+    const len=$("#aIdSer").value==="AZE"?8:7;
+    bad|=err("aIdNo",!new RegExp(`^\\d{${len}}$`).test($("#aIdNo").value.trim()),`${$("#aIdSer").value} seriyası üçün nömrə ${len} rəqəm olmalıdır.`);
+    bad|=err("aPhone",$("#aPhone").value.replace(/\D/g,"").length!==7);
+  }
+  if(step===1){bad|=err("inc",!Object.values(inc).some(x=>x.on));
+    if(inc.biz?.on) bad|=err("aVoen",!/^\d{10}$/.test(inc.biz.voen||""))}
+  if(step===2) bad|=err("model",!model);
+  if(step===0) bad|=err("cConsent",!$("#cConsent").checked);
+  if(step===4){const b=API?otpVal().length!==6:otpVal()!==otp;err("otp",b);$$("#otp input").forEach(i=>i.classList.toggle("err",b));bad|=b}
+  if(bad){const f=$("#appForm .inp.err");f&&f.focus()}
+  return !bad;
+}
+
+/* ---------- applications (this browser only) ---------- */
+let apps=[];
+try{apps=JSON.parse(localStorage.getItem("arzoom-apps4")||"[]")}catch(e){apps=[]}
+const saveApps=()=>{try{localStorage.setItem("arzoom-apps4",JSON.stringify(apps))}catch(e){}};
+/* ---------- server mode: the page talks to the API when it is served by it ---------- */
+let API=false, sending=false;
+const FILES={};
+fetch("/api/health").then(r=>r.ok?r.json():null).then(j=>{if(j&&j.ok){API=true;
+  $("footer").textContent="Müraciətlər Arzoom Avto MMC-nin serverinə göndərilir."+(j.demoSms?" SMS provayderi hələ qoşulmayıb: təsdiq kodu ekranda göstərilir.":"");
+  if(!$("#view-mine").hidden)syncApps()}}).catch(()=>{});
+async function submitApp(){
+  if(!API)return submitLocal();
+  if(sending)return; sending=true; $("#nextBtn").disabled=true; $("#nextBtn").textContent="Göndərilir...";
+  const fd=new FormData();
+  fd.append("fin",$("#aFin").value.trim().toUpperCase());fd.append("idSeries",$("#aIdSer").value);fd.append("idNumber",$("#aIdNo").value.trim());
+  fd.append("phone",phoneFull());fd.append("incomeSources",INC.filter(s=>inc[s.k]?.on).map(s=>s.k).join(","));fd.append("voen",voen());
+  fd.append("brand",brand);fd.append("model",model);fd.append("consent","true");fd.append("consentText",$(".consent span").textContent.trim());fd.append("otp",otpVal());
+  INC.forEach(s=>{if(inc[s.k]?.on)(FILES[s.k]||[]).forEach(f=>fd.append("file_"+s.k,f))});
+  try{
+    const r=await fetch("/api/applications",{method:"POST",body:fd});const j=await r.json();
+    if(!r.ok){err("otp",true,j.error||"Müraciət göndərilmədi.");return}
+    submitLocal(j.id);
+  }catch(e){err("otp",true,"Bağlantı xətası. Yenidən cəhd et.")}
+  finally{sending=false;$("#nextBtn").disabled=false;$("#nextBtn").textContent=step===4?"Təsdiqlə və göndər":"Davam et"}
+}
+function offerFromServer(o){const F=o.price*(1-o.downPct/100),r=o.rate/100/12;
+  return {price:o.price,down:Math.round(o.price*o.downPct/100),F,rate:o.rate,n:o.months,pmt:F*r/(1-Math.pow(1+r,-o.months)),comm:Math.round(F*o.commissionPct/100),at:o.at}}
+async function syncApps(){
+  if(!API||!apps.length)return;
+  await Promise.all(apps.map(async a=>{try{const r=await fetch(`/api/applications/${encodeURIComponent(a.id)}?fin=${encodeURIComponent(a.fin)}`);if(!r.ok)return;const j=await r.json();
+    if(j.status==="cancelled"){a.gone=true;return}
+    if(j.offer&&!a.offer)a.offer=offerFromServer(j.offer);
+    if(j.status==="offer"&&a.state==="review")a.state="offer";
+    if(j.status==="accepted"||j.status==="declined")a.state=j.status}catch(e){}}));
+  apps=apps.filter(a=>!a.gone);saveApps();renderApps();
+}
+function submitLocal(serverId){
+  const m=curModel();
+  apps.unshift({id:serverId||("AA-2026-"+String(Math.floor(1000+Math.random()*9000))),at:new Date().toISOString(),fin:$("#aFin").value.toUpperCase(),idc:$("#aIdSer").value+" "+$("#aIdNo").value,phone:phoneFull(),
+    brand,model,body:m[1],price:m[3],src:incNames(),voen:voen(),docs:docCount(),state:"review"});
+  saveApps();step=0;$("#cConsent").checked=false;clearInterval(otpT);show("mine");
+}
+/* sample offer until real terms are agreed: 20% down, 36 months, 17% */
+function makeOffer(a){
+  const down=Math.round(a.price*0.2),F=a.price-down,rate=17,n=36,r=rate/100/12;
+  a.offer={price:a.price,down,F,rate,n,pmt:F*r/(1-Math.pow(1+r,-n)),comm:Math.round(F*0.015),at:new Date().toISOString()};
+  a.state="offer";
+}
+function schedRows(o){let bal=o.F;const r=o.rate/100/12,rows=[];for(let t=1;t<=o.n;t++){const i=bal*r,pr=o.pmt-i;bal-=pr;rows.push([t,o.pmt,pr,i,Math.max(0,bal)])}return rows}
+function offerHtml(a){
+  const o=a.offer,due=new Date(o.at);due.setDate(due.getDate()+5);
+  const dd=String(due.getDate()).padStart(2,"0")+"."+String(due.getMonth()+1).padStart(2,"0")+"."+due.getFullYear();
+  return `<div class="card">
+    <div class="chipline"><span class="eyebrow">Arzoom Avto təklifi</span><span class="muted">${dd} tarixinədək</span></div>
+    <div style="margin-top:14px" class="muted">Aylıq ödəniş</div>
+    <div class="big">${grp(o.pmt)}<small>₼ / ay</small></div>
+    <div class="muted" style="margin-top:6px">${o.n} ay · illik ${o.rate}%</div>
+    <div class="kv">${kvHtml([["Avtomobilin qiyməti",azn(o.price)],["İlkin ödəniş, 20%",azn(o.down)],["Maliyyələşmə məbləği",azn(o.F)],["Birdəfəlik komissiya",azn(o.comm)],["Ümumi faiz xərci",azn(o.pmt*o.n-o.F)]])}</div>
+    ${a.state==="offer"?`<div class="btns" style="margin-top:16px"><button type="button" class="btn" data-accept="${a.id}">Təklifi qəbul et</button><button type="button" class="btn ghost" data-decline="${a.id}">İmtina et</button></div>`:""}
+  </div>
+  <details ${a.state==="offer"?"open":""}><summary>Ödəniş qrafiki, ${o.n} ay</summary>
+    <div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Ay</th><th>Ödəniş</th><th>Əsas borc</th><th>Faiz</th><th>Qalıq borc</th></tr></thead><tbody>
+    ${schedRows(o).map(r=>`<tr><td>${r[0]}</td><td>${m2(r[1])}</td><td>${m2(r[2])}</td><td>${m2(r[3])}</td><td>${m2(r[4])}</td></tr>`).join("")}</tbody></table></div></details>`;
+}
+const ST={review:["st-warn","Baxılır"],offer:["st-ok","Təklif hazırdır"],accepted:["st-ok","Təklif qəbul edildi"],declined:["st-bad","İmtina edildi"]};
+function renderApps(){
+  const c=$("#appCount");c.hidden=!apps.length;c.textContent=apps.length;
+  if(!apps.length){$("#apps").innerHTML=`<div class="panel empty"><span class="eyebrow">Kabinet boşdur</span><h3>Hələ müraciət yoxdur</h3><p>Müraciəti göndərdikdən sonra o, burada mərhələləri ilə görünəcək.</p><button class="btn" type="button" data-view="apply">Müraciət et</button></div>`;return}
+  $("#apps").innerHTML=apps.map(a=>{
+    const t=new Date(a.at),hm=String(t.getHours()).padStart(2,"0")+":"+String(t.getMinutes()).padStart(2,"0");
+    const lvl={review:2,offer:3,accepted:4,declined:3}[a.state];
+    const steps=[["Müraciət SMS ilə təsdiqləndi",`${hm} · ${a.phone}`],["Məlumatlar Arzoom Avto MMC-yə ötürüldü","Müraciət qeydə alındı"],["Müraciətə baxılır","Kredit Bürosu yoxlaması və qərar"],
+      [a.state==="declined"?"Təklifdən imtina edildi":"Təklif və ödəniş qrafiki","Şərtlər burada görünəcək"],["Müqavilə və təhvil","Sığorta, notarius, DYP qeydiyyatı"]];
+    const [cls,txt]=ST[a.state];
+    return `<article class="panel">
+      <div class="app-head"><div><span class="eyebrow mono">${a.id}</span><h3>${esc(a.brand)} ${esc(a.model)}</h3></div><span class="status ${cls}">${txt}</span></div>
+      <div class="app-grid">
+        <div class="stack" style="gap:18px">
+          <div class="review">${kvHtml([["FİN kod",a.fin],["Şəxsiyyət vəsiqəsi",a.idc],["Gəlir mənbəyi",a.src],...(a.voen?[["VÖEN",a.voen]]:[]),["Sənədlər",a.docs+" yüklənib"]])}</div>
+          <ol class="tl">${steps.map(([b,s],i)=>`<li class="${i<lvl?"done":i===lvl&&a.state!=="declined"?"now":""}"><span class="dot">${i<lvl?"✓":""}</span><span><b>${b}</b><small>${esc(s)}</small></span></li>`).join("")}</ol>
+        </div>
+        <div class="stack" style="gap:16px">${a.offer?offerHtml(a):`<div class="waiting"><svg viewBox="0 0 122 46" style="width:150px;height:56px;color:var(--line-2)" aria-hidden="true">${carSvg(a.body)}</svg><h3>Cavab gözlənilir</h3><p style="margin:0">Təklif hazır olanda aylıq ödəniş və qrafik burada açılacaq.</p>${API?"":`<button type="button" class="btn ghost sm" data-sim="${a.id}">Demo: təklifi göstər</button>`}</div>`}</div>
+      </div>
+      ${a.state==="review"||a.state==="offer"?`<div style="margin-top:18px"><button type="button" class="btn ghost sm" data-del="${a.id}">Müraciəti ləğv et</button></div>`:""}</article>`}).join("");
+}
+function show(v){
+  ["apply","mine"].forEach(k=>{$("#view-"+k).hidden=k!==v;$("#tab-"+k).setAttribute("aria-selected",k===v)});
+  if(v==="mine"){clearInterval(otpT);renderApps();syncApps()}else renderStep();
+  window.scrollTo({top:0});
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  const A=id=>apps.find(a=>a.id===id);
+  if(b.dataset.view)show(b.dataset.view);
+  if(b.dataset.rm){const [k,i]=b.dataset.rm.split(":");inc[k].files.splice(+i,1);(FILES[k]||[]).splice(+i,1);renderInc()}
+  if(b.dataset.brand){if(brand!==b.dataset.brand){brand=b.dataset.brand;model=null;filter="all";q="";$("#mSearch").value=""}renderBrands();renderModels();renderSide()}
+  if(b.dataset.filter){filter=b.dataset.filter;renderBrands();renderModels()}
+  if(b.dataset.model){model=b.dataset.model;err("model",false);renderModels();renderSide()}
+  if(b.dataset.sim){makeOffer(A(b.dataset.sim));saveApps();renderApps()}
+  const decide=(id,d)=>{const a=A(id);a.state=d;saveApps();renderApps();if(API)fetch(`/api/applications/${encodeURIComponent(a.id)}/decision`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({fin:a.fin,decision:d})}).catch(()=>{})};
+  if(b.dataset.accept)decide(b.dataset.accept,"accepted");
+  if(b.dataset.decline)decide(b.dataset.decline,"declined");
+  if(b.dataset.del){const a=A(b.dataset.del);if(API&&a)fetch(`/api/applications/${encodeURIComponent(a.id)}/cancel`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({fin:a.fin})}).catch(()=>{});apps=apps.filter(x=>x.id!==b.dataset.del);saveApps();renderApps()}
+});
+$("#mSearch").addEventListener("input",e=>{q=e.target.value.trim();renderModels()});
+$("#prevBtn").addEventListener("click",()=>{if(step){step--;renderStep()}});
+$("#appForm").addEventListener("submit",e=>{e.preventDefault();if(!validate())return;if(step<STEPS.length-1){step++;renderStep();$("#appForm").scrollIntoView({block:"start",behavior:"smooth"})}else submitApp()});
+["#aFin","#aIdNo","#aPhone"].forEach(s=>$(s).addEventListener("input",renderSide));
+$("#aIdSer").addEventListener("change",e=>{const len=e.target.value==="AZE"?8:7;$("#aIdNo").maxLength=len;$("#idHint").textContent=`${e.target.value} seriyası üçün ${len} rəqəm.`;renderSide()});
+$("#aOp").addEventListener("change",renderSide);
+$("#incSrc").addEventListener("change",e=>{const k=e.target.dataset.inc,f=e.target.dataset.file;
+  if(k){inc[k]=inc[k]||{};inc[k].on=e.target.checked;renderInc()}
+  if(f&&e.target.files.length){inc[f].files=[...(inc[f].files||[]),...[...e.target.files].map(x=>x.name)];FILES[f]=[...(FILES[f]||[]),...e.target.files];renderInc()}});
+$("#incSrc").addEventListener("input",e=>{if(e.target.dataset.voen!==undefined){e.target.value=e.target.value.replace(/\D/g,"");inc.biz.voen=e.target.value;if(e.target.value.length===10)err("aVoen",false)}});
+$("#resend").addEventListener("click",startOtp);
+/* consent documents open in a modal; the checkbox stays untouched */
+const LOGO=$(".brand .logo").src;
+const today=()=>{const d=new Date();return String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0")+"."+d.getFullYear()};
+const tick=(on,t)=>`<div><span class="box">${on?"☑":"☐"}</span>${t}</div>`;
+const DOCS={
+  akb:()=>`<div class="heads">
+      <div><img src="${LOGO}" alt="Arzoom"><p>“ARZOOM AVTO” MMC</p><p>Ünvan: Bakı, Azərbaycan</p></div>
+      <div><p style="margin-top:30px">“Azərbaycan Kredit Bürosu” MMC</p><p>Ünvan: “World Business Center” iş mərkəzi, Səməd Vurğun küç. 43, AZ1014, Bakı, Azərbaycan</p><p>Tel.: +99412 597-30-55 | E-mail: office@acb.az</p></div>
+    </div>
+    <p class="lead">Kredit tarixçəsinin tərtib edilməsi üçün məlumatların kredit bürosuna təqdim edilməsinə və ya ödəmə qabiliyyətinin təhlili üçün kredit bürosundan kredit hesabatının əldə edilməsinə</p>
+    <h4>RAZILIQ ƏRİZƏSİ</h4>
+    <div style="overflow-x:auto"><table>
+      <tr><td colspan="2" class="c">Razılıq verən şəxs</td></tr>
+      <tr><td>FİN kod</td><td class="c">${esc($("#aFin").value.toUpperCase())}</td></tr>
+      <tr><td>Şəxsiyyət vəsiqəsi</td><td class="c">${esc($("#aIdSer").value+" "+$("#aIdNo").value)}</td></tr>
+      <tr><td colspan="2" class="c">Razılıq verilən kredit bürosunun məlumatları</td></tr>
+      <tr><td>Adı</td><td class="c">“Azərbaycan Kredit Bürosu” MMC</td></tr>
+      <tr><td>VÖEN-i</td><td class="c">1305349901</td></tr>
+      <tr><td colspan="2" class="c">Razılığın verilmə tarixi</td></tr>
+      <tr><td>Razılığın tərtib olunma tarixi</td><td class="c">${today()}</td></tr>
+      <tr><td colspan="2" class="c">Məlumatın toplanılmasına və işlənilməsinə kredit tarixçəsi subyektinin münasibəti</td></tr>
+      <tr><td>Haqqımda toplanmış məlumatların kredit bürosundan əldə edilməsinə</td><td class="optc">${tick(1,"razıyam")}${tick(0,"razı deyiləm")}</td></tr>
+      <tr><td>Haqqımda toplanan məlumatların kredit bürosuna təqdim edilməsinə</td><td class="optc">${tick(1,"razıyam")}${tick(0,"razı deyiləm")}</td></tr>
+      <tr><td>Toplanılmasına və işlənilməsinə razılıq verilmiş məlumatlar</td><td class="optc">${tick(1,"Bütün məlumatlar")}${tick(0,"Kredit tarixçəsi subyektinin<br>qeyd etdiyi məlumatlar")}</td></tr>
+      <tr><td>Məlumatların transsərhəd ötürülməsinə</td><td class="optc">${tick(1,"razıyam")}${tick(0,"razı deyiləm")}</td></tr>
+      <tr><td>Məlumatların “Kredit büroları haqqında” Azərbaycan Respublikasının Qanununun 11.3-cü maddəsində nəzərdə tutulmuş hallarda başqa kredit bürosuna ötürülməsinə</td><td class="optc">${tick(1,"razıyam")}${tick(0,"razı deyiləm")}</td></tr>
+      <tr><td>Məlumatın saxlanma müddəti başa çatdıqdan və ya kredit tarixçəsi subyektinin ölümündən sonra</td><td class="optc">${tick(0,"məhv edilsin")}${tick(1,"arxivləşdirilsin")}</td></tr>
+    </table></div>
+    <p style="margin-top:14px;font-size:13px">Razılıq “Davam et” düyməsinə klikləməklə və SMS kodu ilə elektron qaydada təsdiqlənir.</p>`,
+  asan:()=>`<p class="lead" style="margin-bottom:4px"><b>“ASAN Finans” sistemi vasitəsi ilə məlumatların alınmasına dair</b></p>
+    <p class="lead"><b>Razılıq ərizəsi</b></p>
+    <ol type="I" class="clauses">
+      <li>Bu sənədi imzalamaqla, <b>lizinq xidmətlərinin göstərilməsi/lizinq əməliyyatlarının həyata keçirilməsi məqsədilə</b> “ASAN Finans” elektron portalı vasitəsilə şəxsiyyətimi təsdiq edən sənəd (şəxsiyyət vəsiqəsi/müvəqqəti yaşayış icazəsi/şəxsiyyəti təsdiq edən digər sənəd) üzrə müəyyən olunan məlumatların (sənədin FİN-i, seriya və nömrəsi, ad, soyad, ata adı, qeydiyyat ünvanı, sənədi verən orqanın adı, sənədin verilmə və bitmə tarixi, cins, doğum tarixi, doğum yeri, ailə vəziyyəti, vətəndaşlığı), iş yerim üzrə müəyyən olunan məlumatların (o cümlədən iş yeri, vəzifə, əmək müqaviləsinin tipi (müddətli və ya müddətsiz), əmək müqaviləsinin bağlanma və bitmə tarixi, iş yerinin növü (əsas və ya əvəzçilik üzrə), əmək haqqının məbləği), habelə pensiya, müavinət, təqaüd və kompensasiya ilə bağlı məlumatlarımın (pensiyanın, sosial müavinətin, təqaüdün, digər sosial ödənişlərin (kompensasiya, ünvanlı sosial yardım) növü, məbləği, başlanma və bitmə tarixləri, əlilliyə görə pensiya, sosial müavinət və ya təqaüd alan şəxsin əlilliyinin səbəbi (diaqnozları), müddəti) və s. müvafiq məqsədlətələb olunan digər bütün zəruri məlumatlarımın (telefon nömrəsi və elektron ünvanı, yaşadığı və olduğu yer, ixtisası, şəkli və s.) <b>“ARZOOM AVTO” MMC-yə</b> (bundan sonra <b>“ARZOOM AVTO”</b>) təqdim olunmasına dair razılıq verirəm.</li>
+      <li>Bu sənədlə həmçinin, mənə məxsus əmlak/vəsait barədə məlumatların ARZOOM AVTO tərəfindən digər kredit təşkilatlarından əldə edilməsinə dair razılıq verirəm.</li>
+      <li>Bu sənəd əsasında ARZOOM AVTO tərəfindən müxtəlif informasiya ehtiyatlarından əldə edilən, habelə tərəfimdən ARZOOM AVTO-ya təqdim edilən bütün məlumatlarımın <b>əlavə razılıq alınmadan</b> ARZOOM AVTO tərəfindən analitika, monitorinq, marketinq, müştəriyə göstərilən əlavə xidmətlər (o cümlədən də konsiyerj xidmətləri) və qanunvericilikdə qadağan olunmamış digər məqsədlər üçün təhlil və emal edilməsinə, işlənilməsinə, ümumiləşdirilməsinə, özünün törəmə müəssisələrinə və digər partnyorlarına (müqavilə bağladığı şəxslərə) təqdim edilməsinə, transsərhəd qaydada ötürülməsinə və s. qanunvericiliklə qadağan edilməmiş digər tədbirlərin görülməsinədair razılıq verirəm.</li>
+      <li>Bu sənədlə müxtəlif məhsullara dair kampaniya və reklam xarakterli məlumatların (SMS, bildiriş, e-mail və s. elektron formada) ARZOOM AVTO tərəfindən mənə göndərilməsinə razılıq verirəm.</li>
+      <li>Bu sənədi imzalamaqla, mənim və ya ARZOOM AVTO-nun təqsiri olmadan digər şəxslər tərəfindən mənə aid bütün məlumatların (fərdi məlumatlar və bank sirri məlumatları da daxil olmaqla) üçüncü şəxslərə təqdim edilməsi nəticəsində dəymiş (dəyə biləcək) zərərə, eləcə də bütün növ maliyyə itkilərinə görə bütün riskləri və məsuliyyəti öz üzərimə götürdüyümü təsdiq edirəm.</li>
+      <li>Bu razılıq 10 il müddətinə, lakin müvafiq lizinq xidmətindən istifadə müddətindən az olmamaqla qüvvədədir. Razılığın <b>yazılı müraciətim</b> əsasında vaxtından əvvəl ləğv edilə bilməsi barədə ARZOOM AVTO tərəfindən məlumatlandırıldım.</li>
+      <li>Bu razılıq əsasında əldə edilmiş məlumatların saxlanma müddəti müvafiq xidmətdən istifadə/lizinq əməliyyatlarının həyata keçirilməsi müddəti ilə eynidir və həmin xidmətə/əməliyyata xitam verildikdən sonra, eləcə də razılıq verən şəxsin ölümü halında həmin məlumatlar qanunvericilikdə nəzərdə tutulmuş qaydada arxivləşdirilsin (ləğv edilsin).</li>
+    </ol>
+    <p style="margin-top:14px;font-size:13px">FİN kod: <b>${esc($("#aFin").value.toUpperCase())}</b> · Tarix: ${today()}. Razılıq “Davam et” düyməsinə klikləməklə və SMS kodu ilə elektron qaydada təsdiqlənir.</p>`
+};
+const TITLES={akb:"Kredit Bürosu razılıq ərizəsi",asan:"ASAN Finans razılığı"};
+let lastFocus=null;
+function openDoc(k){lastFocus=document.activeElement;$("#docTitle").textContent=TITLES[k];$("#docBody").innerHTML=DOCS[k]();$("#docModal").hidden=false;$("#docClose").focus()}
+function closeDoc(){$("#docModal").hidden=true;lastFocus&&lastFocus.focus()}
+document.addEventListener("click",e=>{const l=e.target.closest(".clink");if(l){e.preventDefault();e.stopPropagation();openDoc(l.dataset.doc)}},true);
+$("#docClose").addEventListener("click",closeDoc);$("#docOk").addEventListener("click",closeDoc);
+$("#docModal").addEventListener("click",e=>{if(e.target.id==="docModal")closeDoc()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#docModal").hidden)closeDoc()});
+$("#cConsent").addEventListener("change",e=>{if(e.target.checked)err("cConsent",false);$("#nextBtn").disabled=step===0&&!e.target.checked});
+$("#otp").addEventListener("input",e=>{
+  const i=e.target,ins=$$("#otp input"),ix=ins.indexOf(i),d=i.value.replace(/\D/g,"");
+  if(d.length>1){d.slice(0,6-ix).split("").forEach((c,k)=>{if(ins[ix+k])ins[ix+k].value=c});ins[Math.min(5,ix+d.length-1)].focus()}
+  else{i.value=d;if(d&&ix<5)ins[ix+1].focus()}
+  if(otpVal().length===6&&(API||otpVal()===otp)&&!sending)$("#appForm").requestSubmit();
+});
+$("#otp").addEventListener("keydown",e=>{const ins=$$("#otp input"),ix=ins.indexOf(e.target);if(e.key==="Backspace"&&!e.target.value&&ix>0)ins[ix-1].focus()});
+
+renderStep();renderApps();
+})();
+</script>
+</body>
+</html>

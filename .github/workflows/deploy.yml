@@ -1,0 +1,75 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: arzoom
+          POSTGRES_USER: arzoom
+          POSTGRES_PASSWORD: test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U arzoom" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - name: API smoke test
+        env:
+          DATABASE_URL: postgres://arzoom:test@localhost:5432/arzoom
+          ADMIN_TOKEN: test
+          PORT: 3000
+        run: |
+          node server.js & sleep 4
+          curl -fsS localhost:3000/api/health
+          curl -fsS localhost:3000/ | grep -q "Arzoom Avto Lizinq"
+      - run: docker build -t arzoom-lizinq .
+
+  deploy:
+    needs: check
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency: production
+    environment: production
+    env:
+      HAS_SSH: ${{ secrets.SSH_HOST != '' && secrets.SSH_KEY != '' }}
+    steps:
+      - name: Secrets yoxlanılır
+        if: env.HAS_SSH != 'true'
+        run: echo "::warning::SSH_HOST və SSH_KEY secrets əlavə olunmayıb, yerləşdirmə ötürüldü. README-yə bax."
+      - uses: actions/checkout@v4
+        if: env.HAS_SSH == 'true'
+      - name: Kodu serverə köçür
+        if: env.HAS_SSH == 'true'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          source: "server.js,package.json,package-lock.json,Dockerfile,docker-compose.yml,.dockerignore,db,public,deploy"
+          target: /opt/arzoom
+      - name: Konteynerləri yenilə
+        if: env.HAS_SSH == 'true'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            test -f /opt/arzoom/.env || sudo bash /opt/arzoom/deploy/bootstrap.sh
+            bash /opt/arzoom/deploy/deploy.sh

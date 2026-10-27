@@ -48,8 +48,40 @@ label.chk input{width:17px;height:17px;accent-color:var(--blue);flex:none}
 .logoplate img{height:19px;display:block}
 
 /* login */
-.login{min-height:100vh;display:grid;place-items:center;padding:16px}
-.login form{width:min(380px,100%);background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:26px;display:grid;gap:14px}
+.login{min-height:100vh;display:grid;grid-template-columns:minmax(380px,520px) minmax(0,1fr)}
+.login-side{display:grid;place-items:center;padding:40px 24px;background:var(--surface);border-right:1px solid var(--line)}
+.login form{width:min(380px,100%);display:grid;gap:16px}
+.login form h1{font-size:30px;line-height:1.15;margin-top:8px}
+.login form input{padding:12px 13px}
+.login form .btn{padding:13px 16px;font-size:15px}
+.trust{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:4px}
+.trust span{display:inline-flex;gap:6px;align-items:center}
+.trust i{width:6px;height:6px;border-radius:50%;background:var(--ok)}
+/* decision engine illustration: always dark, it is a "screen" */
+.engine{position:relative;overflow:hidden;display:grid;align-content:center;gap:28px;padding:48px clamp(24px,5vw,72px);color:#E9EDFF;
+  background:radial-gradient(700px 420px at 70% 30%,rgb(82 115 255 / .35),transparent 70%),radial-gradient(500px 300px at 20% 90%,rgb(215 31 41 / .18),transparent 70%),#070B1C}
+.engine::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgb(255 255 255 / .045) 1px,transparent 1px),linear-gradient(90deg,rgb(255 255 255 / .045) 1px,transparent 1px);background-size:44px 44px;mask-image:radial-gradient(circle at 60% 45%,#000 30%,transparent 75%)}
+.engine>*{position:relative}
+.engine .eyebrow{color:#9DB0FF}
+.engine h2{font-size:clamp(26px,2.6vw,38px);line-height:1.15;max-width:560px;margin-top:8px;color:#FFFFFF}
+.engine p{color:#A9B3DA;max-width:520px;margin:10px 0 0;font-size:15px}
+.engine svg{width:100%;max-width:760px;height:auto}
+.engine .chips2{display:flex;gap:10px;flex-wrap:wrap}
+.engine .chips2 span{border:1px solid rgb(255 255 255 / .14);background:rgb(255 255 255 / .05);border-radius:99px;padding:7px 13px;font-size:12.5px;color:#DCE2FF}
+.engine .chips2 b{color:#9DE7BB;font-weight:700;margin-right:4px}
+.flow{stroke-dasharray:4 10;animation:flow 1.6s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-28}}
+.pulse{transform-origin:380px 170px;animation:pulse 2.4s ease-out infinite}
+.pulse.d2{animation-delay:1.2s}
+@keyframes pulse{from{transform:scale(.6);opacity:.7}to{transform:scale(1.5);opacity:0}}
+.spin{transform-origin:380px 170px;animation:spin 14s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.gauge{stroke-dasharray:0 302;animation:gauge 2.2s .4s cubic-bezier(.2,.8,.2,1) forwards}
+@keyframes gauge{to{stroke-dasharray:248 302}}
+.blink{animation:blink 2.4s ease-in-out infinite}
+@keyframes blink{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.flow,.pulse,.spin,.blink{animation:none}.gauge{animation:none;stroke-dasharray:248 302}}
+@media (max-width:960px){.login{grid-template-columns:1fr}.login-side{border-right:0;min-height:100vh}.engine{display:none}}
 .err{color:var(--bad);font-size:13px;min-height:1em}
 
 /* shell */
@@ -142,15 +174,72 @@ ul.r li.stop{color:var(--bad);font-weight:700}
 </head>
 <body>
 <div class="login" id="login">
+ <div class="login-side">
   <form id="loginForm">
-    <span class="logoplate" style="justify-self:start"><img src="/logo.png" alt="Arzoom Avto"></span>
-    <div><span class="eyebrow">Əməkdaş girişi</span><h2 style="margin-top:6px">Müraciətlərin qiymətləndirilməsi</h2></div>
+    <span class="logoplate" style="justify-self:start;margin-bottom:18px"><img src="/logo.png" alt="Arzoom Avto"></span>
+    <div><span class="eyebrow">Əməkdaş girişi</span><h1>Müraciətlərin qiymətləndirilməsi</h1>
+      <p class="muted" style="margin:8px 0 6px">Lizinq müraciətlərini təhlil et, təklif hazırla və qərarı bir yerdən idarə et.</p></div>
     <label class="f">İstifadəçi adı<input id="lUser" autocomplete="username" autocapitalize="off" spellcheck="false" required placeholder="Məs. aysel.m"></label>
     <label class="f">Parol<input id="lPass" type="password" autocomplete="current-password" required></label>
     <div class="err" id="lErr"></div>
     <button class="btn" type="submit">Daxil ol</button>
     <p class="muted" style="margin:0;font-size:12.5px">Hesabı admin yaradır. Parolu unutmusansa, admin ilə əlaqə saxla.</p>
+    <div class="trust"><span><i></i>HTTPS ilə şifrələnmiş</span><span><i></i>Hər addım jurnala yazılır</span><span><i></i>12 saatlıq sessiya</span></div>
   </form>
+ </div>
+ <section class="engine" aria-label="Decision engine təsviri">
+  <div><span class="eyebrow" lang="en">Arzoom Decision Engine</span>
+    <h2>Hər müraciət saniyələr içində təhlil olunur</h2>
+    <p>Kredit tarixçəsi, gəlir, sənədlər və borc yükü bir modeldə birləşir. Sistem skor və tövsiyə verir, son sözü kredit eksperti deyir.</p></div>
+  <svg viewBox="0 0 760 340" role="img" aria-label="Məlumat mənbələri qərar mühərrikinə axır, nəticədə skor 82 və təsdiq tövsiyəsi alınır">
+    <defs>
+      <linearGradient id="gEdge" x1="0" x2="1"><stop offset="0" stop-color="#5273FF" stop-opacity=".15"/><stop offset="1" stop-color="#9DB0FF"/></linearGradient>
+      <linearGradient id="gOut" x1="0" x2="1"><stop offset="0" stop-color="#9DB0FF"/><stop offset="1" stop-color="#9DE7BB"/></linearGradient>
+      <radialGradient id="gCore"><stop offset="0" stop-color="#5273FF"/><stop offset="1" stop-color="#22348F"/></radialGradient>
+    </defs>
+    <!-- inputs -->
+    <g font-family="Manrope,system-ui,sans-serif" font-size="13" fill="#DCE2FF">
+      <g><rect x="8" y="22" width="190" height="52" rx="12" fill="rgb(255 255 255 / .05)" stroke="rgb(255 255 255 / .14)"/><circle cx="34" cy="48" r="9" fill="#5273FF"/><text x="54" y="44" font-weight="700">Kredit Bürosu</text><text x="54" y="61" fill="#A9B3DA" font-size="11.5">gecikmələr · aktiv kreditlər</text></g>
+      <g><rect x="8" y="98" width="190" height="52" rx="12" fill="rgb(255 255 255 / .05)" stroke="rgb(255 255 255 / .14)"/><circle cx="34" cy="124" r="9" fill="#9DB0FF"/><text x="54" y="120" font-weight="700">Gəlir</text><text x="54" y="137" fill="#A9B3DA" font-size="11.5">xalis gəlir · staj</text></g>
+      <g><rect x="8" y="174" width="190" height="52" rx="12" fill="rgb(255 255 255 / .05)" stroke="rgb(255 255 255 / .14)"/><circle cx="34" cy="200" r="9" fill="#9DE7BB"/><text x="54" y="196" font-weight="700">Sənədlər</text><text x="54" y="213" fill="#A9B3DA" font-size="11.5">arayış · VÖEN · çıxarış</text></g>
+      <g><rect x="8" y="250" width="190" height="52" rx="12" fill="rgb(255 255 255 / .05)" stroke="rgb(255 255 255 / .14)"/><circle cx="34" cy="276" r="9" fill="#E8323C"/><text x="54" y="272" font-weight="700">Borc yükü</text><text x="54" y="289" fill="#A9B3DA" font-size="11.5">DTI · ilkin ödəniş</text></g>
+    </g>
+    <!-- edges into the core -->
+    <g fill="none" stroke="url(#gEdge)" stroke-width="2">
+      <path d="M198 48 C 280 48, 290 150, 330 162"/><path d="M198 124 C 270 124, 290 160, 328 166"/>
+      <path d="M198 200 C 270 200, 290 178, 328 174"/><path d="M198 276 C 280 276, 290 190, 330 178"/>
+    </g>
+    <g fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" class="flow" opacity=".9">
+      <path d="M198 48 C 280 48, 290 150, 330 162"/><path d="M198 124 C 270 124, 290 160, 328 166"/>
+      <path d="M198 200 C 270 200, 290 178, 328 174"/><path d="M198 276 C 280 276, 290 190, 330 178"/>
+    </g>
+    <!-- core -->
+    <circle cx="380" cy="170" r="56" fill="none" stroke="#5273FF" stroke-width="2" class="pulse"/>
+    <circle cx="380" cy="170" r="56" fill="none" stroke="#5273FF" stroke-width="2" class="pulse d2"/>
+    <g class="spin"><circle cx="380" cy="170" r="66" fill="none" stroke="rgb(157 176 255 / .45)" stroke-width="1.5" stroke-dasharray="2 9"/></g>
+    <circle cx="380" cy="170" r="50" fill="url(#gCore)" stroke="#9DB0FF" stroke-width="1.5"/>
+    <g stroke="#FFFFFF" stroke-width="1.6" fill="#FFFFFF">
+      <line x1="362" y1="156" x2="398" y2="160"/><line x1="362" y1="156" x2="380" y2="186"/><line x1="398" y1="160" x2="380" y2="186"/><line x1="380" y1="186" x2="402" y2="182"/><line x1="398" y1="160" x2="402" y2="182"/>
+      <circle cx="362" cy="156" r="4"/><circle cx="398" cy="160" r="4"/><circle cx="380" cy="186" r="4"/><circle cx="402" cy="182" r="3"/>
+    </g>
+    <text x="380" y="248" text-anchor="middle" font-family="Archivo,Manrope,sans-serif" font-size="12" letter-spacing="2.4" fill="#9DB0FF" font-weight="700">AI · QƏRAR MODELİ</text>
+    <!-- edge out -->
+    <path d="M436 170 H 540" stroke="url(#gOut)" stroke-width="2.5" fill="none"/>
+    <path d="M436 170 H 540" stroke="#FFFFFF" stroke-width="2.5" fill="none" class="flow" stroke-linecap="round"/>
+    <!-- result card -->
+    <g font-family="Manrope,system-ui,sans-serif">
+      <rect x="540" y="60" width="212" height="220" rx="18" fill="rgb(255 255 255 / .06)" stroke="rgb(255 255 255 / .16)"/>
+      <circle cx="646" cy="140" r="48" fill="none" stroke="rgb(255 255 255 / .12)" stroke-width="9"/>
+      <circle cx="646" cy="140" r="48" fill="none" stroke="#9DE7BB" stroke-width="9" stroke-linecap="round" class="gauge" transform="rotate(-90 646 140)"/>
+      <text x="646" y="150" text-anchor="middle" font-family="Archivo,Manrope,sans-serif" font-size="30" font-weight="800" fill="#FFFFFF">82</text>
+      <text x="646" y="212" text-anchor="middle" font-size="12" fill="#A9B3DA" letter-spacing="1.5">SKOR · A</text>
+      <rect x="554" y="226" width="184" height="32" rx="16" fill="rgb(157 231 187 / .16)"/>
+      <circle cx="572" cy="242" r="4" fill="#9DE7BB" class="blink"/>
+      <text x="584" y="246" font-size="12.5" font-weight="700" fill="#9DE7BB">Təsdiq tövsiyə olunur</text>
+    </g>
+  </svg>
+  <div class="chips2"><span><b>Avto</b>ilkin qiymətləndirmə</span><span><b>A–D</b>risk dərəcəsi</span><span><b>DTI</b>borc yükü nəzarəti</span><span><b>Ekspert</b>son qərarı verir</span></div>
+ </section>
 </div>
 
 <div id="app" hidden>

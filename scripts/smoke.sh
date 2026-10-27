@@ -41,9 +41,17 @@ curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/offer" -d '{"price":4
 [ "$(curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID" | J status)" = offer ] || fail; echo "✓ müştəri təklifi görür"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/applications/$ID/decision" -H "Content-Type: application/json" -d '{"decision":"accepted"}')" = 401 ] || fail; echo "✓ açarsız qərar 401"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/applications/$ID/decision" -H "x-app-token: $TOK" -H "Content-Type: application/json" -d '{"decision":"accepted","downPct":10}')" = 400 ] || fail; echo "✓ ilkin ödəniş azaldıla bilmir"
+SU="satis$RANDOM"
+curl -fsS -X POST "${H[@]}" "$B/api/admin/users" -d "{\"username\":\"$SU\",\"name\":\"Test Satış\",\"password\":\"Satis-Parol-12\",\"role\":\"sales\",\"phone\":\"50 111 22 33\"}" >/dev/null
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/users" -d '{"username":"badphone","name":"X","password":"Satis-Parol-12","phone":"123"}')" = 400 ] || fail
 curl -fsS -X POST "$B/api/applications/$ID/decision" -H "x-app-token: $TOK" -H "Content-Type: application/json" -d '{"decision":"accepted","downPct":30}' >/dev/null
 [ "$(curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID" | J offer.final.downPct)" = 30 ] || fail; echo "✓ ilkin ödəniş 30%-ə artırıldı"
 [ "$(curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID" | J status)" = accepted ] || fail; echo "✓ təklif qəbul edildi"
+sleep 1
+EV=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID")
+echo "$EV" | grep -c "Test Satış" >/dev/null && echo "$EV" | grep -c "Müraciət № $ID satışa" >/dev/null && echo "$EV" | grep -c "Son təklifi təsdiqlədiniz" >/dev/null || fail; echo "✓ son təklif SMS-i müştəriyə və satışa"
+SS=$(curl -fsS -X POST "$B/api/admin/login" -H "Content-Type: application/json" -d "{\"username\":\"$SU\",\"password\":\"Satis-Parol-12\"}" | J token)
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "x-admin-token: $SS" -H "Content-Type: application/json" "$B/api/admin/applications/$ID2/reject" -d '{"reason":"x"}')" = 403 ] || fail; echo "✓ satış mütəxəssisi qərar verə bilmir"
 
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID2/reject" -d '{"reason":"DTI 70%"}' >/dev/null
 [ "$(curl -fsS -H "x-app-token: $TOK2" "$B/api/applications/$ID2" | J status)" = rejected ] || fail; echo "✓ rədd axını"

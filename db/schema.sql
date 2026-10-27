@@ -78,6 +78,10 @@ CREATE TABLE IF NOT EXISTS staff_users (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_login    TIMESTAMPTZ
 );
+-- Satış mütəxəssisi rolu və bildiriş SMS-i üçün telefon
+ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE staff_users DROP CONSTRAINT IF EXISTS staff_users_role_check;
+ALTER TABLE staff_users ADD CONSTRAINT staff_users_role_check CHECK (role IN ('admin','expert','sales'));
 CREATE TABLE IF NOT EXISTS staff_sessions (
   token_hash  TEXT PRIMARY KEY,
   user_id     BIGINT NOT NULL REFERENCES staff_users(id) ON DELETE CASCADE,

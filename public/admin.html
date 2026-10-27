@@ -272,10 +272,10 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const grp=n=>Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");
 const azn=n=>grp(n)+" ₼";
 const dt=s=>{const d=new Date(s);return d.toLocaleDateString("az-AZ",{day:"2-digit",month:"2-digit",year:"numeric"})+" "+d.toLocaleTimeString("az-AZ",{hour:"2-digit",minute:"2-digit"})};
-const STATUS={review:"Baxılır",offer:"Təklif göndərilib",rejected:"Rədd edilib",accepted:"Satışa ötürülüb",declined:"Müştəri imtina etdi",cancelled:"Ləğv edilib"};
+const STATUS={review:"Baxılır",offer:"Təklif göndərilib",rejected:"Rədd edilib",accepted:"Təsdiqləndi · anderraytinq və satış",declined:"Müştəri imtina etdi",cancelled:"Ləğv edilib"};
 const INCOME={work:"Rəsmi iş yeri",biz:"Sahibkar",pension:"Pensiya",social:"Sosial yardım"};
 const EVENTS={created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",rejected:"Müraciət rədd edildi",note:"Qeyd",
-  accepted:"Müştəri son təklifi təsdiqlədi, satışa ötürüldü",declined:"Müştəri təklifdən imtina etdi",cancelled:"Müştəri müraciəti ləğv etdi",sms:"SMS"};
+  accepted:"Müştəri son təklifi təsdiqlədi: anderraytinqə və satışa ötürüldü",declined:"Müştəri təklifdən imtina etdi",cancelled:"Müştəri müraciəti ləğv etdi",sms:"SMS"};
 const FILTERS=[["","Hamısı"],["review","Baxılır"],["offer","Təklif"],["accepted","Satış"],["rejected","Rədd"],["declined","İmtina"],["cancelled","Ləğv"]];
 
 let token="",me=null,staff="",status="review",query="",cur=null,items=[],counts={};
@@ -306,11 +306,11 @@ $("#loginForm").addEventListener("submit",async e=>{
 $("#logout").onclick=()=>logout();
 async function start(){me=await api("/me");staff=me.name;await loadList();enter()}
 function enter(){$("#login").hidden=true;$("#app").hidden=false;
-  $("#who").textContent=`${me.name} · ${me.role==="admin"?"Admin":"Kredit eksperti"}`;$("#usersBtn").hidden=me.role!=="admin";
+  $("#who").textContent=`${me.name} · ${ROLES[me.role]}`;$("#usersBtn").hidden=me.role!=="admin";
   if(!cur)renderHome()}
 
 /* ---------- account: password and staff users ---------- */
-const ROLES={admin:"Admin",expert:"Kredit eksperti"};
+const ROLES={admin:"Admin",expert:"Kredit eksperti",sales:"Satış mütəxəssisi"};
 function back(){cur=null;$("#shell").classList.add("open");renderList()}
 $("#pwBtn").onclick=()=>{back();$("#detail").innerHTML=`<span class="eyebrow">Hesab</span><h2 style="margin:6px 0 18px">Parolu dəyiş</h2>
   <form class="panel" id="pwForm" style="max-width:440px;display:grid;gap:12px">
@@ -327,9 +327,11 @@ async function renderUsers(){
     <section class="panel"><h3>Hesablar</h3>
       <div style="display:grid;gap:10px">${list.map(u=>`<div style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line)">
         <div><b>${esc(u.name)}</b> <span class="muted mono" style="font-size:12px">${esc(u.username)}</span><br>
-          <small class="muted">${ROLES[u.role]} · ${u.active?"Aktiv":"Söndürülüb"} · son giriş: ${u.last_login?dt(u.last_login):"—"}</small></div>
-        ${u.id==me.id?`<span class="muted" style="font-size:12.5px">Sənin hesabın</span>`:`<div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn ghost sm" type="button" data-urole="${u.id}" data-to="${u.role==="admin"?"expert":"admin"}">${u.role==="admin"?"Eksperti et":"Admin et"}</button>
+          <small class="muted">${ROLES[u.role]} · ${u.active?"Aktiv":"Söndürülüb"} · SMS: ${u.phone?"+"+esc(u.phone):"—"} · son giriş: ${u.last_login?dt(u.last_login):"—"}</small></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn ghost sm" type="button" data-uphone="${u.id}" data-cur="${esc(u.phone||"")}">Mobil nömrə</button>
+        ${u.id==me.id?`<span class="muted" style="font-size:12.5px;align-self:center">Sənin hesabın</span></div>`:`
+          <select class="btn ghost sm" data-urole="${u.id}" aria-label="Rol">${Object.entries(ROLES).map(([k,v])=>`<option value="${k}" ${u.role===k?"selected":""}>${v}</option>`).join("")}</select>
           <button class="btn ghost sm" type="button" data-upw="${u.id}">Parolu sıfırla</button>
           <button class="btn ${u.active?"danger":""} sm" type="button" data-uact="${u.id}" data-to="${!u.active}">${u.active?"Söndür":"Aktiv et"}</button></div>`}
       </div>`).join("")}</div>
@@ -338,9 +340,10 @@ async function renderUsers(){
       <label class="f">Ad və soyad<input id="uName" required placeholder="Məs. Aysel Məmmədova"></label>
       <label class="f">İstifadəçi adı<input id="uUser" required autocapitalize="off" spellcheck="false" placeholder="Məs. aysel.m"></label>
       <label class="f">Müvəqqəti parol, ən azı 10 simvol<input id="uPass" required minlength="10" autocomplete="new-password"></label>
-      <label class="f">Rol<select id="uRole"><option value="expert">Kredit eksperti</option><option value="admin">Admin</option></select></label>
+      <label class="f">Rol<select id="uRole"><option value="expert">Kredit eksperti</option><option value="sales">Satış mütəxəssisi</option><option value="admin">Admin</option></select></label>
+      <label class="f">Mobil nömrə, SMS bildirişi üçün<input id="uPhone" inputmode="tel" placeholder="Məs. 50 123 45 67"></label>
       <button class="btn" type="submit">Yarat</button>
-      <p class="muted" style="margin:0;font-size:12.5px">Kredit eksperti müraciətləri qiymətləndirir, təklif və imtina göndərir. Admin bundan əlavə istifadəçiləri idarə edir.</p>
+      <p class="muted" style="margin:0;font-size:12.5px">Kredit eksperti müraciətləri qiymətləndirir, təklif və imtina göndərir. Satış mütəxəssisi müraciətlərə baxır və qeyd yazır, qərar vermir. Admin bundan əlavə istifadəçiləri idarə edir. Müştəri son təklifi təsdiqləyəndə mobil nömrəsi olan bütün əməkdaşlara SMS gedir.</p>
     </form>
   </div>`;
 }
@@ -350,12 +353,17 @@ document.addEventListener("submit",async e=>{
     if($("#pwNew").value!==$("#pwNew2").value){toast("Yeni parollar eyni deyil.");return}
     try{await api("/me/password",{method:"POST",body:JSON.stringify({current:$("#pwCur").value,next:$("#pwNew").value})});toast("Parol dəyişdirildi");renderHome()}catch(err){toast(err.message)}}
   if(e.target.id==="uForm"){e.preventDefault();
-    try{await api("/users",{method:"POST",body:JSON.stringify({name:$("#uName").value,username:$("#uUser").value,password:$("#uPass").value,role:$("#uRole").value})});toast("İstifadəçi yaradıldı");renderUsers()}catch(err){toast(err.message)}}
+    try{await api("/users",{method:"POST",body:JSON.stringify({name:$("#uName").value,username:$("#uUser").value,password:$("#uPass").value,role:$("#uRole").value,phone:$("#uPhone").value})});toast("İstifadəçi yaradıldı");renderUsers()}catch(err){toast(err.message)}}
 });
+document.addEventListener("change",async e=>{
+  const s=e.target.closest("select[data-urole]");if(!s)return;
+  try{await api("/users/"+s.dataset.urole,{method:"POST",body:JSON.stringify({role:s.value})});toast("Rol dəyişdirildi")}catch(err){toast(err.message)}renderUsers()});
 document.addEventListener("click",async e=>{
   const b=e.target.closest("button");if(!b)return;
   const upd=async(id,body,msg)=>{try{await api("/users/"+id,{method:"POST",body:JSON.stringify(body)});toast(msg);renderUsers()}catch(err){toast(err.message)}};
-  if(b.dataset.urole)upd(b.dataset.urole,{role:b.dataset.to},"Rol dəyişdirildi");
+  if(b.dataset.uphone){const row=b.closest("div").parentElement;if(row.querySelector(".phrow"))return;
+    row.insertAdjacentHTML("beforeend",`<div class="phrow" style="display:flex;gap:6px;width:100%;margin-top:8px"><input class="ph" inputmode="tel" placeholder="Məs. 50 123 45 67" value="${b.dataset.cur?"+"+esc(b.dataset.cur):""}" style="flex:1"><button class="btn sm" type="button" data-phsave="${b.dataset.uphone}">Yadda saxla</button></div>`);row.querySelector(".ph").focus()}
+  if(b.dataset.phsave)upd(b.dataset.phsave,{phone:b.closest(".phrow").querySelector(".ph").value},"Nömrə yadda saxlanıldı. Boş qoysan silinir.");
   if(b.dataset.uact)upd(b.dataset.uact,{active:b.dataset.to==="true"},b.dataset.to==="true"?"Hesab aktiv edildi":"Hesab söndürüldü");
   if(b.dataset.upw){
     const pw=Array.from(crypto.getRandomValues(new Uint8Array(9)),x=>"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"[x%55]).join("")+"7!";
@@ -486,12 +494,15 @@ function renderDetail(){
     </section>
   </div>`;
   liveResult();
+  if(me.role==="sales"){$("#aForm").querySelectorAll("input,select,textarea,button").forEach(el=>el.disabled=true);
+    ["#sendOffer","#reject","#reason"].forEach(q=>{const el=$(q);if(el)el.disabled=true});
+    $("#sendOffer")?.closest(".panel").insertAdjacentHTML("beforeend",`<p class="muted" style="margin:10px 0 0;font-size:12.5px">Qərarı kredit eksperti verir. Satış mütəxəssisi qeyd yaza bilər.</p>`)}
 }
 function evHtml(e){
   const d=e.details||{};
   const extra=e.kind==="assessed"?`${d.score} bal, ${d.grade} · ${Scoring.VERDICTS[d.verdict]||""}`:
     e.kind==="offer"?`${azn(d.price)}, ilkin ${d.downPct}%, ${d.months} ay, illik ${d.rate}%`:
-    e.kind==="rejected"?d.reason:e.kind==="note"?d.text:e.kind==="sms"?(d.error?"Göndərilmədi: "+d.error:d.text):
+    e.kind==="rejected"?d.reason:e.kind==="note"?d.text:e.kind==="sms"?(d.to?d.to+": ":"")+(d.error?"Göndərilmədi: "+d.error:d.text)+(d.demo?" (SMS provayderi qoşulmayıb, göndərilmədi)":""):
     e.kind==="created"?`${d.files||0} sənəd`:e.kind==="accepted"&&d.downPct!=null?`ilkin ödəniş ${d.downPct}%`:"";
   return `<li><span class="dot" style="${e.kind==="rejected"||d.error?"background:var(--red)":""}"></span><span><b>${EVENTS[e.kind]||e.kind}</b>${extra?` · ${esc(extra)}`:""}<small>${dt(e.at)} · ${esc(e.actor)}</small></span></li>`;
 }

@@ -58,10 +58,32 @@ const bad = (res, msg, code = 400) => res.status(code).json({ error: msg });
 const logEvent = (db, id, actor, kind, details = null) =>
   db.query("INSERT INTO application_events (application_id, actor, kind, details) VALUES ($1,$2,$3,$4)", [id, actor, kind, details]);
 // Customer notifications must never break the staff action that triggered them.
-async function notify(id, phone, text) {
-  if (!SMS_ON) return;
-  try { await sendSms(phone, text); await logEvent(pool, id, "Sistem", "sms", { text }); }
-  catch (e) { console.error(e.message); await logEvent(pool, id, "Sistem", "sms", { text, error: e.message }).catch(() => {}); }
+async function notify(id, phone, text, to = "Müştəri") {
+  // Without a provider the message is only recorded, so staff can see what would have gone out.
+  if (!SMS_ON) return logEvent(pool, id, "Sistem", "sms", { to, text, demo: true }).catch(() => {});
+  try { await sendSms(phone, text); await logEvent(pool, id, "Sistem", "sms", { to, text }); }
+  catch (e) { console.error(e.message); await logEvent(pool, id, "Sistem", "sms", { to, text, error: e.message }).catch(() => {}); }
+}
+const money = x => Math.round(x).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " AZN";
+// Final terms the customer confirmed: the offer with their chosen down payment.
+function finalTerms(o, dp) {
+  const down = o.price * dp / 100, F = o.price - down;
+  return { dp, down, months: o.months, pay: Scoring.pmt(F, o.rate, o.months) };
+}
+// After the customer confirms, the final offer goes by SMS to the customer, underwriting and sales at once.
+async function announceAccepted(id) {
+  const { rows } = await pool.query("SELECT phone, brand, model, offer FROM applications WHERE id = $1", [id]);
+  const a = rows[0]; if (!a?.offer?.final) return;
+  const t = finalTerms(a.offer, a.offer.final.downPct);
+  const terms = `ilkin ödəniş ${t.dp}% (${money(t.down)}), aylıq ${money(t.pay)}, ${t.months} ay`;
+  const panel = SITE_URL ? ` Panel: ${SITE_URL}/admin` : "";
+  const staff = await pool.query("SELECT name, role, phone FROM staff_users WHERE active AND phone IS NOT NULL");
+  await Promise.all([
+    notify(id, a.phone, `Arzoom Avto: Müraciət № ${id}. Son təklifi təsdiqlədiniz: ${a.brand} ${a.model}, ${terms}. Satış mütəxəssisi sizinlə əlaqə saxlayacaq.`),
+    ...staff.rows.map(u => notify(id, u.phone, u.role === "sales"
+      ? `Arzoom Avto: Müraciət № ${id} satışa ötürüldü. Müştəri son təklifi təsdiqlədi: ${a.brand} ${a.model}, ${terms}. Müştəri ilə əlaqə saxlayın.${panel}`
+      : `Arzoom Avto: Müraciət № ${id} anderraytinq üçün. Müştəri son təklifi təsdiqlədi: ${a.brand} ${a.model}, ${terms}.${panel}`, u.name))
+  ]);
 }
 
 /* ---------- health ---------- */
@@ -181,6 +203,7 @@ app.post("/api/applications", submitLimit, upload.any(), async (req, res) => {
     const token = await issueToken(client, id);
     await client.query("COMMIT");
     res.status(201).json({ id, status: "review", token });
+    notify(id, phone, `Arzoom Avto: Müraciətiniz qəbul edildi. Müraciət № ${id}. Bu nömrə və FİN kodunuzla müraciətin vəziyyətinə saytda baxa bilərsiniz.${SITE_URL ? " " + SITE_URL : ""}`);
   } catch (e) {
     await client.query("ROLLBACK"); cleanup(); console.error(e);
     bad(res, "Müraciət saxlanılmadı. Bir az sonra yenidən cəhd et.", 500);
@@ -203,7 +226,7 @@ app.post("/api/lookup/otp", otpLimit, async (req, res) => {
      ON CONFLICT (phone) DO UPDATE SET code_hash = EXCLUDED.code_hash, expires_at = EXCLUDED.expires_at, attempts = 0`,
     [a.phone, sha(a.phone + code)]);
   if (SMS_ON) {
-    try { await sendSms(a.phone, `Arzoom Avto: ${a.id} müraciətinə giriş kodu ${code}. Kodu heç kimə deməyin.`); }
+    try { await sendSms(a.phone, `Arzoom Avto: Müraciət № ${a.id}. Giriş kodu ${code}. Kodu heç kimə deməyin.`); }
     catch (e) { console.error(e.message); await pool.query("DELETE FROM otp_codes WHERE phone = $1", [a.phone]); return bad(res, "SMS göndərilmədi. Bir az sonra yenidən cəhd et.", 502); }
   }
   res.json({ sent: true, phone: maskPhone(a.phone), ...(DEMO_SMS ? { demoCode: code } : {}) });
@@ -253,6 +276,7 @@ app.post("/api/applications/:id/decision", lookupLimit, async (req, res) => {
        offer = CASE WHEN $3::jsonb IS NULL THEN offer ELSE jsonb_set(offer, '{final}', $3::jsonb) END
      WHERE id = $1 AND status = 'offer'`, [req.params.id, d, final]);
   await logEvent(pool, req.params.id, "Müştəri", d, final);
+  if (d === "accepted") announceAccepted(req.params.id).catch(e => console.error(e.message));
   res.json({ ok: true, final });
 });
 
@@ -270,6 +294,16 @@ const admin = (req, res, next) => adminFail(req, res, async () => {
   next();
 });
 const adminOnly = (req, res, next) => req.user.role === "admin" ? next() : bad(res, "Bu əməliyyat yalnız admin üçündür.", 403);
+// Sales staff see applications and write notes; credit decisions stay with experts and admins.
+const decider = (req, res, next) => req.user.role !== "sales" ? next() : bad(res, "Satış mütəxəssisi qərar verə bilməz.", 403);
+const ROLES = ["admin", "expert", "sales"];
+// Optional staff mobile for notifications: empty clears it, otherwise 994XXXXXXXXX.
+function staffPhone(v) {
+  if (v === undefined) return undefined;
+  const p = normPhone(v); if (!p) return "";
+  const full = p.length === 9 ? "994" + p : p;
+  return /^994\d{9}$/.test(full) ? full : null;
+}
 
 app.post("/api/admin/login", adminFail, async (req, res) => {
   const username = String(req.body?.username || "").trim().toLowerCase();
@@ -303,7 +337,7 @@ app.post("/api/admin/me/password", admin, async (req, res) => {
 });
 
 app.get("/api/admin/users", admin, adminOnly, async (_req, res) => {
-  const { rows } = await pool.query("SELECT id, username, name, role, active, created_at, last_login FROM staff_users ORDER BY created_at");
+  const { rows } = await pool.query("SELECT id, username, name, role, phone, active, created_at, last_login FROM staff_users ORDER BY created_at");
   res.json(rows);
 });
 
@@ -314,23 +348,28 @@ app.post("/api/admin/users", admin, adminOnly, async (req, res) => {
   if (!/^[a-z0-9._-]{3,32}$/.test(username)) return bad(res, "İstifadəçi adı 3–32 simvol: kiçik latın hərfləri, rəqəm, nöqtə, tire.");
   if (!name) return bad(res, "Ad və soyadı yaz.");
   const w = weakPassword(b.password); if (w) return bad(res, w);
-  const role = b.role === "admin" ? "admin" : "expert";
+  const role = ROLES.includes(b.role) ? b.role : "expert";
+  const phone = staffPhone(b.phone ?? "");
+  if (phone === null) return bad(res, "Mobil nömrə düzgün deyil. Məs. 50 123 45 67");
   const r = await pool.query(
-    "INSERT INTO staff_users (username, name, password_hash, role) VALUES ($1,$2,$3,$4) ON CONFLICT (username) DO NOTHING RETURNING id",
-    [username, name, hashPassword(b.password), role]);
+    "INSERT INTO staff_users (username, name, password_hash, role, phone) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (username) DO NOTHING RETURNING id",
+    [username, name, hashPassword(b.password), role, phone || null]);
   r.rowCount ? res.status(201).json({ id: r.rows[0].id }) : bad(res, "Bu istifadəçi adı artıq var.", 409);
 });
 
 app.post("/api/admin/users/:id", admin, adminOnly, async (req, res) => {
   const b = req.body || {}, id = +req.params.id;
-  if (id === +req.user.id && (b.active === false || b.role === "expert")) return bad(res, "Öz admin hesabını söndürə və ya rolunu dəyişə bilməzsən.");
+  if (id === +req.user.id && (b.active === false || (b.role && b.role !== "admin"))) return bad(res, "Öz admin hesabını söndürə və ya rolunu dəyişə bilməzsən.");
+  const phone = staffPhone(b.phone);
+  if (phone === null) return bad(res, "Mobil nömrə düzgün deyil. Məs. 50 123 45 67");
   if (b.password != null) { const w = weakPassword(b.password); if (w) return bad(res, w); }
   const r = await pool.query(
     `UPDATE staff_users SET
-       active = COALESCE($2, active), role = COALESCE($3, role), password_hash = COALESCE($4, password_hash)
+       active = COALESCE($2, active), role = COALESCE($3, role), password_hash = COALESCE($4, password_hash),
+       phone = CASE WHEN $5::text IS NULL THEN phone ELSE NULLIF($5, '') END
      WHERE id = $1 RETURNING id`,
-    [id, typeof b.active === "boolean" ? b.active : null, ["admin", "expert"].includes(b.role) ? b.role : null,
-     b.password != null ? hashPassword(b.password) : null]);
+    [id, typeof b.active === "boolean" ? b.active : null, ROLES.includes(b.role) ? b.role : null,
+     b.password != null ? hashPassword(b.password) : null, phone ?? null]);
   if (!r.rowCount) return bad(res, "İstifadəçi tapılmadı.", 404);
   if (b.active === false || b.password != null) await pool.query("DELETE FROM staff_sessions WHERE user_id = $1", [id]);
   res.json({ ok: true });
@@ -372,7 +411,7 @@ app.get("/api/admin/applications/:id", admin, async (req, res) => {
 });
 
 // Saves the analyst's inputs; the score is always recomputed on the server.
-app.put("/api/admin/applications/:id/assessment", admin, async (req, res) => {
+app.put("/api/admin/applications/:id/assessment", admin, decider, async (req, res) => {
   const b = req.body || {};
   const inputs = {
     incomeMonthly: num(b.incomeMonthly, 0, 1e6) ?? 0, debtMonthly: num(b.debtMonthly, 0, 1e6) ?? 0,
@@ -392,7 +431,7 @@ app.put("/api/admin/applications/:id/assessment", admin, async (req, res) => {
 });
 
 // Staff send the offer back; the page then shows it with the payment schedule.
-app.post("/api/admin/applications/:id/offer", admin, async (req, res) => {
+app.post("/api/admin/applications/:id/offer", admin, decider, async (req, res) => {
   const b = req.body || {};
   const offer = {
     price: num(b.price, 1000, 1e7), downPct: num(b.downPct ?? 20, 0, 90), months: num(b.months ?? 36, 6, 84),
@@ -405,11 +444,11 @@ app.post("/api/admin/applications/:id/offer", admin, async (req, res) => {
      WHERE id = $1 AND status IN ('review','offer','rejected') RETURNING id, phone`, [req.params.id, offer, req.staff]);
   if (!r.rowCount) return bad(res, "Bu müraciətə təklif göndərmək olmur.", 409);
   await logEvent(pool, req.params.id, req.staff, "offer", offer);
-  notify(req.params.id, r.rows[0].phone, `Arzoom Avto: ${req.params.id} müraciətinizə təklif hazırdır.${SITE_URL ? " Ətraflı: " + SITE_URL : ""}`);
+  notify(req.params.id, r.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id}. Təklifiniz hazırdır, ödəniş qrafikinə baxıb təsdiqləyin.${SITE_URL ? " Ətraflı: " + SITE_URL : ""}`);
   res.json({ ok: true, offer });
 });
 
-app.post("/api/admin/applications/:id/reject", admin, async (req, res) => {
+app.post("/api/admin/applications/:id/reject", admin, decider, async (req, res) => {
   const reason = String(req.body?.reason || "").trim().slice(0, 500);
   if (!reason) return bad(res, "İmtina səbəbini yaz.");
   const r = await pool.query(
@@ -417,7 +456,7 @@ app.post("/api/admin/applications/:id/reject", admin, async (req, res) => {
      WHERE id = $1 AND status IN ('review','offer') RETURNING id, phone`, [req.params.id, reason, req.staff]);
   if (!r.rowCount) return bad(res, "Bu müraciəti rədd etmək olmur.", 409);
   await logEvent(pool, req.params.id, req.staff, "rejected", { reason });
-  notify(req.params.id, r.rows[0].phone, `Arzoom Avto: ${req.params.id} müraciətinizə hazırda müsbət cavab verə bilmirik. Sualınız olarsa, bizimlə əlaqə saxlayın.`);
+  notify(req.params.id, r.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id}. Hazırda müraciətinizə müsbət cavab verə bilmirik. Sualınız olarsa, bizimlə əlaqə saxlayın.`);
   res.json({ ok: true });
 });
 

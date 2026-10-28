@@ -84,9 +84,12 @@ p{margin:0}
 .menu a{text-decoration:none;font-weight:600;font-size:15px;color:var(--muted);padding:9px 12px;border-radius:9px;white-space:nowrap}
 .menu a:hover{color:var(--ink);background:var(--surface)}
 .top .acts{display:flex;gap:8px;align-items:center}
+.hphone{display:inline-flex;align-items:center;gap:7px;text-decoration:none;font-family:var(--f-display);font-weight:800;font-size:16px;letter-spacing:.02em;padding:0 8px;white-space:nowrap}
+.hphone .ic{width:18px;height:18px;color:var(--red)}
 .burger{display:none;width:44px;height:44px;border-radius:11px;border:0;background:var(--surface);box-shadow:0 0 0 1px var(--line) inset;cursor:pointer;place-items:center}
 .burger .ic{width:20px;height:20px}
-@media (max-width:1180px){.brand .sub{display:none}}
+@media (max-width:1440px){.brand .sub{display:none}}
+@media (max-width:1240px){.top .acts .ghost{display:none}}
 @media (max-width:1060px){
   .menu,.top .acts .ghost{display:none}
   .burger{display:grid}
@@ -257,14 +260,13 @@ section:not(.alt) .box{background:var(--surface)}
 @media (max-width:860px){.cta{grid-template-columns:minmax(0,1fr)}.cta .btns .btn{flex:1 1 200px}}
 
 /* contacts */
-.contacts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.contacts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 .contact{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px;display:grid;gap:6px;align-content:start;text-decoration:none}
 .contact .ic{color:var(--blue);width:24px;height:24px;margin-bottom:6px}
 .contact span{color:var(--muted);font-size:14px;font-weight:600}
 .contact b{font-size:17px;overflow-wrap:anywhere}
 a.contact:hover{border-color:var(--blue)}
-@media (max-width:1000px){.contacts{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:520px){.contacts{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){.contacts{grid-template-columns:minmax(0,1fr)}}
 
 /* footer */
 footer{border-top:1px solid var(--line);padding:48px 0 calc(32px + env(safe-area-inset-bottom,0px));margin-top:clamp(56px,7vw,104px);background:var(--surface)}
@@ -327,6 +329,7 @@ footer{border-top:1px solid var(--line);padding:48px 0 calc(32px + env(safe-area
       <a href="#elaqe">Əlaqə</a>
     </nav>
     <div class="acts">
+      <a class="hphone" href="tel:*5665" aria-label="Zəng et: *5665"><svg class="ic"><use href="#i-phone"/></svg>*5665</a>
       <a class="btn ghost sm" href="https://lizinq.arzoomavto.az/" data-app="mine">Müraciətlərim</a>
       <a class="btn sm" href="https://lizinq.arzoomavto.az/" data-app>Onlayn müraciət</a>
       <button class="burger" type="button" id="burger" aria-expanded="false" aria-controls="drawer" aria-label="Menyunu aç"><svg class="ic"><use href="#i-menu"/></svg></button>
@@ -553,7 +556,7 @@ footer{border-top:1px solid var(--line);padding:48px 0 calc(32px + env(safe-area
         </div>
         <div class="btns">
           <a class="btn light" href="https://lizinq.arzoomavto.az/" data-app>Onlayn müraciət <svg class="ic"><use href="#i-arrow"/></svg></a>
-          <a class="btn ghost" href="tel:+994120000000" data-tel>Zəng et</a>
+          <a class="btn ghost" href="tel:*5665" data-tel>Zəng et</a>
         </div>
       </div>
     </div>
@@ -567,10 +570,9 @@ footer{border-top:1px solid var(--line);padding:48px 0 calc(32px + env(safe-area
         <h2 id="h-contact">Sualın var? Yaz və ya zəng et</h2>
       </div>
       <div class="contacts">
-        <a class="contact" href="tel:+994120000000" data-tel><svg class="ic"><use href="#i-phone"/></svg><span>Telefon</span><b>+994 12 000 00 00</b></a>
+        <a class="contact" href="tel:*5665" data-tel><svg class="ic"><use href="#i-phone"/></svg><span>Telefon</span><b>*5665</b></a>
         <a class="contact" href="mailto:info@arzoomavto.az"><svg class="ic"><use href="#i-mail"/></svg><span>E-poçt</span><b>info@arzoomavto.az</b></a>
-        <div class="contact"><svg class="ic"><use href="#i-pin"/></svg><span>Ofis</span><b>Bakı şəhəri</b></div>
-        <div class="contact"><svg class="ic"><use href="#i-clock"/></svg><span>İş saatları</span><b>B.e.–Cümə, 09:00–18:00</b></div>
+        <div class="contact"><svg class="ic"><use href="#i-pin"/></svg><span>Baş ofis</span><b>Sumqayıt şossesi, 6-cı km</b></div>
       </div>
     </div>
   </section>
@@ -581,7 +583,7 @@ footer{border-top:1px solid var(--line);padding:48px 0 calc(32px + env(safe-area
     <div class="foot">
       <div>
         <span class="logoplate"><img src="logo.png" alt="Arzoom" width="148" height="24"></span>
-        <p>Arzoom Avto MMC: fiziki şəxslər, sahibkarlar və şirkətlər üçün avtomobil lizinqi.</p>
+        <p>Arzoom Avto MMC: fiziki şəxslər, sahibkarlar və şirkətlər üçün avtomobil lizinqi.<br>Baş ofis: Sumqayıt şossesi, 6-cı km · <a href="tel:*5665">*5665</a> · <a href="mailto:info@arzoomavto.az">info@arzoomavto.az</a></p>
       </div>
       <div>
         <h4>Lizinq</h4>
@@ -601,7 +603,7 @@ footer{border-top:1px solid var(--line);padding:48px 0 calc(32px + env(safe-area
 </footer>
 
 <div class="mbar" id="mbar">
-  <a class="btn ghost" href="tel:+994120000000" data-tel aria-label="Zəng et"><svg class="ic"><use href="#i-phone"/></svg></a>
+  <a class="btn ghost" href="tel:*5665" data-tel aria-label="Zəng et"><svg class="ic"><use href="#i-phone"/></svg></a>
   <a class="btn" href="https://lizinq.arzoomavto.az/" data-app>Onlayn müraciət</a>
 </div>
 

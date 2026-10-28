@@ -5,6 +5,7 @@ Müştəri səhifəsi + Node.js API + PostgreSQL. Docker Compose ilə işləyir,
 ## Nə var
 | Hissə | Fayl |
 |---|---|
+| Korporativ sayt (arzoomavto.az), ayrıca konteyner | `site/public/index.html`, `site/Dockerfile`, `site/Caddyfile` |
 | Müştəri səhifəsi | `public/index.html` |
 | Əməkdaş paneli (qiymətləndirmə) | `public/admin.html`, ünvan: `/admin` |
 | Skorinq qaydaları | `lib/scoring.js` |
@@ -43,7 +44,7 @@ Serverə SSH ilə daxil ol və işə sal (parolları özününkü ilə əvəz et
 curl -fsSL https://raw.githubusercontent.com/KamalMirzayev/ARZOOM/main/deploy/install.sh \
   | sudo NEW_POSTGRES_PASSWORD='PAROL' NEW_ADMIN_TOKEN='PANEL_ACARI' bash
 ```
-Docker, firewall, PostgreSQL, HTTPS və tətbiq qurulur. Yeniləmək üçün eyni əmri təkrar işlət. Domen olanda `DOMAIN='lizinq.arzoom.az'` də əlavə et.
+Docker, firewall, PostgreSQL, HTTPS və tətbiq qurulur. Yeniləmək üçün eyni əmri təkrar işlət. Domen olanda `DOMAIN='lizinq.arzoomavto.az'` də əlavə et, korporativ sayt üçün isə `WEBSITE_DOMAIN='arzoomavto.az www.arzoomavto.az'`.
 
 ## CI/CD qurulması (bir dəfə)
 1. GitHub-da boş repo yarat və bu qovluğu ora push et.
@@ -57,7 +58,8 @@ Docker, firewall, PostgreSQL, HTTPS və tətbiq qurulur. Yeniləmək üçün eyn
    - `SSH_USER`: istifadəçi adı (root və ya sudo icazəsi olan)
    - `SSH_KEY`: `arzoom_deploy` faylının məzmunu (gizli açar)
    - `SSH_PORT`: 22 deyilsə
-   - `DOMAIN`: sayt domeni, məs. `lizinq.arzoom.az` (yoxdursa, IP ünvanı istifadə olunur)
+   - `DOMAIN`: lizinq tətbiqinin domeni, məs. `lizinq.arzoomavto.az` (yoxdursa, IP ünvanı istifadə olunur)
+   - `WEBSITE_DOMAIN`: korporativ saytın domenləri, məs. `arzoomavto.az www.arzoomavto.az` (www əsas domenə yönləndirilir)
    - Açar əvəzinə müvəqqəti olaraq `SSH_PASSWORD` da işləyir, amma açar daha təhlükəsizdir.
    - `POSTGRES_PASSWORD` və `ADMIN_TOKEN` (istəyə bağlı): öz parollarını qoymaq üçün. Yazılmasa, server təsadüfi parol yaradır. Dəyişdirilsə, növbəti deploy-da baza parolu da yenilənir.
 4. `main`-ə push et. İlk dəfə `bootstrap.sh` Docker quraşdırır və `/opt/arzoom/.env` faylını təsadüfi parollarla yaradır.
@@ -115,3 +117,13 @@ Sonra `cd /opt/arzoom && docker compose up -d`. `SMS_URL` olan kimi demo rejimi 
 - Razılıq mətnlərini və skorinq həddlərini hüquqşünas və risk bölməsi ilə təsdiqləmək.
 - Hər əməkdaş üçün ayrıca giriş (indi ortaq açar və ad ilə işləyir).
 - AKB və ASAN Finans ilə API inteqrasiyası (indi əməkdaş hesabat məlumatlarını əl ilə daxil edir).
+
+## Korporativ sayt (arzoomavto.az)
+`site/` qovluğu ayrıca `website` konteyneridir: statik səhifə, daxili Caddy :8080-də, bazaya və tətbiqə çıxışı yoxdur. Ön tərəfdəki Caddy `WEBSITE_ADDRESS` domenlərini bu konteynerə, `SITE_ADDRESS`-i lizinq tətbiqinə yönləndirir.
+
+- Domen olmayanda sayt `https://SERVER_IP:8443` ünvanında açılır (lizinq tətbiqi `https://SERVER_IP`-də qalır), müraciət düymələri eyni IP-yə aparır.
+- DNS: `arzoomavto.az`, `www.arzoomavto.az` və `lizinq.arzoomavto.az` A qeydləri serverin IP-sinə baxmalıdır.
+- Saytdakı bütün "Onlayn müraciət" düymələri `site/public/index.html`-dəki `APP_URL` ünvanına gedir (standart: `https://lizinq.arzoomavto.az/`).
+- Telefon, e-poçt, ünvan və iş saatları "Əlaqə" bölməsində və `tel:` keçidlərindədir.
+- Kalkulyatorun nümunə şərtləri (illik faiz, komissiya) skriptin əvvəlindəki `RATE` və `COMMISSION` sabitlərindədir.
+- Lokal baxış: `docker build -t arzoom-website site && docker run --rm -p 8080:8080 arzoom-website`, sonra `http://localhost:8080`.

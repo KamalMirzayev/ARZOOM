@@ -1,0 +1,27 @@
+# Saytın daxili veb serveri. HTTPS və domen ön tərəfdəki Caddy-dədir.
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+:8080 {
+	root * /srv
+	encode zstd gzip
+
+	header {
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		-Server
+	}
+	@pages path / /index.html
+	header @pages Cache-Control "no-cache"
+	@assets not path / /index.html
+	header @assets Cache-Control "public, max-age=86400"
+
+	# Naməlum ünvanlar əsas səhifəyə qayıdır.
+	handle_errors 404 {
+		redir * / 302
+	}
+
+	file_server
+}

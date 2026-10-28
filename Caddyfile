@@ -8,9 +8,8 @@
 	}
 }
 
-{$SITE_ADDRESS:localhost} {
+(secure) {
 	encode zstd gzip
-
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options nosniff
@@ -19,6 +18,15 @@
 		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
 		-Server
 	}
+	log {
+		output stdout
+		format console
+	}
+}
+
+# Lizinq tətbiqi (müraciət, kabinet, əməkdaş paneli), məs. lizinq.arzoomavto.az
+{$SITE_ADDRESS:localhost} {
+	import secure
 
 	# Staff panel and its API can be limited to office IPs via ADMIN_ALLOW in .env.
 	@staff_blocked {
@@ -35,9 +43,14 @@
 	}
 
 	reverse_proxy app:3000
+}
 
-	log {
-		output stdout
-		format console
-	}
+# Korporativ sayt (site/ konteyneri), məs. "arzoomavto.az www.arzoomavto.az". www ünvanı əsas domenə yönləndirilir.
+{$WEBSITE_ADDRESS:website.localhost} {
+	import secure
+
+	@www header_regexp www Host ^www\.(.+)$
+	redir @www https://{re.www.1}{uri} 308
+
+	reverse_proxy website:8080
 }

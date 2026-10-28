@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Kodu /opt/arzoom qovluğuna köçürdükdən sonra konteynerləri yeniləyir.
 # DOMAIN verilibsə, .env-dəki SITE_ADDRESS onunla yenilənir (HTTPS sertifikatı bu ünvana alınır).
+# WEBSITE_DOMAIN verilibsə (məs. "arzoomavto.az www.arzoomavto.az"), korporativ saytın WEBSITE_ADDRESS-i yenilənir;
+# verilməyibsə, sayt https://SITE_ADDRESS:8443 ünvanında açılır.
 # NEW_POSTGRES_PASSWORD / NEW_ADMIN_TOKEN (GitHub secrets) verilibsə, parollar .env-də və bazada dəyişdirilir.
 set -euo pipefail
 cd /opt/arzoom
@@ -16,6 +18,14 @@ set_env() {
 get_env() { grep "^$1=" .env | tail -1 | cut -d= -f2- | sed "s/^'//; s/'$//"; }
 
 [ -n "${DOMAIN:-}" ] && set_env SITE_ADDRESS "$DOMAIN"
+# Without a website domain the corporate site is served on the app's address, port 8443.
+cur_web=$(get_env WEBSITE_ADDRESS || true)
+if [ -n "${WEBSITE_DOMAIN:-}" ]; then
+  set_env WEBSITE_ADDRESS "$WEBSITE_DOMAIN"
+elif [ -z "$cur_web" ] || [[ "$cur_web" == *:8443 ]]; then
+  set_env WEBSITE_ADDRESS "https://$(get_env SITE_ADDRESS):8443"
+fi
+command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active" && ufw allow 8443/tcp >/dev/null || true
 [ -n "${NEW_ADMIN_TOKEN:-}" ] && [ "$NEW_ADMIN_TOKEN" != "$(get_env ADMIN_TOKEN)" ] && set_env ADMIN_TOKEN "$NEW_ADMIN_TOKEN" && echo "ADMIN_TOKEN yeniləndi."
 
 if [ -n "${NEW_POSTGRES_PASSWORD:-}" ] && [ "$NEW_POSTGRES_PASSWORD" != "$(get_env POSTGRES_PASSWORD)" ]; then
@@ -33,7 +43,11 @@ docker compose up -d --force-recreate --no-deps caddy
 docker image prune -f >/dev/null
 for i in $(seq 1 30); do
   if docker compose exec -T app wget -qO- http://127.0.0.1:3000/api/health >/dev/null 2>&1; then
-    echo "Sağlamlıq yoxlaması keçdi. Ünvan: https://$(get_env SITE_ADDRESS)"; exit 0
+    echo "Sağlamlıq yoxlaması keçdi. Ünvan: https://$(get_env SITE_ADDRESS)"
+    w=$(get_env WEBSITE_ADDRESS || true); w=${w%% *}
+    case "$w" in ""|http*) ;; *) w="https://$w" ;; esac
+    [ -n "$w" ] && echo "Korporativ sayt: $w"
+    exit 0
   fi
   sleep 2
 done

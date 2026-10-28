@@ -51,12 +51,25 @@ services:
     security_opt: ["no-new-privileges:true"]
     logging: *logging
 
+  # arzoomavto.az korporativ saytı: statik səhifə, ayrıca konteyner (site/).
+  website:
+    build: ./site
+    restart: unless-stopped
+    networks: [web]
+    expose: ["8080"]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    logging: *logging
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
-    depends_on: [app]
+    depends_on: [app, website]
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+      WEBSITE_ADDRESS: ${WEBSITE_ADDRESS:-website.localhost}
       ADMIN_ALLOW: ${ADMIN_ALLOW:-0.0.0.0/0 ::/0}
     ports:
       - "80:80"

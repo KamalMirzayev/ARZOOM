@@ -37,10 +37,16 @@ jobs:
           node server.js & sleep 4
           bash scripts/smoke.sh
       - run: docker build -t arzoom-lizinq .
+      - name: Korporativ sayt konteyneri
+        run: |
+          docker build -t arzoom-website ./site
+          docker run -d --name website -p 8080:8080 --read-only --tmpfs /tmp --cap-drop ALL arzoom-website
+          for i in $(seq 1 20); do curl -fsS http://127.0.0.1:8080/ | grep -q "Arzoom Avto" && exit 0; sleep 1; done
+          docker logs website; exit 1
       - name: Compose və Caddy konfiqurasiyası
         run: |
           POSTGRES_PASSWORD=x ADMIN_TOKEN=x SITE_ADDRESS=example.com docker compose config -q && mkdir -p backups
-          docker run --rm -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" -e SITE_ADDRESS=example.com caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile
+          docker run --rm -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" -e SITE_ADDRESS=example.com -e WEBSITE_ADDRESS="example.org www.example.org" caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile
 
   deploy:
     needs: check
@@ -77,17 +83,18 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          source: "server.js,reset-password.js,package.json,package-lock.json,Dockerfile,docker-compose.yml,Caddyfile,.dockerignore,lib,db,public,deploy"
+          source: "server.js,reset-password.js,package.json,package-lock.json,Dockerfile,docker-compose.yml,Caddyfile,.dockerignore,lib,db,public,deploy,site"
           target: /opt/arzoom
       - name: Konteynerləri yenilə
         if: env.HAS_SSH == 'true'
         uses: appleboy/ssh-action@v1.0.3
         env:
           DOMAIN: ${{ secrets.DOMAIN || secrets.SSH_HOST }}
+          WEBSITE_DOMAIN: ${{ secrets.WEBSITE_DOMAIN }}
           NEW_POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           NEW_ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
         with:
-          envs: DOMAIN,NEW_POSTGRES_PASSWORD,NEW_ADMIN_TOKEN
+          envs: DOMAIN,WEBSITE_DOMAIN,NEW_POSTGRES_PASSWORD,NEW_ADMIN_TOKEN
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
@@ -96,4 +103,4 @@ jobs:
           script: |
             S=""; [ "$(id -u)" = 0 ] || S=sudo
             $S test -f /opt/arzoom/.env || $S bash /opt/arzoom/deploy/bootstrap.sh
-            $S env DOMAIN="$DOMAIN" NEW_POSTGRES_PASSWORD="$NEW_POSTGRES_PASSWORD" NEW_ADMIN_TOKEN="$NEW_ADMIN_TOKEN" bash /opt/arzoom/deploy/deploy.sh
+            $S env DOMAIN="$DOMAIN" WEBSITE_DOMAIN="$WEBSITE_DOMAIN" NEW_POSTGRES_PASSWORD="$NEW_POSTGRES_PASSWORD" NEW_ADMIN_TOKEN="$NEW_ADMIN_TOKEN" bash /opt/arzoom/deploy/deploy.sh

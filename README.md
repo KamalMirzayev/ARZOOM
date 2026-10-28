@@ -121,6 +121,7 @@ Sonra `cd /opt/arzoom && docker compose up -d`. `SMS_URL` olan kimi demo rejimi 
 ## Korporativ sayt (arzoomavto.az)
 `site/` qovluğu ayrıca `website` konteyneridir: statik səhifə, daxili Caddy :8080-də, bazaya və tətbiqə çıxışı yoxdur. Ön tərəfdəki Caddy `WEBSITE_ADDRESS` domenlərini bu konteynerə, `SITE_ADDRESS`-i lizinq tətbiqinə yönləndirir.
 
+- Domen olmayanda sayt `https://SERVER_IP:8443` ünvanında açılır (lizinq tətbiqi `https://SERVER_IP`-də qalır), müraciət düymələri eyni IP-yə aparır.
 - DNS: `arzoomavto.az`, `www.arzoomavto.az` və `lizinq.arzoomavto.az` A qeydləri serverin IP-sinə baxmalıdır.
 - Saytdakı bütün "Onlayn müraciət" düymələri `site/public/index.html`-dəki `APP_URL` ünvanına gedir (standart: `https://lizinq.arzoomavto.az/`).
 - Telefon, e-poçt, ünvan və iş saatları "Əlaqə" bölməsində və `tel:` keçidlərindədir.

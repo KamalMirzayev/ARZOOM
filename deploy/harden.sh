@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Serverin əsas təhlükəsizlik ayarları. Təkrar işə salmaq təhlükəsizdir.
-#  - firewall (ufw): yalnız SSH, 80 və 443 açıqdır
+#  - firewall (ufw): yalnız SSH, 80, 443 və 8443 (domensiz korporativ sayt) açıqdır
 #  - fail2ban: SSH-a parol təxmini cəhdlərini bloklayır
 #  - avtomatik təhlükəsizlik yeniləmələri
 # SSH parolla girişi BAĞLAMIR: bunu SSH açarı qurulandan sonra özün et (README).
@@ -19,6 +19,7 @@ for p in $SSH_PORTS; do ufw allow "$p/tcp" >/dev/null; done
 ufw allow 80/tcp >/dev/null
 ufw allow 443/tcp >/dev/null
 ufw allow 443/udp >/dev/null
+ufw allow 8443/tcp >/dev/null
 ufw --force enable >/dev/null
 
 cat > /etc/fail2ban/jail.d/arzoom.local <<JAIL
@@ -35,4 +36,4 @@ systemctl restart fail2ban >/dev/null 2>&1 || true
 echo 'APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "1";' > /etc/apt/apt.conf.d/20auto-upgrades
 
-echo "Təhlükəsizlik: ufw (SSH $SSH_PORTS, 80, 443), fail2ban, avtomatik yeniləmələr aktivdir."
+echo "Təhlükəsizlik: ufw (SSH $SSH_PORTS, 80, 443, 8443), fail2ban, avtomatik yeniləmələr aktivdir."

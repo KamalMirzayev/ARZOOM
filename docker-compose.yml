@@ -75,6 +75,8 @@ services:
       - "80:80"
       - "443:443"
       - "443:443/udp"
+      # Korporativ sayt domensiz, IP ilə: https://SERVER_IP:8443
+      - "8443:8443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

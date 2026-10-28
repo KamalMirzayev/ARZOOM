@@ -606,8 +606,9 @@ footer{border-top:1px solid var(--line);padding:48px 0 calc(32px + env(safe-area
 </div>
 
 <script>
-/* One place to change where "apply" links go and the sample terms shown in the calculator. */
-const APP_URL="https://lizinq.arzoomavto.az/";
+/* One place to change where "apply" links go and the sample terms shown in the calculator.
+   On arzoomavto.az the app lives on lizinq.arzoomavto.az; opened by IP (https://IP:8443) it is on the same host, port 443. */
+const APP_URL=/(^|\.)arzoomavto\.az$/.test(location.hostname)?"https://lizinq.arzoomavto.az/":`https://${location.hostname}/`;
 const RATE=17, COMMISSION=1.5;
 /* Prices match the catalogue in the leasing app (public/index.html, CATALOG). */
 const CARS=[

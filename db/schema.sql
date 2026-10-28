@@ -78,6 +78,14 @@ CREATE TABLE IF NOT EXISTS staff_users (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_login    TIMESTAMPTZ
 );
+-- Silinmiş müraciətlərin izi: kim, nə vaxt, niyə
+CREATE TABLE IF NOT EXISTS deletion_log (
+  application_id TEXT NOT NULL,
+  deleted_by     TEXT NOT NULL,
+  reason         TEXT NOT NULL,
+  summary        JSONB,
+  at             TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 -- Satış mütəxəssisi rolu və bildiriş SMS-i üçün telefon
 ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE staff_users DROP CONSTRAINT IF EXISTS staff_users_role_check;

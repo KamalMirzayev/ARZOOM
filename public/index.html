@@ -39,9 +39,9 @@
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;
   background-image:radial-gradient(900px 420px at 85% -10%,var(--bg-glow),transparent 70%),radial-gradient(700px 360px at -10% 20%,var(--gold-soft),transparent 70%),radial-gradient(500px 260px at 110% 60%,var(--red-soft),transparent 70%);background-attachment:fixed}
 .wrap{max-width:1360px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:22px 56px}
-h1,h2,h3{font-family:var(--f-display);font-stretch:106%;font-weight:700;text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1,h2,h3{font-family:var(--f-display);font-stretch:100%;font-weight:700;text-wrap:balance;margin:0;letter-spacing:-.01em}
 .mono{font-family:var(--f-mono)}
-.eyebrow{font-family:var(--f-display);font-stretch:112%;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);font-weight:600}
+.eyebrow{font-family:var(--f-display);font-stretch:100%;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);font-weight:600}
 .hint{font-size:13px;color:var(--muted);font-weight:400}
 button,input,select{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--gold);outline-offset:2px}
@@ -53,7 +53,7 @@ header.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-
 .logoplate{background:#FFFFFF;border-radius:10px;padding:9px 14px;display:inline-flex;box-shadow:0 0 0 1px var(--line)}
 .brand .logo{height:24px;width:auto;display:block}
 .brand .sub{font-size:12.5px;color:var(--muted);font-weight:500;padding-left:14px;border-left:1px solid var(--line-2)}
-.wordmark{font-family:var(--f-display);font-stretch:125%;font-weight:800;font-size:18px;letter-spacing:.16em;line-height:1}
+.wordmark{font-family:var(--f-display);font-stretch:100%;font-weight:800;font-size:18px;letter-spacing:.16em;line-height:1}
 .wordmark small{display:block;font-family:var(--f-body);font-stretch:100%;font-weight:500;font-size:12px;letter-spacing:.02em;color:var(--muted);margin-top:5px}
 nav.tabs{display:flex;gap:2px;border:1px solid var(--line);padding:4px;border-radius:99px;background:var(--surface)}
 nav.tabs button{border:0;background:transparent;padding:8px 18px;border-radius:99px;cursor:pointer;font-weight:600;font-size:14px;color:var(--muted)}
@@ -163,9 +163,15 @@ label.btn input{position:absolute;width:1px;height:1px;opacity:0}
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
 .card .eyebrow{color:var(--card-accent)}
 .card .muted{color:var(--card-muted);font-size:13px}
+.card .herocar{display:block;width:100%;height:auto;margin:10px 0 6px;overflow:visible}
+.herocar .shine{animation:shine 6s ease-in-out infinite}
+@keyframes shine{0%,55%{transform:skewX(-20deg) translateX(0)}100%{transform:skewX(-20deg) translateX(640px)}}
+.herocar .beam{animation:beam 3s ease-in-out infinite}
+@keyframes beam{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.herocar .shine,.herocar .beam{animation:none}}
 .card .carsvg{width:100%;height:96px;color:var(--card-accent);margin:6px 0 2px}
 .card .carsvg .wheel{fill:#05070A}
-.card .carname{font-family:var(--f-display);font-stretch:106%;font-size:24px;font-weight:700;line-height:1.15}
+.card .carname{font-family:var(--f-display);font-stretch:100%;font-size:24px;font-weight:700;line-height:1.15}
 .card .kv{display:grid;margin-top:16px;font-size:14px}
 .card .kv div{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:10px 0;border-top:1px solid var(--card-line)}
 .card .kv span:first-child{color:var(--card-muted)}
@@ -178,7 +184,7 @@ label.btn input{position:absolute;width:1px;height:1px;opacity:0}
 .card .chip{width:30px;height:30px;border-radius:50%;border:3px solid var(--red);background:radial-gradient(circle,var(--red) 0 4px,transparent 5px);opacity:.95}
 .card .btn{background:#FFFFFF;color:#22348F}
 .card .btn.ghost{background:transparent;color:var(--card-ink);border-color:rgb(255 255 255 / .25)}
-.big{font-family:var(--f-display);font-stretch:104%;font-size:clamp(36px,4.6vw,46px);font-weight:750;line-height:1;letter-spacing:-.02em}
+.big{font-family:var(--f-display);font-stretch:100%;font-size:clamp(36px,4.6vw,46px);font-weight:750;line-height:1;letter-spacing:-.02em}
 .dp{margin-top:18px;padding-top:16px;border-top:1px solid var(--card-line);display:grid;gap:8px}
 .dp-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline;font-size:13.5px}
 .dp-head b{font-family:var(--f-mono);font-weight:500;color:var(--card-ink)}
@@ -354,7 +360,7 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-si
       <aside class="stack" style="position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px)">
         <div class="card">
           <div class="chipline"><span class="eyebrow">Lizinq müraciətiniz</span><span class="chip" aria-hidden="true"></span></div>
-          <svg class="carsvg" id="sCarSvg" viewBox="0 0 122 46" aria-hidden="true"></svg>
+          <div id="sCarArt"></div>
           <div class="muted" id="sBrand">Avtomobil</div>
           <div class="carname" id="sCar">Hələ seçilməyib</div>
           <div class="progress"><span id="sStep">Addım 1 / 5</span><i><b id="sBar"></b></i></div>
@@ -429,6 +435,53 @@ const BODY={
   sport:['M3 35 Q5 30 21 28 L43 18 Q53 15 72 16 L95 24 Q113 26 119 32 L119 35 Z','M47 19 L71 17.5 L86 24 L41 25 Z']
 };
 const carSvg=t=>{const [b,w]=BODY[t]||BODY.sedan;return `<path d="${b}" fill="currentColor"/><path d="${w}" fill="#000" opacity=".3"/><circle class="wheel" cx="29" cy="35" r="7.5" fill="var(--ink)"/><circle cx="29" cy="35" r="3.2" fill="currentColor"/><circle class="wheel" cx="94" cy="35" r="7.5" fill="var(--ink)"/><circle cx="94" cy="35" r="3.2" fill="currentColor"/>`};
+// Detailed side view used on the summary card. Two silhouettes cover all body types.
+const HERO={
+  sedan:{body:"M30 122 Q24 110 27 100 Q30 90 44 87 L112 81 Q132 66 160 53 Q176 47 204 47 Q236 47 254 55 L300 79 Q342 84 366 92 Q378 97 380 108 L378 122 L342 122 A32 32 0 0 0 278 122 L130 122 A32 32 0 0 0 66 122 Z",
+    glass:"M122 81 Q140 67 164 57 Q180 52 204 52 Q232 52 250 59 L283 79 Z",pillar:[198,52,8,30],doors:[[196,84,198,120],[262,82,266,118]],handles:[[170,92],[236,91]],
+    line:"M34 98 Q200 94 372 101",head:"M350 90 Q366 92 375 99 L360 99 Q352 96 350 90 Z",tail:"M29 94 Q36 89 48 88 L46 95 Q36 96 29 94 Z",mirror:"M276 78 Q284 72 290 77 L288 83 L278 83 Z",wheels:[98,310],r:26,rail:""},
+  suv:{body:"M24 122 Q20 108 21 92 Q22 74 34 68 L60 42 Q66 36 82 35 L236 34 Q252 34 262 42 L302 72 Q348 78 370 86 Q382 92 382 106 L380 122 L346 122 A34 34 0 0 0 278 122 L134 122 A34 34 0 0 0 66 122 Z",
+    glass:"M46 70 L68 45 Q72 41 84 41 L234 40 Q246 40 254 46 L288 72 Z",pillar:[126,41,8,31],pillar2:[208,40,8,32],doors:[[208,76,210,120],[276,74,280,118]],handles:[[184,88],[252,86]],
+    line:"M26 96 Q200 92 374 98",head:"M352 84 Q370 86 379 95 L362 95 Q354 91 352 84 Z",tail:"M22 80 Q28 74 36 72 L36 88 Q28 89 22 86 Z",mirror:"M282 70 Q290 64 296 69 L294 76 L284 76 Z",wheels:[100,312],r:28,rail:"M72 32 L240 31"}
+};
+const heroCar=t=>{
+  const c=HERO[["suv","pickup","van"].includes(t)?"suv":"sedan"],R=c.r,rim=R*.66;
+  const wheel=x=>`<g transform="translate(${x} 124)"><circle r="${R+4}" fill="#05070F"/><circle r="${R}" fill="url(#hTire)"/><circle r="${rim+2}" fill="#0B1022"/><circle r="${rim}" fill="url(#hRim)"/>
+    ${[0,72,144,216,288].map(a=>`<path d="M-3.2 -${rim*.28} L-2 -${rim*.95} L2 -${rim*.95} L3.2 -${rim*.28} Z" fill="#E7ECFF" opacity=".9" transform="rotate(${a})"/>`).join("")}
+    <circle r="${rim*.26}" fill="#C7CFEA"/><circle r="${rim*.11}" fill="#D71F29"/></g>`;
+  return `<svg viewBox="0 0 400 160" class="herocar" role="img" aria-label="Avtomobil">
+  <defs>
+    <linearGradient id="hBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E4E9FF"/><stop offset=".35" stop-color="#8FA3FF"/><stop offset=".62" stop-color="#4C63E6"/><stop offset="1" stop-color="#1B2468"/></linearGradient>
+    <linearGradient id="hGlass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2A3770"/><stop offset=".5" stop-color="#0B1230"/><stop offset="1" stop-color="#050816"/></linearGradient>
+    <radialGradient id="hTire"><stop offset=".7" stop-color="#1A1F33"/><stop offset="1" stop-color="#090C18"/></radialGradient>
+    <radialGradient id="hRim" cx=".4" cy=".35"><stop offset="0" stop-color="#9AA6CC"/><stop offset="1" stop-color="#2B3456"/></radialGradient>
+    <radialGradient id="hShadow"><stop offset="0" stop-color="#000" stop-opacity=".7"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+    <radialGradient id="hGlow"><stop offset="0" stop-color="#CFE0FF" stop-opacity=".9"/><stop offset="1" stop-color="#CFE0FF" stop-opacity="0"/></radialGradient>
+    <linearGradient id="hShine" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <clipPath id="hClip"><path d="${c.body}"/></clipPath>
+  </defs>
+  <ellipse cx="204" cy="140" rx="190" ry="12" fill="url(#hShadow)"/>
+  <path d="M10 146 H390" stroke="#8EA2FF" stroke-opacity=".25"/>
+  ${c.rail?`<path d="${c.rail}" stroke="#AEB9E8" stroke-width="3" stroke-linecap="round"/>`:""}
+  <path d="${c.body}" fill="url(#hBody)"/>
+  <g clip-path="url(#hClip)">
+    <path d="M0 112 H400 V160 H0 Z" fill="#0D143D" opacity=".55"/>
+    <path d="${c.line}" stroke="#FFFFFF" stroke-opacity=".45" stroke-width="1.6" fill="none"/>
+    ${c.doors.map(([x1,y1,x2,y2])=>`<path d="M${x1} ${y1} Q${x1-3} ${(y1+y2)/2} ${x2} ${y2}" stroke="#0B1240" stroke-opacity=".45" fill="none"/>`).join("")}
+    ${c.handles.map(([x,y])=>`<rect x="${x}" y="${y}" width="16" height="3.4" rx="1.7" fill="#0B1240" opacity=".5"/>`).join("")}
+    <rect class="shine" x="-120" y="0" width="90" height="160" fill="url(#hShine)" transform="skewX(-20)"/>
+  </g>
+  <path d="${c.glass}" fill="url(#hGlass)"/>
+  <path d="${c.glass}" fill="none" stroke="#C9D3FF" stroke-opacity=".35"/>
+  <rect x="${c.pillar[0]}" y="${c.pillar[1]}" width="${c.pillar[2]}" height="${c.pillar[3]}" fill="#1B2468"/>
+  ${c.pillar2?`<rect x="${c.pillar2[0]}" y="${c.pillar2[1]}" width="${c.pillar2[2]}" height="${c.pillar2[3]}" fill="#1B2468"/>`:""}
+  <path d="M${c.pillar[0]+30} ${c.pillar[1]+6} l26 0 l-30 22 l-18 0 Z" fill="#FFFFFF" opacity=".08"/>
+  <path d="${c.mirror}" fill="#3A4CB8"/>
+  <path class="beam" d="M372 94 L400 84 L400 112 Z" fill="url(#hGlow)" opacity=".5"/><circle class="beam" cx="372" cy="95" r="12" fill="url(#hGlow)"/>
+  <path d="${c.head}" fill="#F2F6FF"/>
+  <path d="${c.tail}" fill="#FF3B45"/>
+  ${c.wheels.map(wheel).join("")}
+</svg>`};
 const BODYNAME={sedan:"Sedan",hatch:"Hetçbek",suv:"Krossover / SUV",pickup:"Pikap",van:"Miniven / furqon",sport:"İdman"};
 const FILTERS=[["all","Hamısı"],["sedan","Sedan"],["hatch","Hetçbek"],["suv","SUV"],["pickup","Pikap"],["van","Miniven"],["sport","İdman"],["e","Elektrik / hibrid"]];
 
@@ -492,7 +545,7 @@ function renderModels(){
 /* ---------- side card ---------- */
 function renderSide(){
   const m=curModel();
-  $("#sCarSvg").innerHTML=carSvg(m?m[1]:"suv");
+  $("#sCarArt").innerHTML=heroCar(m?m[1]:"sedan");
   $("#sBrand").textContent=m?`${brand} · ${BODYNAME[m[1]]}${m[2]?" · "+PT[m[2]][0].toLocaleUpperCase("az")+PT[m[2]].slice(1):""}`:(step>=2?brand:"Avtomobil");
   $("#sCar").textContent=m?model:(step>=2?"Model seçin":"Hələ seçilməyib");
   $("#sStep").textContent=`Addım ${step+1} / 5 · ${STEPS[step]}`;$("#sBar").style.width=((step+1)/5*100)+"%";

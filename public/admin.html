@@ -28,10 +28,10 @@
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.5}
-h1,h2,h3{font-family:var(--f-display);font-stretch:115%;margin:0;letter-spacing:-.01em}
+h1,h2,h3{font-family:var(--f-display);font-stretch:100%;margin:0;letter-spacing:-.01em}
 .mono{font-family:var(--f-mono)}
 .muted{color:var(--muted)}
-.eyebrow{font-family:var(--f-display);font-stretch:125%;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--blue);font-weight:600}
+.eyebrow{font-family:var(--f-display);font-stretch:100%;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--blue);font-weight:600}
 button,input,select,textarea{font:inherit;color:inherit}
 input,select,textarea{width:100%;background:var(--raised);border:1px solid var(--line-2);border-radius:9px;padding:9px 11px;outline:none}
 input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft)}
@@ -93,7 +93,7 @@ label.chk input{width:17px;height:17px;accent-color:var(--blue);flex:none}
   background:radial-gradient(360px 260px at 0% 0%,rgb(82 115 255 / .28),transparent 70%),radial-gradient(300px 240px at 100% 100%,rgb(215 31 41 / .14),transparent 70%),#070B1C}
 .side .brand{display:grid;gap:10px;padding:0 6px}
 .side .brand .logoplate{justify-self:start;box-shadow:none}
-.side .brand small{font-family:var(--f-display);font-stretch:125%;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#8EA2FF;font-weight:600}
+.side .brand small{font-family:var(--f-display);font-stretch:100%;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#8EA2FF;font-weight:600}
 .nav{display:grid;gap:2px}
 .nav h6{margin:0 0 6px;padding:0 10px;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#6E79A6;font-weight:700}
 .nav button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;color:#C9D1F2;border-radius:10px;padding:9px 10px;font-weight:600;font-size:13.5px;cursor:pointer;text-align:left}
@@ -167,12 +167,12 @@ main{padding:26px clamp(18px,2.4vw,34px) 40px;min-width:0;max-width:1240px}
 .hero h2{font-size:28px;margin-top:6px}
 .appno{font-family:var(--f-mono)!important;font-stretch:100%!important;letter-spacing:-.02em;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .appno .btn{font-family:var(--f-body)}
-.car2{font-family:var(--f-display);font-stretch:112%;font-weight:700;font-size:17px;margin-top:4px}
+.car2{font-family:var(--f-display);font-stretch:100%;font-weight:700;font-size:17px;margin-top:4px}
 .hero .sub{color:var(--muted);font-size:13px;margin-top:4px}
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 .stat{background:var(--raised);border-radius:12px;padding:12px 14px;border:1px solid var(--line)}
 .stat small{color:var(--muted);font-size:11.5px;display:block}
-.stat b{font-family:var(--f-display);font-stretch:112%;font-size:20px;font-weight:800;display:block;margin-top:2px;white-space:nowrap}
+.stat b{font-family:var(--f-display);font-stretch:100%;font-size:20px;font-weight:800;display:block;margin-top:2px;white-space:nowrap}
 .steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;list-style:none;margin:0;padding:0;counter-reset:s}
 .steps li{position:relative;display:grid;justify-items:center;text-align:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted)}
 .steps li::before{content:"";position:absolute;top:13px;left:calc(-50% + 16px);right:calc(50% + 16px);height:2px;background:var(--line-2)}
@@ -205,7 +205,7 @@ main{padding:26px clamp(18px,2.4vw,34px) 40px;min-width:0;max-width:1240px}
 .form{align-items:end;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
 .form .wide{grid-column:1/-1}
 fieldset{border:1px solid var(--line);border-radius:14px;padding:16px;margin:0 0 14px;min-width:0;background:var(--raised)}
-legend{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-stretch:112%;font-weight:700;font-size:13.5px;padding:0 6px;margin-left:-6px}
+legend{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-stretch:100%;font-weight:700;font-size:13.5px;padding:0 6px;margin-left:-6px}
 legend i{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;background:var(--blue);color:#FFFFFF;font-style:normal;font-family:var(--f-mono);font-size:11px}
 fieldset input,fieldset select,fieldset textarea{background:var(--surface)}
 .savebar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -219,7 +219,7 @@ fieldset input,fieldset select,fieldset textarea{background:var(--surface)}
   background:conic-gradient(var(--c) calc(var(--p)*1%),rgb(255 255 255 / .1) 0);box-shadow:0 0 30px -6px var(--c)}
 .ring span{width:78px;height:78px;border-radius:50%;background:#0A1024;display:grid;place-content:center;text-align:center;font-family:var(--f-display);font-weight:800;font-size:28px;color:#FFFFFF;line-height:1}
 .ring span small{display:block;font-size:10px;font-family:var(--f-mono);font-weight:500;color:#9AA5CF;margin-top:2px}
-.verdict{font-family:var(--f-display);font-stretch:112%;font-weight:700;font-size:18px;line-height:1.2;margin-top:4px}
+.verdict{font-family:var(--f-display);font-stretch:100%;font-weight:700;font-size:18px;line-height:1.2;margin-top:4px}
 .bar{height:8px;border-radius:99px;background:rgb(255 255 255 / .1);overflow:visible;position:relative;margin:7px 0 5px}
 .bar i{display:block;height:100%;border-radius:99px;transition:width .3s}
 .bar::after{content:"";position:absolute;top:-3px;bottom:-3px;width:2px;background:#FFFFFF;left:var(--lim);border-radius:2px}
@@ -252,6 +252,8 @@ ul.r li.stop{color:#FFB4AC;font-weight:700} ul.r li.stop::before{background:#F08
 .tl .body p{margin:2px 0 0;color:var(--muted);font-size:13px;word-break:break-word}
 .tl small{color:var(--muted);display:block;font-size:11.5px;margin-top:2px}
 .noteform{display:flex;gap:8px;margin-top:6px}
+.danger-zone{border-color:color-mix(in srgb,var(--red) 40%,var(--line))}
+.danger-zone .ph .ico{background:var(--red-soft);color:var(--red)}
 
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:11px 18px;border-radius:12px;font-weight:600;z-index:20;box-shadow:0 12px 30px -10px rgb(0 0 0 / .4)}
 .back{display:none}
@@ -262,7 +264,7 @@ ul.r li.stop{color:#FFB4AC;font-weight:700} ul.r li.stop::before{background:#F08
 .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:18px}
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;position:relative;overflow:hidden;box-shadow:var(--shadow);display:grid;grid-template-columns:1fr auto;gap:4px}
 .kpi small{color:var(--muted);font-size:12.5px;font-weight:600}
-.kpi b{grid-column:1;font-family:var(--f-display);font-stretch:112%;font-weight:800;font-size:32px;line-height:1.1}
+.kpi b{grid-column:1;font-family:var(--f-display);font-stretch:100%;font-weight:800;font-size:32px;line-height:1.1}
 .kpi .ico{grid-column:2;grid-row:1/span 2;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--blue-soft);color:var(--blue)}
 .kpi .ico svg{width:19px;height:19px}
 .kpi.warn .ico{background:var(--warn-soft);color:var(--warn)} .kpi.ok .ico{background:var(--ok-soft);color:var(--ok)}
@@ -282,8 +284,9 @@ ul.r li.stop{color:#FFB4AC;font-weight:700} ul.r li.stop::before{background:#F08
 .policy b{display:block;font-family:var(--f-mono);font-weight:500;color:var(--blue);margin-bottom:3px}
 
 @media (max-width:1280px){.assess{grid-template-columns:1fr}.rail{position:static}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:1100px){#app{grid-template-columns:72px minmax(0,1fr)}.side{padding:16px 10px}.side .brand,.nav h6,.nav button span.t,.nav button b,.me .who{display:none}
-  .nav button{justify-content:center;padding:10px}.nav .sd{margin:0}.me{flex-direction:column;padding:8px}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:1400px){#app{grid-template-columns:72px minmax(0,1fr)}.side{padding:16px 10px}.side .brand,.nav h6,.nav button span.t,.nav button b,.me .who{display:none}
+  .nav button{justify-content:center;padding:10px}.nav .sd{margin:0}.me{flex-direction:column;padding:8px}}
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:900px){
   #app{grid-template-columns:1fr}
   .side{position:sticky;height:auto;flex-direction:row;align-items:center;gap:6px;padding:10px 12px;overflow-x:auto;z-index:6}
@@ -375,12 +378,12 @@ ul.r li.stop{color:#FFB4AC;font-weight:700} ul.r li.stop::before{background:#F08
   <nav class="side" aria-label="Panel">
     <div class="brand"><span class="logoplate"><img src="/logo.png" alt="Arzoom Avto"></span><small>Qiymətləndirmə</small></div>
     <div class="nav"><h6>Panel</h6>
-      <button type="button" id="homeBtn" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span class="t">Ümumi baxış</span></button>
+      <button type="button" id="homeBtn" title="Ümumi baxış" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span class="t">Ümumi baxış</span></button>
     </div>
     <div class="nav" id="statusNav"><h6>Müraciətlər</h6></div>
     <div class="nav"><h6>Hesab</h6>
-      <button type="button" id="usersBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></svg><span class="t">İstifadəçilər</span></button>
-      <button type="button" id="pwBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg><span class="t">Parolu dəyiş</span></button>
+      <button type="button" id="usersBtn" title="İstifadəçilər" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></svg><span class="t">İstifadəçilər</span></button>
+      <button type="button" id="pwBtn" title="Parolu dəyiş"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg><span class="t">Parolu dəyiş</span></button>
     </div>
     <div class="me"><span class="av" id="av"></span><span class="who" id="who"></span>
       <button class="iconbtn" id="logout" type="button" title="Çıxış" aria-label="Çıxış"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3"/></svg></button></div>
@@ -537,7 +540,7 @@ async function loadList(){
 }
 function renderList(){
   const total=Object.values(counts).reduce((a,b)=>a+b,0);
-  $("#statusNav").innerHTML=`<h6>Müraciətlər</h6>`+FILTERS.map(([k,t])=>`<button type="button" data-st="${k}" aria-pressed="${status===k}"><i class="sd s-${k||"all"}"></i><span class="t">${t}</span><b>${k?counts[k]||0:total}</b></button>`).join("");
+  $("#statusNav").innerHTML=`<h6>Müraciətlər</h6>`+FILTERS.map(([k,t])=>`<button type="button" data-st="${k}" title="${t}" aria-pressed="${status===k}"><i class="sd s-${k||"all"}"></i><span class="t">${t}</span><b>${k?counts[k]||0:total}</b></button>`).join("");
   $("#listTitle").textContent=status?FILTERS.find(f=>f[0]===status)[1]:"Bütün müraciətlər";
   $("#listCount").textContent=items.length+" nəticə";
   $("#homeBtn").setAttribute("aria-pressed",String(!cur&&!$("#detail").dataset.page));
@@ -689,8 +692,12 @@ function renderDetail(){
       </div>
     </section>
 
+    ${me.role==="admin"?`<section class="panel span2 danger-zone">${ph("x","Müraciəti sil")}
+      <p class="muted" style="margin:0 0 12px;font-size:13px">Müraciət, sənədləri və tarixçəsi birdəfəlik silinir. Kimin, nə vaxt və hansı səbəblə sildiyi ayrıca jurnalda qalır.</p>
+      <div class="noteform"><input id="delReason" placeholder="Silmə səbəbi, məs. test müraciəti, təkrar müraciət"><button class="btn danger" type="button" id="delApp">Sil</button></div>
+    </section>`:""}
     <section class="panel span2">${ph("clock","Tarixçə və qeydlər")}
-      <ol class="tl">${a.events.map(evHtml).join("")||`<li class="muted">Hələ hadisə yoxdur.</li>`}</ol>
+      <ol class="tl">${a.events.map(evHtml).join("")||`<li class="muted" style="display:block">Hələ hadisə yoxdur.</li>`}</ol>
       <form id="nForm" class="noteform"><input id="note" placeholder="Qeyd əlavə et, məs. müştəriyə zəng edildi"><button class="btn ghost" type="submit">Əlavə et</button></form>
     </section>
   </div>`;
@@ -761,6 +768,11 @@ document.addEventListener("click",async e=>{
       await api(`/applications/${cur.id}/assessment`,{method:"PUT",body:JSON.stringify(i)});
       await api(`/applications/${cur.id}/offer`,{method:"POST",body:JSON.stringify({price:+i.price,downPct:+i.downPct,months:+i.months,rate:+i.rate,commissionPct:+i.commissionPct})});
       toast("Təklif müştəriyə göndərildi");await openApp(cur.id);loadList()}catch(err){toast(err.message)}}
+  if(b.id==="delApp"){
+    const reason=$("#delReason").value.trim();if(reason.length<3){toast("Silmə səbəbini yaz.");$("#delReason").focus();return}
+    if(!confirmInline(b,"Silməyi təsdiqlə: "+cur.id))return;
+    try{await api(`/applications/${encodeURIComponent(cur.id)}`,{method:"DELETE",body:JSON.stringify({reason})});toast(`Müraciət ${cur.id} silindi`);
+      cur=null;$("#shell").classList.remove("open");await loadList();renderHome()}catch(err){toast(err.message)}}
   if(b.id==="reject"){
     const reason=$("#reason").value.trim();if(!reason){toast("İmtina səbəbini yaz.");$("#reason").focus();return}
     if(!confirmInline(b,"Rədd etməyi təsdiqlə"))return;

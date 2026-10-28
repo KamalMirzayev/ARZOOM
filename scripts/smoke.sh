@@ -73,6 +73,10 @@ curl -fsS -X POST "${H[@]}" "$B/api/admin/users" -d "{\"username\":\"$U\",\"name
 ES=$(curl -fsS -X POST "$B/api/admin/login" -H "Content-Type: application/json" -d "{\"username\":\"$U\",\"password\":\"Ekspert-Parol-1\"}" | J token)
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/users")" = 403 ] || fail
 curl -fsS -H "x-admin-token: $ES" "$B/api/admin/stats" >/dev/null || fail; echo "✓ ekspert hesabı: panel var, istifadəçi idarəsi yox"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE -H "x-admin-token: $ES" -H "Content-Type: application/json" "$B/api/admin/applications/$ID2" -d '{"reason":"test"}')" = 403 ] || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE "${H[@]}" "$B/api/admin/applications/$ID2" -d '{}')" = 400 ] || fail
+curl -fsS -X DELETE "${H[@]}" "$B/api/admin/applications/$ID2" -d '{"reason":"smoke test"}' >/dev/null || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' "${H[@]}" "$B/api/admin/applications/$ID2")" = 404 ] || fail; echo "✓ müraciəti yalnız admin silə bilir"
 curl -fsS -X POST -H "x-admin-token: $ES" "$B/api/admin/logout" >/dev/null
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/stats")" = 401 ] || fail; echo "✓ çıxışdan sonra sessiya bağlanır"
 echo "Bütün yoxlamalar keçdi."

@@ -469,6 +469,28 @@ app.post("/api/admin/applications/:id/notes", admin, async (req, res) => {
   res.json({ ok: true });
 });
 
+// Only admins delete. Files on disk go too; the deletion itself stays in deletion_log.
+app.delete("/api/admin/applications/:id", admin, adminOnly, async (req, res) => {
+  const reason = String(req.body?.reason || "").trim().slice(0, 300);
+  if (reason.length < 3) return bad(res, "Silmə səbəbini yaz.");
+  const client = await pool.connect();
+  let files = [];
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query("SELECT id, fin, brand, model, status, created_at FROM applications WHERE id = $1 FOR UPDATE", [req.params.id]);
+    if (!rows[0]) { await client.query("ROLLBACK"); return bad(res, "Müraciət tapılmadı.", 404); }
+    files = (await client.query("SELECT stored_name FROM application_files WHERE application_id = $1", [req.params.id])).rows;
+    await client.query("INSERT INTO deletion_log (application_id, deleted_by, reason, summary) VALUES ($1,$2,$3,$4)",
+      [req.params.id, `${req.staff} (${req.user.username})`, reason, rows[0]]);
+    await client.query("DELETE FROM applications WHERE id = $1", [req.params.id]);
+    await client.query("COMMIT");
+  } catch (e) { await client.query("ROLLBACK").catch(() => {}); throw e; }
+  finally { client.release(); }
+  for (const f of files) fs.promises.unlink(path.join(UPLOAD_DIR, path.basename(f.stored_name))).catch(() => {});
+  console.log(`Müraciət silindi: ${req.params.id}, ${req.user.username}`);
+  res.json({ ok: true });
+});
+
 app.get("/api/admin/files/:stored", admin, async (req, res) => {
   const f = path.basename(req.params.stored);
   const { rows } = await pool.query("SELECT original_name, mime FROM application_files WHERE stored_name = $1", [f]);

@@ -52,6 +52,13 @@ EV=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID")
 echo "$EV" | grep -c "Test Satış" >/dev/null && echo "$EV" | grep -c "Müraciət № $ID satışa" >/dev/null && echo "$EV" | grep -c "Son təklifi təsdiqlədiniz" >/dev/null || fail; echo "✓ son təklif SMS-i müştəriyə və satışa"
 SS=$(curl -fsS -X POST "$B/api/admin/login" -H "Content-Type: application/json" -d "{\"username\":\"$SU\",\"password\":\"Satis-Parol-12\"}" | J token)
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "x-admin-token: $SS" -H "Content-Type: application/json" "$B/api/admin/applications/$ID2/reject" -d '{"reason":"x"}')" = 403 ] || fail; echo "✓ satış mütəxəssisi qərar verə bilmir"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $SS" "$B/api/admin/analytics")" = 403 ] || fail
+curl -fsS "${H[@]}" "$B/api/admin/analytics?days=30" | grep -c '"daily"' >/dev/null || fail; echo "✓ analitika: admin görür, satış görmür"
+AK=$(curl -fsS -X POST -H "x-admin-token: $S" -H "Content-Type: text/xml" --data-binary @"$(dirname "$0")/../test/akb-sample.xml" "$B/api/admin/applications/$ID/bureau")
+[ "$(echo "$AK" | J report.summary.debtMonthly)" = 500 ] && [ "$(echo "$AK" | J assessment.inputs.maxOverdue)" = "1-30" ] || fail
+echo "$AK" | J assessment.result.grade | grep -qE '^[ABCD]$' || fail; echo "✓ AKB XML oxundu və avtomatik hesablandı: $(echo "$AK" | J assessment.result.score) $(echo "$AK" | J assessment.result.grade)"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "x-admin-token: $S" -H "Content-Type: text/xml" -d '<foo/>' "$B/api/admin/applications/$ID/bureau")" = 400 ] || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Content-Type: text/xml" -d '<foo/>' "$B/api/integrations/akb")" != 200 ] || fail; echo "✓ yanlış XML və açarsız inteqrasiya rədd edilir"
 
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID2/reject" -d '{"reason":"DTI 70%"}' >/dev/null
 [ "$(curl -fsS -H "x-app-token: $TOK2" "$B/api/applications/$ID2" | J status)" = rejected ] || fail; echo "✓ rədd axını"
@@ -77,6 +84,11 @@ curl -fsS -H "x-admin-token: $ES" "$B/api/admin/stats" >/dev/null || fail; echo 
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE "${H[@]}" "$B/api/admin/applications/$ID2" -d '{}')" = 400 ] || fail
 curl -fsS -X DELETE "${H[@]}" "$B/api/admin/applications/$ID2" -d '{"reason":"smoke test"}' >/dev/null || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' "${H[@]}" "$B/api/admin/applications/$ID2")" = 404 ] || fail; echo "✓ müraciəti yalnız admin silə bilir"
+UID_E=$(curl -fsS "${H[@]}" "$B/api/admin/users" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>console.log(JSON.parse(d).users.find(u=>u.username===process.argv[1]).id))' "$U")
+curl -fsS -X POST "${H[@]}" "$B/api/admin/users/$UID_E" -d '{"permissions":["apps.view","apps.notes"]}' >/dev/null || fail
+ES=$(curl -fsS -X POST "$B/api/admin/login" -H "Content-Type: application/json" -d "{\"username\":\"$U\",\"password\":\"Ekspert-Parol-1\"}" | J token)
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H "x-admin-token: $ES" -H "Content-Type: application/json" "$B/api/admin/applications/$ID/assessment" -d '{}')" = 403 ] || fail
+curl -fsS -H "x-admin-token: $ES" "$B/api/admin/me" | grep -c '"apps.notes"' >/dev/null || fail; echo "✓ fərdi icazələr: qiymətləndirmə bağlandı"
 curl -fsS -X POST -H "x-admin-token: $ES" "$B/api/admin/logout" >/dev/null
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/stats")" = 401 ] || fail; echo "✓ çıxışdan sonra sessiya bağlanır"
 echo "Bütün yoxlamalar keçdi."

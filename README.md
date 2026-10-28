@@ -85,6 +85,28 @@ Axın: müraciəti aç → sənədlərə bax → AKB hesabatından gecikmələri
 
 Skorinq (tövsiyədir, qərarı əməkdaş verir): borc yükü (DTI) 50%-ə qədər normal, 60%-dən yuxarı imtina; aktiv gecikmə və ya 90+ gün gecikmə dayandırıcıdır; staj, aktiv kredit sayı və ilkin ödəniş balı dəyişir. A ≥ 80, B ≥ 65, C ≥ 50, qalanı D. Həddləri `lib/scoring.js`-də `POLICY` hissəsində dəyiş.
 
+## İcazələr
+
+Rollar standart dəsti verir: **Admin** hər şeyi, **Kredit eksperti** baxmaq, sənəd, qeyd, qiymətləndirmə, təklif, rədd və analitika, **Satış mütəxəssisi** baxmaq, sənəd və qeyd. Admin İstifadəçilər səhifəsində hər əməkdaş üçün icazələri ayrıca dəyişə və ya rolun standartına qaytara bilər. Müraciəti silmək standart olaraq yalnız admindədir. İstifadəçiləri idarə etmək yalnız admin roluna aiddir. Server hər əməliyyatda icazəni yoxlayır.
+
+## AKB kredit hesabatı
+
+Müraciət səhifəsində AKB XML faylını yükləyəndə sistem onu oxuyur (`lib/akb.js`), göstəriciləri çıxarır və dərhal skor hesablayır:
+
+- aktiv kreditlər və aylıq ödənişlər, kart limitlərinin 5%-i aylıq yük kimi;
+- cari gecikmə, son 24 ayda ən böyük gecikmə, son 12 ayda gecikməli aylar;
+- son 90 gündə kredit sorğuları (monitorinq və şəxsi sorğu sayılmır);
+- kredit tarixçəsinin uzunluğu və restrukturizasiya;
+- FİN uyğunsuzluğu və köhnə hesabat xəbərdarlıqları.
+
+Bu göstəricilər qiymətləndirmə formasına yazılır, ekspertin daxil etdiyi gəlir və avtomobil şərtləri saxlanılır. AKB kodlarının (kredit növü, status, sorğu məqsədi) mənası rəsmi kitabça ilə yoxlanmalıdır.
+
+Avtomatik inteqrasiya: `.env`-də `AKB_API_KEY` (ən azı 20 simvol) yazılanda `POST /api/integrations/akb` ünvanı açılır. XML `x-api-key` başlığı ilə göndərilir, sistem FİN üzrə açıq müraciəti tapıb hesabatı yazır və nəticəni qaytarır.
+
+## Analitika
+
+Paneldə Analitika səhifəsi 7, 30, 90 gün və 1 il üzrə göstərir: gündəlik axın, satış qıfı, təsdiq və satışa çevrilmə faizi, qərar müddəti, maliyyələşmə həcmi, risk dərəcələri, markalar, gəlir mənbələri və əməkdaşların qərarları.
+
 ## SMS provayderini qoşmaq
 `/opt/arzoom/.env` faylına provayderin ünvanını yaz, `{phone}` və `{text}` avtomatik doldurulur:
 ```bash

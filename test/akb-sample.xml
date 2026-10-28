@@ -1,0 +1,27 @@
+<inquiryResult>
+<reportId>1000001</reportId>
+<reportingDate>2025-08-14</reportingDate>
+<borrower>
+<documentNo>AZE00000000</documentNo>
+<name>TEST TESTOV TEST OĞLU</name>
+<fin>5ABC12D</fin>
+<dateOfBirth>01/01/1990</dateOfBirth>
+<personType>NATURAL_PERSON</personType>
+<fileDate>2015-03-01</fileDate>
+<status>ACTIVE</status>
+</borrower>
+<liabilities>
+<liability><bankName>Test Bank 1</bankName><creditType>003</creditType><grantedOn>2024-12-05</grantedOn><initialAmount>0</initialAmount><lineAmount>1000</lineAmount><daysInterestOverdue>0</daysInterestOverdue><daysMainSumOverdue>0</daysMainSumOverdue><contractDueOn>2029-11-05</contractDueOn><interestRate>24</interestRate><outstandingDebtMain>0</outstandingDebtMain><outstandingDebtInterest>0</outstandingDebtInterest><monthlyPaymentAmount>0</monthlyPaymentAmount><prolongations>0</prolongations><creditStatus>007</creditStatus><creditStatusCloseDate/><creditPurpose>001</creditPurpose><currency>AZN</currency><collateralCode>007</collateralCode>
+<history><historyItem><reportingPeriod>08x2025</reportingPeriod><overdueDays>0</overdueDays><creditStatus>007</creditStatus></historyItem><historyItem><reportingPeriod>07x2025</reportingPeriod><overdueDays>0</overdueDays><creditStatus>007</creditStatus></historyItem></history></liability>
+<liability><bankName>Test Bank 2</bankName><creditType>001</creditType><grantedOn>2023-09-01</grantedOn><initialAmount>40000</initialAmount><lineAmount>0</lineAmount><daysInterestOverdue>0</daysInterestOverdue><daysMainSumOverdue>0</daysMainSumOverdue><contractDueOn>2028-08-07</contractDueOn><interestRate>12</interestRate><outstandingDebtMain>25000</outstandingDebtMain><outstandingDebtInterest>200</outstandingDebtInterest><monthlyPaymentAmount>450</monthlyPaymentAmount><prolongations>0</prolongations><creditStatus>007</creditStatus><creditStatusCloseDate/><creditPurpose>001</creditPurpose><currency>AZN</currency><collateralCode>007</collateralCode>
+<history><historyItem><reportingPeriod>08x2025</reportingPeriod><overdueDays>0</overdueDays><creditStatus>007</creditStatus></historyItem><historyItem><reportingPeriod>04x2025</reportingPeriod><overdueDays>5</overdueDays><creditStatus>007</creditStatus></historyItem><historyItem><reportingPeriod>04x2024</reportingPeriod><overdueDays>12</overdueDays><creditStatus>007</creditStatus></historyItem></history></liability>
+<liability><bankName>Test Bank 3</bankName><creditType>001</creditType><grantedOn>2020-02-03</grantedOn><initialAmount>10000</initialAmount><lineAmount>0</lineAmount><daysInterestOverdue>0</daysInterestOverdue><daysMainSumOverdue>0</daysMainSumOverdue><contractDueOn>2022-02-03</contractDueOn><interestRate>18</interestRate><outstandingDebtMain>0</outstandingDebtMain><outstandingDebtInterest>0</outstandingDebtInterest><monthlyPaymentAmount>500</monthlyPaymentAmount><prolongations>0</prolongations><creditStatus>001</creditStatus><creditStatusCloseDate>2022-01-30</creditStatusCloseDate><creditPurpose>001</creditPurpose><currency>AZN</currency><collateralCode>007</collateralCode><history/></liability>
+</liabilities>
+<guarantee/>
+<inquiryHistory>
+<inquiryHistoryItem><inqBankName>Test Bank 1</inqBankName><inqDate>2025-07-31T00:39:51</inqDate><inqPurposeId>005</inqPurposeId></inquiryHistoryItem>
+<inquiryHistoryItem><inqBankName>Test Bank 2</inqBankName><inqDate>2025-07-08T15:33:16</inqDate><inqPurposeId>001</inqPurposeId></inquiryHistoryItem>
+</inquiryHistory>
+<balance>0</balance>
+<comments/>
+</inquiryResult>

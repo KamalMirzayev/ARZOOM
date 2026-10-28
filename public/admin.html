@@ -302,6 +302,97 @@ ul.r li.stop{color:#FFB4AC;font-weight:700} ul.r li.stop::before{background:#F08
   .steps li{font-size:10.5px}
   main{padding:16px}
 }
+/* users */
+.ugrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,360px);gap:18px;align-items:start}
+.ulist{display:grid;gap:14px}
+.ucard{display:grid;gap:14px}
+.uhead{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.uinfo{display:grid;gap:1px;flex:1;min-width:180px}
+.uinfo .mono{font-size:12px;color:var(--muted)}
+.uinfo small{color:var(--muted);font-size:12px}
+.rolesel{width:auto;padding:7px 10px;font-weight:600;font-size:13px}
+.perms{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 14px;padding:12px;border-radius:12px;background:var(--raised);border:1px solid var(--line)}
+.pchk{display:flex;gap:9px;align-items:center;font-size:13px;cursor:pointer}
+.pchk input{width:16px;height:16px;accent-color:var(--blue);flex:none}
+.pchk input:disabled+span{color:var(--muted)}
+.pbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pbar .sp,.uact .sp{flex:1}
+.uact{display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px}
+.ptable{width:100%;border-collapse:collapse;font-size:12.5px}
+.ptable th{font-weight:600;color:var(--muted);text-align:center;padding:6px 4px;font-size:11.5px}
+.ptable td{padding:7px 4px;border-top:1px solid var(--line);text-align:center}
+.ptable td:first-child{text-align:left}
+.ptable svg{width:15px;height:15px;color:var(--ok)}
+
+/* analytics */
+:root{--c1:#3F5FF2;--c2:#C9701F}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--c1:#6A82FA;--c2:#C98228}}
+:root[data-theme="dark"]{--c1:#6A82FA;--c2:#C98228}
+.seg{display:inline-flex;background:var(--raised);border:1px solid var(--line);border-radius:11px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;border-radius:8px;padding:6px 12px;font-weight:600;font-size:13px;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.agrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px}
+.agrid .w6{grid-column:span 6}.agrid .w4{grid-column:span 4}.agrid .w3{grid-column:span 3}.agrid .w2{grid-column:span 2}
+.tiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+.tile2{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--shadow)}
+.tile2 small{color:var(--muted);font-size:12px;font-weight:600;display:block}
+.tile2 b{font-family:var(--f-display);font-weight:800;font-size:clamp(19px,1.6vw,26px);display:block;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile2 span{font-size:12px;color:var(--muted)}
+.legend{display:flex;gap:16px;font-size:12.5px;color:var(--muted);margin-left:auto}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.legend i.ln{height:3px;border-radius:2px;vertical-align:3px}
+.chart{width:100%;height:auto;display:block;overflow:visible}
+.chart text{font-family:var(--f-body);font-size:11px;fill:var(--muted)}
+.chart .grid line{stroke:var(--line)}
+.chart .hit{fill:transparent;cursor:crosshair}
+.chart .hit:hover{fill:var(--blue-soft)}
+.hbars{display:grid;gap:10px}
+.hbars div{display:grid;grid-template-columns:minmax(80px,150px) minmax(60px,1fr) 40px;gap:12px;align-items:center;font-size:13px}
+.hbars span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hbars em{font-style:normal;font-family:var(--f-mono);text-align:right;color:var(--ink)}
+.hbars i{display:block;height:12px;border-radius:0 4px 4px 0;background:var(--c1);min-width:2px;width:var(--w)}
+.funnel2{display:grid;gap:8px}
+.funnel2 div{position:relative;border-radius:10px;background:var(--raised);overflow:hidden;padding:10px 14px;display:flex;justify-content:space-between;font-size:13px;font-weight:600}
+.funnel2 div::before{content:"";position:absolute;inset:0;width:var(--w);background:var(--blue-soft);border-right:3px solid var(--c1)}
+.funnel2 div>*{position:relative}
+.funnel2 small{color:var(--muted);font-weight:500;margin-left:8px}
+.dtable{width:100%;border-collapse:collapse;font-size:13px}
+.dtable th{text-align:left;font-size:11.5px;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line)}
+.dtable td{padding:9px 10px;border-bottom:1px solid var(--line)}
+.dtable td.n,.dtable th.n{text-align:right;font-family:var(--f-mono)}
+.tip{position:fixed;z-index:30;pointer-events:none;background:var(--ink);color:var(--bg);border-radius:10px;padding:8px 11px;font-size:12.5px;line-height:1.45;box-shadow:0 10px 24px -8px rgb(0 0 0 / .4);max-width:240px}
+.tip b{display:block;font-size:12px;opacity:.75;font-weight:600}
+
+/* AKB report */
+.akb-up{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.akb-up input[type=file]{width:auto;flex:1;min-width:220px;padding:8px}
+.akb-meta{display:flex;gap:8px 18px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:2px 0 14px}
+.akb-meta b{color:var(--ink);font-weight:600}
+.akb-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}
+.akb-auto{display:flex;gap:14px;align-items:center;border-radius:14px;padding:14px 16px;background:linear-gradient(90deg,var(--blue-soft),transparent);border:1px solid var(--line)}
+.akb-auto .ring{width:58px;height:58px;box-shadow:none;background:conic-gradient(var(--c) calc(var(--p)*1%),var(--line) 0)}
+.akb-auto .ring span{width:46px;height:46px;font-size:17px;background:var(--surface);color:var(--ink)}
+.akb-auto .verdict{font-size:16px}
+.flags{display:grid;gap:6px;margin-top:12px}
+.flag{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:600;color:var(--warn);background:var(--warn-soft);border-radius:10px;padding:8px 12px}
+.flag svg{width:15px;height:15px;flex:none}
+.ltable{width:100%;border-collapse:collapse;font-size:12.5px}
+.ltable th{text-align:left;font-size:11px;color:var(--muted);font-weight:600;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.ltable td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+.ltable td.n{text-align:right;font-family:var(--f-mono);white-space:nowrap}
+.ltable tr.closed td{color:var(--muted)}
+.ltable .bank{font-weight:600;min-width:190px}
+.ltable td:nth-child(2){min-width:120px}
+.ltable .bank small{white-space:nowrap}
+.ltable .bank small{display:block;color:var(--muted);font-weight:500}
+.strip{display:flex;gap:2px}
+.strip i{width:6px;height:16px;border-radius:2px;background:var(--line);flex:none}
+.strip i.g{background:var(--ok)} .strip i.w{background:var(--warn)} .strip i.b{background:var(--bad)}
+.tscroll{overflow-x:auto;margin:0 -4px;padding:0 4px}
+details.inq summary{cursor:pointer;font-weight:600;font-size:13px;margin-top:14px}
+@media (max-width:1600px){.tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:1280px){.ugrid{grid-template-columns:1fr}.agrid .w2,.agrid .w3,.agrid .w4{grid-column:span 6}.akb-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:900px){.tiles{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
@@ -379,6 +470,7 @@ ul.r li.stop{color:#FFB4AC;font-weight:700} ul.r li.stop::before{background:#F08
     <div class="brand"><span class="logoplate"><img src="/logo.png" alt="Arzoom Avto"></span><small>Qiymətləndirmə</small></div>
     <div class="nav"><h6>Panel</h6>
       <button type="button" id="homeBtn" title="Ümumi baxış" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span class="t">Ümumi baxış</span></button>
+      <button type="button" id="analyticsBtn" title="Analitika" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span class="t">Analitika</span></button>
     </div>
     <div class="nav" id="statusNav"><h6>Müraciətlər</h6></div>
     <div class="nav"><h6>Hesab</h6>
@@ -411,7 +503,7 @@ const azn=n=>grp(n)+" ₼";
 const dt=s=>{const d=new Date(s);return d.toLocaleDateString("az-AZ",{day:"2-digit",month:"2-digit",year:"numeric"})+" "+d.toLocaleTimeString("az-AZ",{hour:"2-digit",minute:"2-digit"})};
 const STATUS={review:"Baxılır",offer:"Təklif göndərilib",rejected:"Rədd edilib",accepted:"Satışa ötürülüb",declined:"Müştəri imtina etdi",cancelled:"Ləğv edilib"};
 const INCOME={work:"Rəsmi iş yeri",biz:"Sahibkar",pension:"Pensiya",social:"Sosial yardım"};
-const EVENTS={created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",rejected:"Müraciət rədd edildi",note:"Qeyd",
+const EVENTS={bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",rejected:"Müraciət rədd edildi",note:"Qeyd",
   accepted:"Müştəri son təklifi təsdiqlədi: anderraytinqə və satışa ötürüldü",declined:"Müştəri təklifdən imtina etdi",cancelled:"Müştəri müraciəti ləğv etdi",sms:"SMS"};
 const FILTERS=[["","Hamısı"],["review","Baxılır"],["offer","Təklif"],["accepted","Satış"],["rejected","Rədd"],["declined","İmtina"],["cancelled","Ləğv"]];
 
@@ -468,7 +560,7 @@ $("#logout").onclick=()=>logout();
 async function start(){me=await api("/me");staff=me.name;await loadList();enter()}
 function enter(){$("#login").hidden=true;$("#app").hidden=false;
   $("#who").innerHTML=`<b>${esc(me.name)}</b><span>${ROLES[me.role]}</span>`;$("#av").textContent=me.name.split(/\s+/).map(w=>w[0]).join("").slice(0,2).toUpperCase();
-  $("#usersBtn").hidden=me.role!=="admin";
+  $("#usersBtn").hidden=me.role!=="admin";$("#analyticsBtn").hidden=!has("analytics.view");
   if(!cur)renderHome()}
 
 /* ---------- account: password and staff users ---------- */
@@ -483,30 +575,42 @@ $("#pwBtn").onclick=()=>{back();$("#detail").innerHTML=`<span class="eyebrow">He
     <p class="muted" style="margin:0;font-size:12.5px">Digər cihazlardakı girişlər bağlanacaq.</p>
   </form>`};
 async function renderUsers(){
-  back();let list=[];try{list=await api("/users")}catch(e){toast(e.message);return}
-  $("#detail").innerHTML=`<span class="eyebrow">Admin</span><h2 style="margin:6px 0 18px">İstifadəçilər</h2>
-  <div class="grid">
-    <section class="panel"><h3>Hesablar</h3>
-      <div style="display:grid;gap:10px">${list.map(u=>`<div style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line)">
-        <div><b>${esc(u.name)}</b> <span class="muted mono" style="font-size:12px">${esc(u.username)}</span><br>
-          <small class="muted">${ROLES[u.role]} · ${u.active?"Aktiv":"Söndürülüb"} · SMS: ${u.phone?"+"+esc(u.phone):"—"} · son giriş: ${u.last_login?dt(u.last_login):"—"}</small></div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn ghost sm" type="button" data-uphone="${u.id}" data-cur="${esc(u.phone||"")}">Mobil nömrə</button>
-        ${u.id==me.id?`<span class="muted" style="font-size:12.5px;align-self:center">Sənin hesabın</span></div>`:`
-          <select class="btn ghost sm" data-urole="${u.id}" aria-label="Rol">${Object.entries(ROLES).map(([k,v])=>`<option value="${k}" ${u.role===k?"selected":""}>${v}</option>`).join("")}</select>
-          <button class="btn ghost sm" type="button" data-upw="${u.id}">Parolu sıfırla</button>
-          <button class="btn ${u.active?"danger":""} sm" type="button" data-uact="${u.id}" data-to="${!u.active}">${u.active?"Söndür":"Aktiv et"}</button></div>`}
-      </div>`).join("")}</div>
-    </section>
-    <form class="panel" id="uForm" style="display:grid;gap:12px;align-content:start"><h3 style="margin:0">Yeni istifadəçi</h3>
-      <label class="f">Ad və soyad<input id="uName" required placeholder="Məs. Aysel Məmmədova"></label>
-      <label class="f">İstifadəçi adı<input id="uUser" required autocapitalize="off" spellcheck="false" placeholder="Məs. aysel.m"></label>
-      <label class="f">Müvəqqəti parol, ən azı 10 simvol<input id="uPass" required minlength="10" autocomplete="new-password"></label>
-      <label class="f">Rol<select id="uRole"><option value="expert">Kredit eksperti</option><option value="sales">Satış mütəxəssisi</option><option value="admin">Admin</option></select></label>
-      <label class="f">Mobil nömrə, SMS bildirişi üçün<input id="uPhone" inputmode="tel" placeholder="Məs. 50 123 45 67"></label>
-      <button class="btn" type="submit">Yarat</button>
-      <p class="muted" style="margin:0;font-size:12.5px">Kredit eksperti müraciətləri qiymətləndirir, təklif və imtina göndərir. Satış mütəxəssisi müraciətlərə baxır və qeyd yazır, qərar vermir. Admin bundan əlavə istifadəçiləri idarə edir. Müştəri son təklifi təsdiqləyəndə mobil nömrəsi olan bütün əməkdaşlara SMS gedir.</p>
-    </form>
+  back();let data;try{data=await api("/users")}catch(e){toast(e.message);return}
+  const {users,catalog,defaults}=data;
+  const initialsOf=n=>n.split(/\s+/).map(w=>w[0]).join("").slice(0,2).toUpperCase();
+  $("#detail").innerHTML=`<div class="welcome"><div><span class="eyebrow">Admin</span><h2>İstifadəçilər və icazələr</h2></div></div>
+  <div class="ugrid">
+    <div class="ulist">${users.map(u=>{const self=u.id==me.id,adm=u.role==="admin";return `<section class="panel ucard" data-user="${u.id}">
+      <div class="uhead"><span class="av">${esc(initialsOf(u.name))}</span>
+        <div class="uinfo"><b>${esc(u.name)}</b><span class="mono">${esc(u.username)}</span>
+          <small>${u.active?"Aktiv":"Söndürülüb"} · SMS: ${u.phone?"+"+esc(u.phone):"—"} · son giriş: ${u.last_login?dt(u.last_login):"—"}</small></div>
+        ${self?`<span class="st sm s-offer">Sənin hesabın</span>`:`<select class="rolesel" data-urole="${u.id}" aria-label="Rol">${Object.entries(ROLES).map(([k,v])=>`<option value="${k}" ${u.role===k?"selected":""}>${v}</option>`).join("")}</select>`}
+      </div>
+      <div class="perms">${adm?`<p class="muted" style="margin:0;font-size:13px">Admin bütün icazələrə malikdir və istifadəçiləri idarə edir.</p>`:
+        Object.entries(catalog).map(([k,v])=>`<label class="pchk"><input type="checkbox" value="${k}" ${u.permissions.includes(k)?"checked":""} ${k==="apps.view"?"disabled":""}><span>${v}</span></label>`).join("")}</div>
+      ${adm?"":`<div class="pbar"><small class="muted">${u.custom?"Fərdi icazələr":"Rolun standart icazələri"}</small><span class="sp"></span>
+        ${u.custom?`<button class="btn ghost sm" type="button" data-preset="${u.id}">Rol standartına qaytar</button>`:""}
+        <button class="btn sm" type="button" data-psave="${u.id}">İcazələri saxla</button></div>`}
+      <div class="uact">
+        <button class="btn ghost sm" type="button" data-uphone="${u.id}" data-cur="${esc(u.phone||"")}">Mobil nömrə</button>
+        ${self?"":`<button class="btn ghost sm" type="button" data-upw="${u.id}">Parolu sıfırla</button>
+        <button class="btn ${u.active?"danger":""} sm" type="button" data-uact="${u.id}" data-to="${!u.active}">${u.active?"Söndür":"Aktiv et"}</button>`}
+      </div></section>`}).join("")}</div>
+    <div class="rail">
+      <form class="panel" id="uForm" style="display:grid;gap:12px;align-content:start">${ph("plus","Yeni istifadəçi")}
+        <label class="f">Ad və soyad<input id="uName" required placeholder="Məs. Aysel Məmmədova"></label>
+        <label class="f">İstifadəçi adı<input id="uUser" required autocapitalize="off" spellcheck="false" placeholder="Məs. aysel.m"></label>
+        <label class="f">Müvəqqəti parol, ən azı 10 simvol<input id="uPass" required minlength="10" autocomplete="new-password"></label>
+        <label class="f">Rol<select id="uRole"><option value="expert">Kredit eksperti</option><option value="sales">Satış mütəxəssisi</option><option value="admin">Admin</option></select></label>
+        <label class="f">Mobil nömrə, SMS bildirişi üçün<input id="uPhone" inputmode="tel" placeholder="Məs. 50 123 45 67"></label>
+        <button class="btn" type="submit">Yarat</button>
+      </form>
+      <section class="panel">${ph("shield","Rolların standart icazələri")}
+        <table class="ptable"><thead><tr><th></th>${["expert","sales","admin"].map(r=>`<th>${ROLES[r]}</th>`).join("")}</tr></thead>
+        <tbody>${Object.entries(catalog).map(([k,v])=>`<tr><td>${v}</td>${["expert","sales","admin"].map(r=>`<td>${defaults[r].includes(k)?IC.check:"<span class='muted'>—</span>"}</td>`).join("")}</tr>`).join("")}</tbody></table>
+        <p class="muted" style="margin:10px 0 0;font-size:12.5px">Rol standart dəsti verir, hər əməkdaş üçün icazələri ayrıca dəyişə bilərsən. Dəyişiklikdən sonra əməkdaş yenidən daxil olur.</p>
+      </section>
+    </div>
   </div>`;
 }
 $("#usersBtn").onclick=renderUsers;
@@ -523,7 +627,10 @@ document.addEventListener("change",async e=>{
 document.addEventListener("click",async e=>{
   const b=e.target.closest("button");if(!b)return;
   const upd=async(id,body,msg)=>{try{await api("/users/"+id,{method:"POST",body:JSON.stringify(body)});toast(msg);renderUsers()}catch(err){toast(err.message)}};
-  if(b.dataset.uphone){const row=b.closest("div").parentElement;if(row.querySelector(".phrow"))return;
+  if(b.dataset.psave||b.dataset.preset){const card=b.closest(".ucard"),id=b.dataset.psave||b.dataset.preset;
+    const perms=b.dataset.preset?null:[...card.querySelectorAll(".perms input:checked")].map(x=>x.value);
+    upd(id,{permissions:perms},b.dataset.preset?"Rolun standart icazələri bərpa edildi":"İcazələr saxlanıldı")}
+  if(b.dataset.uphone){const row=b.closest(".ucard")||b.closest("div").parentElement;if(row.querySelector(".phrow"))return;
     row.insertAdjacentHTML("beforeend",`<div class="phrow" style="display:flex;gap:6px;width:100%;margin-top:8px"><input class="phin" inputmode="tel" placeholder="Məs. 50 123 45 67" value="${b.dataset.cur?"+"+esc(b.dataset.cur):""}" style="flex:1"><button class="btn sm" type="button" data-phsave="${b.dataset.uphone}">Yadda saxla</button></div>`);row.querySelector(".phin").focus()}
   if(b.dataset.phsave)upd(b.dataset.phsave,{phone:b.closest(".phrow").querySelector(".phin").value},"Nömrə yadda saxlanıldı. Boş qoysan silinir.");
   if(b.dataset.uact)upd(b.dataset.uact,{active:b.dataset.to==="true"},b.dataset.to==="true"?"Hesab aktiv edildi":"Hesab söndürüldü");
@@ -544,6 +651,7 @@ function renderList(){
   $("#listTitle").textContent=status?FILTERS.find(f=>f[0]===status)[1]:"Bütün müraciətlər";
   $("#listCount").textContent=items.length+" nəticə";
   $("#homeBtn").setAttribute("aria-pressed",String(!cur&&!$("#detail").dataset.page));
+  $("#analyticsBtn").setAttribute("aria-pressed",String(!cur&&$("#detail").dataset.page==="analytics"));
   $("#list").innerHTML=items.length?items.map(a=>`<button type="button" class="item" data-id="${a.id}" aria-current="${cur&&cur.id===a.id}">
       <span class="tile s-${a.status}">${esc(initials(a))}</span>
       <span class="no">№ ${a.id}</span><span class="st sm s-${a.status}">${STATUS[a.status]}</span>
@@ -595,9 +703,80 @@ async function renderHome(){
       <p class="muted" style="margin:12px 0 0;font-size:12.5px">Skor tövsiyədir, son qərarı kredit əməkdaşı verir.</p>
     </section>`;
 }
+$("#analyticsBtn").onclick=renderAnalytics;
 $("#homeBtn").onclick=()=>{$("#shell").classList.add("open");renderHome()};
 document.addEventListener("click",e=>{const b=e.target.closest("[data-st-go]");if(b){status=b.dataset.stGo;$("#shell").classList.remove("open");loadList().catch(err=>toast(err.message))}});
 $("#detail").addEventListener("click",e=>{const b=e.target.closest(".queue [data-id]");if(b)openApp(b.dataset.id)});
+
+/* ---------- analytics ---------- */
+const has=p=>!!me&&me.permissions.includes(p);
+let aDays=30;
+function tipOn(root){
+  let t=$("#tip");if(!t){t=document.createElement("div");t.id="tip";t.className="tip";t.hidden=true;document.body.append(t)}
+  root.addEventListener("mousemove",e=>{const h=e.target.closest("[data-tip]");if(!h){t.hidden=true;return}
+    t.innerHTML=h.dataset.tip;t.hidden=false;const w=t.offsetWidth;t.style.left=Math.min(innerWidth-w-8,e.clientX+14)+"px";t.style.top=(e.clientY+14)+"px"});
+  root.addEventListener("mouseleave",()=>t.hidden=true);
+}
+function dailyChart(rows){
+  const W=900,H=220,L=30,R=6,T=10,B=24,iw=W-L-R,ih=H-T-B,n=rows.length;
+  const max=Math.max(4,...rows.map(r=>Math.max(r.received,r.decided)));
+  const step=Math.ceil(max/4),top=step*4,y=v=>T+ih-v/top*ih,bw=iw/n,x=i=>L+i*bw;
+  const ticks=[0,1,2,3,4].map(k=>k*step);
+  const every=Math.ceil(n/8);
+  const line=rows.map((r,i)=>`${i?"L":"M"}${(x(i)+bw/2).toFixed(1)} ${y(r.decided).toFixed(1)}`).join(" ");
+  const fmt=d=>{const [yy,mm,dd]=d.split("-");return `${+dd}.${mm}`};
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gündəlik daxil olan və qərar verilən müraciətlər">
+    <g class="grid">${ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end">${v}</text>`).join("")}</g>
+    ${rows.map((r,i)=>r.received?`<path d="M${(x(i)+bw*.18).toFixed(1)} ${y(0)} V${(y(r.received)+4).toFixed(1)} q0 -4 4 -4 H${(x(i)+bw*.82-4).toFixed(1)} q4 0 4 4 V${y(0)} Z" fill="var(--c1)"/>`:"").join("")}
+    <path d="${line}" fill="none" stroke="var(--c2)" stroke-width="2" stroke-linejoin="round"/>
+    ${rows.map((r,i)=>r.decided?`<circle cx="${(x(i)+bw/2).toFixed(1)}" cy="${y(r.decided).toFixed(1)}" r="3.5" fill="var(--c2)" stroke="var(--surface)" stroke-width="2"/>`:"").join("")}
+    ${rows.map((r,i)=>i%every===0?`<text x="${(x(i)+bw/2).toFixed(1)}" y="${H-6}" text-anchor="middle">${fmt(r.day)}</text>`:"").join("")}
+    ${rows.map((r,i)=>`<rect class="hit" x="${x(i).toFixed(1)}" y="${T}" width="${bw.toFixed(1)}" height="${ih}" data-tip="<b>${fmt(r.day)}</b>Daxil olub: ${r.received}<br>Qərar verilib: ${r.decided}<br>Satışa ötürülüb: ${r.accepted}"/>`).join("")}
+  </svg>`;
+}
+const hbars=(rows,label,val,tip)=>{const max=Math.max(1,...rows.map(val));
+  return rows.length?`<div class="hbars">${rows.map(r=>`<div data-tip="${esc(tip(r))}"><span>${esc(label(r))}</span><i style="--w:${Math.round(val(r)/max*100)}%"></i><em>${val(r)}</em></div>`).join("")}</div>`:`<p class="muted" style="margin:0">Bu dövrdə məlumat yoxdur.</p>`};
+async function renderAnalytics(){
+  cur=null;$("#detail").dataset.page="analytics";renderList();$("#shell").classList.add("open");
+  $("#homeBtn").setAttribute("aria-pressed","false");$("#analyticsBtn").setAttribute("aria-pressed","true");
+  let d;try{d=await api("/analytics?days="+aDays)}catch(e){toast(e.message);return}
+  const st=Object.fromEntries(d.status.map(r=>[r.status,r.n])),total=Object.values(st).reduce((a,b)=>a+b,0);
+  const offered=(st.offer||0)+(st.accepted||0)+(st.declined||0),decided=offered+(st.rejected||0);
+  const assessed=d.grades.reduce((a,r)=>a+r.n,0);
+  const pct=(a,b)=>b?Math.round(a/b*100)+"%":"—";
+  const hrs=h=>h==null?"—":h<1?Math.round(h*60)+" dəq":h<48?h.toFixed(1).replace(".",",")+" saat":Math.round(h/24)+" gün";
+  const funnel=[["Daxil olub",total],["Qiymətləndirilib",Math.max(assessed,offered)],["Təklif göndərilib",offered],["Satışa ötürülüb",st.accepted||0]];
+  const G={A:"Aşağı risk",B:"Orta-aşağı",C:"Orta",D:"Yüksək risk"};
+  $("#detail").innerHTML=`<div class="welcome"><div><span class="eyebrow">Analitika</span><h2>Müraciətlər və qərarlar</h2></div>
+    <div class="seg" role="group" aria-label="Dövr">${[7,30,90,365].map(n=>`<button type="button" data-days="${n}" aria-pressed="${aDays===n}">${n===365?"1 il":n+" gün"}</button>`).join("")}</div></div>
+  <div class="tiles" style="margin-bottom:16px">
+    <div class="tile2"><small>Daxil olub</small><b>${total}</b><span>son ${d.days} gün</span></div>
+    <div class="tile2"><small>Təsdiq faizi</small><b>${pct(offered,decided)}</b><span>${offered} təklif · ${st.rejected||0} rədd</span></div>
+    <div class="tile2"><small>Satışa çevrilmə</small><b>${pct(st.accepted||0,offered)}</b><span>təklifdən satışa</span></div>
+    <div class="tile2"><small>Qərar müddəti</small><b>${hrs(d.timing?.median_hours)}</b><span>median · orta ${hrs(d.timing?.avg_hours)}</span></div>
+    <div class="tile2"><small>Maliyyələşmə həcmi</small><b>${azn(d.money.financed)}</b><span>${d.money.accepted_n} müqavilə</span></div>
+    <div class="tile2"><small>Orta skor</small><b>${d.money.avg_score?Math.round(d.money.avg_score):"—"}</b><span>AKB: ${d.bureau.with_bureau}/${d.bureau.total} müraciət</span></div>
+  </div>
+  <div class="agrid" id="charts">
+    <section class="panel w6">${ph("trend","Gündəlik axın",`<span class="legend"><span><i style="background:var(--c1)"></i>Daxil olub</span><span><i class="ln" style="background:var(--c2)"></i>Qərar verilib</span></span>`)}${dailyChart(d.daily)}</section>
+    <section class="panel w3">${ph("send","Satış qıfı")}
+      <div class="funnel2">${funnel.map(([t,v],i)=>`<div style="--w:${total?Math.max(2,Math.round(v/total*100)):0}%" data-tip="${t}: ${v}${i?` · əvvəlki addımdan ${pct(v,funnel[i-1][1])}`:""}"><span>${t}</span><span>${v}<small>${i?pct(v,total):""}</small></span></div>`).join("")}</div>
+      <p class="muted" style="margin:12px 0 0;font-size:12.5px">Müştəri imtinası: ${st.declined||0} · ləğv: ${st.cancelled||0}</p></section>
+    <section class="panel w3">${ph("gauge","Risk dərəcələri")}${hbars("ABCD".split("").map(g=>({g,n:(d.grades.find(r=>r.grade===g)||{}).n||0})),r=>`${r.g} · ${G[r.g]}`,r=>r.n,r=>`${r.g} dərəcəsi: ${r.n} müraciət`)}</section>
+    <section class="panel w3">${ph("car","Ən çox istənən markalar")}${hbars(d.brands,r=>r.brand,r=>r.n,r=>`${r.brand}: ${r.n}`)}</section>
+    <section class="panel w3">${ph("user","Gəlir mənbəyi")}${hbars(d.income,r=>INCOME[r.source]||r.source,r=>r.n,r=>`${INCOME[r.source]||r.source}: ${r.n}`)}</section>
+    <section class="panel w3">${ph("user","Əməkdaşlar")}
+      ${d.staff.length?`<table class="dtable"><thead><tr><th>Əməkdaş</th><th class="n">Qiymətləndirmə</th><th class="n">Təklif</th><th class="n">Rədd</th></tr></thead>
+      <tbody>${d.staff.map(r=>`<tr><td>${esc(r.actor)}</td><td class="n">${r.assessed}</td><td class="n">${r.offers}</td><td class="n">${r.rejects}</td></tr>`).join("")}</tbody></table>`:`<p class="muted" style="margin:0">Bu dövrdə qərar yoxdur.</p>`}</section>
+    <section class="panel w3">${ph("doc","Təklif göstəriciləri")}
+      <dl class="kv"><dt>Orta avtomobil qiyməti</dt><dd>${d.money.avg_price?azn(d.money.avg_price):"—"}</dd>
+        <dt>İlkin ödənişin orta artımı</dt><dd>${d.money.avg_dp_raise?"+"+d.money.avg_dp_raise.toFixed(1).replace(".",",")+" faiz bəndi":"—"}</dd>
+        <dt>AKB-yə görə orta aylıq borc</dt><dd>${d.bureau.avg_debt?azn(d.bureau.avg_debt):"—"}</dd>
+        <dt>Rədd faizi</dt><dd>${pct(st.rejected||0,decided)}</dd></dl></section>
+  </div>`;
+  tipOn($("#charts"));
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-days]");if(b){aDays=+b.dataset.days;renderAnalytics()}});
 
 /* ---------- detail ---------- */
 async function openApp(id){
@@ -612,6 +791,42 @@ function steps(a){
     ["Müştəri təsdiqi",st==="accepted"?1:st==="declined"||st==="cancelled"?"bad":st==="offer"?"now":0],
     ["Satış",st==="accepted"?"now":0]];
   return `<ol class="steps">${S.map(([t,v],i)=>`<li class="${v===1?"done":v||""}"><i>${v===1?IC.check:v==="bad"?IC.x:i+1}</i>${t}</li>`).join("")}</ol>`;
+}
+function akbHtml(a){
+  const r=a.bureau,can=has("apps.assess");
+  const up=can?`<div class="akb-up"><input type="file" id="akbFile" accept=".xml,.txt,text/xml,application/xml"><button class="btn" type="button" id="akbLoad">${r?"Yeni hesabat yüklə":"XML yüklə və hesabla"}</button></div>
+    <p class="muted" style="margin:8px 0 0;font-size:12.5px">AKB inteqrasiyası qoşulanda hesabat avtomatik gələcək və nəticə dərhal hesablanacaq.</p>`:"";
+  if(!r)return `<section class="panel span2">${ph("shield","Kredit Bürosu (AKB) hesabatı")}<p class="muted" style="margin:0 0 12px">Hesabat hələ yüklənməyib.</p>${up}</section>`;
+  const S=r.summary,res=a.assessment?.result,col=!res?"var(--muted)":res.verdict==="approve"?"var(--ok)":res.verdict==="reject"?"var(--bad)":res.verdict==="incomplete"?"var(--muted)":"var(--warn)";
+  const yrs=m=>m>=12?`${Math.floor(m/12)} il ${m%12?m%12+" ay":""}`:m+" ay";
+  const strip=l=>{const by={};l.history.forEach(h=>by[h.ago]=h);
+    return `<div class="strip">${Array.from({length:24},(_,k)=>23-k).map(ago=>{const h=by[ago];const c=!h?"":h.days>30?"b":h.days>0?"w":"g";
+      return `<i class="${c}" data-tip="${h?`<b>${h.period.replace("x",".")}</b>${h.days?h.days+" gün gecikmə":"Gecikmə yoxdur"}`:"Məlumat yoxdur"}"></i>`}).join("")}</div>`};
+  return `<section class="panel span2" id="akbBox">${ph("shield","Kredit Bürosu (AKB) hesabatı",`<span class="muted" style="font-size:12px">Yüklənib: ${dt(a.bureau_at)}</span>`)}
+    <div class="akb-meta"><span>Hesabat № <b class="mono">${esc(r.reportId)}</b></span><span>Tarix <b>${esc(r.reportingDate)}</b></span>
+      <span>Borcalan <b>${esc(r.borrower.name)}</b></span><span>FİN <b class="mono">${esc(r.borrower.fin)}</b></span><span>Status <b>${esc(r.borrower.status||"—")}</b></span></div>
+    ${res?`<div class="akb-auto"><div class="ring" style="--p:${res.verdict==="incomplete"?0:res.score};--c:${col}"><span>${res.verdict==="incomplete"?"—":res.score}</span></div>
+      <div><small class="muted">Avtomatik nəticə${a.assessment.auto?"":" · ekspert dəyişib"}</small><div class="verdict" style="color:${col}">${res.verdict==="incomplete"?"Gəlir və qiymət daxil ediləndə tam hesablanacaq":`Skor ${res.score} · ${res.grade} · ${Scoring.VERDICTS[res.verdict]}`}</div>
+      <small class="muted">AKB göstəriciləri qiymətləndirmə formasına avtomatik yazıldı.</small></div></div>`:""}
+    ${r.flags.length?`<div class="flags">${r.flags.map(f=>`<div class="flag">${IC.alert}${esc(f)}</div>`).join("")}</div>`:""}
+    <div class="akb-tiles">
+      <div class="stat"><small>Aktiv öhdəlik</small><b>${S.activeCount}</b><small>${S.activeLoans} kredit · ${S.activeCards} kart/xətt</small></div>
+      <div class="stat"><small>Aylıq borc yükü</small><b>${azn(S.debtMonthly)}</b><small>ödəniş ${azn(S.monthlyInstallments)} + kart limiti ${azn(S.cardLoad)}</small></div>
+      <div class="stat"><small>Qalıq borc</small><b>${azn(S.totalOutstanding)}</b><small>kart limitləri ${azn(S.totalLimit)}</small></div>
+      <div class="stat"><small>Cari gecikmə</small><b style="color:${S.currentOverdue?"var(--bad)":"var(--ok)"}">${S.currentOverdue?S.currentOverdue+" gün":"Yoxdur"}</b><small>son 24 ayda maks. ${S.maxOverdue24} gün</small></div>
+      <div class="stat"><small>Gecikməli aylar, 12 ay</small><b>${S.overdueMonths12}</b><small>bütün dövr maks. ${S.maxOverdueAll} gün</small></div>
+      <div class="stat"><small>Kredit sorğuları</small><b>${S.hardInquiries90}</b><small>son 90 gün · 30 gündə ${S.hardInquiries30}</small></div>
+      <div class="stat"><small>Kredit tarixçəsi</small><b>${yrs(S.historyMonths)}</b><small>${S.closedCount} bağlanmış kredit</small></div>
+      <div class="stat"><small>Restrukturizasiya</small><b>${S.prolongations||"Yoxdur"}</b><small>müddət uzadılması</small></div>
+    </div>
+    <div class="tscroll"><table class="ltable"><thead><tr><th>Bank</th><th>Növ</th><th class="n">Məbləğ / limit</th><th class="n">Qalıq</th><th class="n">Aylıq</th><th class="n">Faiz</th><th>Status</th><th>Son 24 ay</th></tr></thead>
+      <tbody>${r.loans.map(l=>`<tr class="${l.active?"":"closed"}"><td class="bank">${esc(l.bank)}<small>${esc(l.grantedOn)} → ${esc(l.dueOn)}${l.collateral?` · ${esc(l.collateral)}`:""}</small></td>
+        <td>${esc(l.type)}<br><small class="muted">${esc(l.purpose)}</small></td><td class="n">${azn(l.card?l.limit:l.amount)}</td><td class="n">${azn(l.outstanding)}</td><td class="n">${l.monthly?azn(l.monthly):"—"}</td><td class="n">${l.rate}%</td>
+        <td><span class="st sm ${l.active?(l.overdueNow?"s-rejected":"s-accepted"):"s-cancelled"}">${l.active?(l.overdueNow?l.overdueNow+" gün gecikmə":"Aktiv"):"Bağlanıb "+esc(l.closedOn)}</span></td>
+        <td>${l.history.length?strip(l):`<span class="muted">—</span>`}</td></tr>`).join("")}</tbody></table></div>
+    ${r.inquiries.length?`<details class="inq"><summary>Kredit sorğuları (${r.inquiries.length})</summary><table class="dtable" style="margin-top:8px"><tbody>${r.inquiries.map(q=>`<tr><td>${esc(q.date)}</td><td>${esc(q.org)}</td><td>${esc(q.purpose)}${q.hard?"":` <small class="muted">· skora təsir etmir</small>`}</td></tr>`).join("")}</tbody></table></details>`:""}
+    ${up?`<div style="margin-top:16px">${up}</div>`:""}
+  </section>`;
 }
 function renderDetail(){
   const a=cur,open=["review","offer","rejected"].includes(a.status);
@@ -654,6 +869,7 @@ function renderDetail(){
       <div class="files">${a.income_sources.map(s=>`<div><h4>${INCOME[s]}</h4><div class="row">${(bySrc[s]||[]).map(f=>`<button type="button" class="fbtn" data-file="${esc(f.stored_name)}" title="${esc(f.original_name)}">${IC.doc}<span>${esc(f.original_name)}</span><em>${f.size_bytes?Math.max(1,Math.round(f.size_bytes/1024))+" KB":""}</em></button>`).join("")||`<span class="nofile">Sənəd yüklənməyib</span>`}</div></div>`).join("")}</div>
     </section>
 
+    ${akbHtml(a)}
     <section class="panel span2">${ph("gauge","Qiymətləndirmə",a.assessment?`<span class="muted" style="font-size:12px">Son: ${esc(a.assessment.by)}, ${dt(a.assessment.at)}</span>`:"")}
       <div class="assess">
         <form id="aForm" autocomplete="off">
@@ -692,7 +908,7 @@ function renderDetail(){
       </div>
     </section>
 
-    ${me.role==="admin"?`<section class="panel span2 danger-zone">${ph("x","Müraciəti sil")}
+    ${has("apps.delete")?`<section class="panel span2 danger-zone">${ph("x","Müraciəti sil")}
       <p class="muted" style="margin:0 0 12px;font-size:13px">Müraciət, sənədləri və tarixçəsi birdəfəlik silinir. Kimin, nə vaxt və hansı səbəblə sildiyi ayrıca jurnalda qalır.</p>
       <div class="noteform"><input id="delReason" placeholder="Silmə səbəbi, məs. test müraciəti, təkrar müraciət"><button class="btn danger" type="button" id="delApp">Sil</button></div>
     </section>`:""}
@@ -702,14 +918,18 @@ function renderDetail(){
     </section>
   </div>`;
   liveResult();
-  if(me.role==="sales"){$("#aForm").querySelectorAll("input,select,textarea,button").forEach(el=>el.disabled=true);
-    ["#sendOffer","#reject","#reason"].forEach(q=>{const el=$(q);if(el)el.disabled=true});
-    $("#sendOffer")?.closest(".panel").insertAdjacentHTML("beforeend",`<p class="muted" style="margin:10px 0 0;font-size:12.5px">Qərarı kredit eksperti verir. Satış mütəxəssisi qeyd yaza bilər.</p>`)}
+  if(!has("apps.assess"))$("#aForm").querySelectorAll("input,select,textarea,button").forEach(el=>el.disabled=true);
+  if(!has("apps.offer"))$("#sendOffer").disabled=true;
+  if(!has("apps.reject")){$("#reject").disabled=true;$("#reason").disabled=true}
+  if(!has("apps.offer")&&!has("apps.reject"))$("#sendOffer").closest(".panel").insertAdjacentHTML("beforeend",`<p class="muted" style="margin:10px 0 0;font-size:12.5px">Qərar vermək üçün icazən yoxdur.</p>`);
+  if(!has("apps.notes"))$("#nForm").hidden=true;
+  if(!has("docs.view"))document.querySelectorAll("[data-file]").forEach(b=>{b.disabled=true;b.title="Sənədləri açmaq üçün icazən yoxdur"});
+  if($("#akbBox"))tipOn($("#akbBox"));
 }
-const EV_IC={created:["inbox",""],assessed:["gauge",""],offer:["send",""],rejected:["x","k-bad"],note:["pen",""],accepted:["check","k-ok"],declined:["x","k-bad"],cancelled:["x","k-bad"],sms:["msg","k-sms"]};
+const EV_IC={bureau:["shield",""],created:["inbox",""],assessed:["gauge",""],offer:["send",""],rejected:["x","k-bad"],note:["pen",""],accepted:["check","k-ok"],declined:["x","k-bad"],cancelled:["x","k-bad"],sms:["msg","k-sms"]};
 function evHtml(e){
   const d=e.details||{};
-  const extra=e.kind==="assessed"?`${d.score} bal, ${d.grade} · ${Scoring.VERDICTS[d.verdict]||""}`:
+  const extra=e.kind==="bureau"?`${d.score} bal, ${d.grade} · ${Scoring.VERDICTS[d.verdict]||""} · aylıq borc ${azn(d.debtMonthly||0)}${d.flags?` · ${d.flags} xəbərdarlıq`:""}`:e.kind==="assessed"?`${d.score} bal, ${d.grade} · ${Scoring.VERDICTS[d.verdict]||""}`:
     e.kind==="offer"?`${azn(d.price)}, ilkin ${d.downPct}%, ${d.months} ay, illik ${d.rate}%`:
     e.kind==="rejected"?d.reason:e.kind==="note"?d.text:e.kind==="sms"?(d.error?"Göndərilmədi: "+d.error:d.text)+(d.demo?" (SMS provayderi qoşulmayıb, göndərilmədi)":""):
     e.kind==="created"?`${d.files||0} sənəd`:e.kind==="accepted"&&d.downPct!=null?`ilkin ödəniş ${d.downPct}%`:"";
@@ -768,6 +988,13 @@ document.addEventListener("click",async e=>{
       await api(`/applications/${cur.id}/assessment`,{method:"PUT",body:JSON.stringify(i)});
       await api(`/applications/${cur.id}/offer`,{method:"POST",body:JSON.stringify({price:+i.price,downPct:+i.downPct,months:+i.months,rate:+i.rate,commissionPct:+i.commissionPct})});
       toast("Təklif müştəriyə göndərildi");await openApp(cur.id);loadList()}catch(err){toast(err.message)}}
+  if(b.id==="akbLoad"){
+    const f=$("#akbFile").files[0];if(!f){toast("AKB XML faylını seç.");return}
+    if(f.size>2e6){toast("Fayl 2 MB-dan böyükdür.");return}
+    b.disabled=true;b.textContent="Hesablanır…";
+    try{const j=await api(`/applications/${encodeURIComponent(cur.id)}/bureau`,{method:"POST",headers:{"Content-Type":"text/xml"},body:await f.text()});
+      const r=j.assessment.result;toast(r.verdict==="incomplete"?"AKB hesabatı oxundu, gəlir və qiymət daxil et":`Avtomatik nəticə: ${r.score} · ${r.grade} · ${Scoring.VERDICTS[r.verdict]}`);
+      await openApp(cur.id);loadList()}catch(err){toast(err.message);b.disabled=false;b.textContent="XML yüklə və hesabla"}}
   if(b.id==="delApp"){
     const reason=$("#delReason").value.trim();if(reason.length<3){toast("Silmə səbəbini yaz.");$("#delReason").focus();return}
     if(!confirmInline(b,"Silməyi təsdiqlə: "+cur.id))return;

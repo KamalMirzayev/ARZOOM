@@ -78,6 +78,12 @@ CREATE TABLE IF NOT EXISTS staff_users (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_login    TIMESTAMPTZ
 );
+-- AKB hesabatı: xam XML (audit üçün) və oxunmuş göstəricilər
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS bureau     JSONB;
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS bureau_xml TEXT;
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS bureau_at  TIMESTAMPTZ;
+-- Fərdi icazələr: NULL olduqda rolun standart icazələri işləyir
+ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS permissions JSONB;
 -- Silinmiş müraciətlərin izi: kim, nə vaxt, niyə
 CREATE TABLE IF NOT EXISTS deletion_log (
   application_id TEXT NOT NULL,

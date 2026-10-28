@@ -8,6 +8,8 @@ const multer = require("multer");
 const { Pool } = require("pg");
 const { sendSms, configured: SMS_ON } = require("./lib/sms");
 const Scoring = require("./lib/scoring");
+const Akb = require("./lib/akb");
+const Perms = require("./lib/permissions");
 const { rateLimit } = require("./lib/ratelimit");
 const { sniff } = require("./lib/filecheck");
 const { hashPassword, checkPassword, weakPassword } = require("./lib/passwords");
@@ -285,17 +287,17 @@ app.post("/api/applications/:id/decision", lookupLimit, async (req, res) => {
 const admin = (req, res, next) => adminFail(req, res, async () => {
   const t = String(req.get("x-admin-token") || "");
   const { rows } = t.length < 20 ? { rows: [] } : await pool.query(
-    `SELECT u.id, u.username, u.name, u.role FROM staff_sessions s JOIN staff_users u ON u.id = s.user_id
+    `SELECT u.id, u.username, u.name, u.role, u.permissions FROM staff_sessions s JOIN staff_users u ON u.id = s.user_id
      WHERE s.token_hash = $1 AND s.expires_at > now() AND u.active`, [sha(t)]);
   if (!rows[0]) return bad(res, "Sessiya bitib, yenidən daxil ol.", 401);
   adminFail.forgive(req);
-  req.user = rows[0];
+  req.perms = Perms.effective(rows[0]);
+  req.user = { id: rows[0].id, username: rows[0].username, name: rows[0].name, role: rows[0].role, permissions: req.perms };
   req.staff = rows[0].name;
   next();
 });
 const adminOnly = (req, res, next) => req.user.role === "admin" ? next() : bad(res, "Bu əməliyyat yalnız admin üçündür.", 403);
-// Sales staff see applications and write notes; credit decisions stay with experts and admins.
-const decider = (req, res, next) => req.user.role !== "sales" ? next() : bad(res, "Satış mütəxəssisi qərar verə bilməz.", 403);
+const can = perm => (req, res, next) => req.perms.includes(perm) ? next() : bad(res, "Bu əməliyyat üçün icazən yoxdur.", 403);
 const ROLES = ["admin", "expert", "sales"];
 // Optional staff mobile for notifications: empty clears it, otherwise 994XXXXXXXXX.
 function staffPhone(v) {
@@ -337,8 +339,9 @@ app.post("/api/admin/me/password", admin, async (req, res) => {
 });
 
 app.get("/api/admin/users", admin, adminOnly, async (_req, res) => {
-  const { rows } = await pool.query("SELECT id, username, name, role, phone, active, created_at, last_login FROM staff_users ORDER BY created_at");
-  res.json(rows);
+  const { rows } = await pool.query("SELECT id, username, name, role, phone, permissions, active, created_at, last_login FROM staff_users ORDER BY created_at");
+  res.json({ users: rows.map(u => ({ ...u, custom: Array.isArray(u.permissions) && u.role !== "admin", permissions: Perms.effective(u) })),
+             catalog: Perms.PERMS, defaults: Perms.ROLE_DEFAULTS });
 });
 
 app.post("/api/admin/users", admin, adminOnly, async (req, res) => {
@@ -366,10 +369,14 @@ app.post("/api/admin/users/:id", admin, adminOnly, async (req, res) => {
   const r = await pool.query(
     `UPDATE staff_users SET
        active = COALESCE($2, active), role = COALESCE($3, role), password_hash = COALESCE($4, password_hash),
-       phone = CASE WHEN $5::text IS NULL THEN phone ELSE NULLIF($5, '') END
+       phone = CASE WHEN $5::text IS NULL THEN phone ELSE NULLIF($5, '') END,
+       permissions = CASE WHEN $6 THEN $7::jsonb ELSE permissions END
      WHERE id = $1 RETURNING id`,
     [id, typeof b.active === "boolean" ? b.active : null, ROLES.includes(b.role) ? b.role : null,
-     b.password != null ? hashPassword(b.password) : null, phone ?? null]);
+     b.password != null ? hashPassword(b.password) : null, phone ?? null,
+     // permissions: array sets a custom list, null goes back to the role's defaults
+     "permissions" in b, Perms.clean(b.permissions) ? JSON.stringify(Perms.clean(b.permissions)) : null]);
+  if ("permissions" in b) await pool.query("DELETE FROM staff_sessions WHERE user_id = $1 AND $1 <> $2", [id, req.user.id]).catch(() => {});
   if (!r.rowCount) return bad(res, "İstifadəçi tapılmadı.", 404);
   if (b.active === false || b.password != null) await pool.query("DELETE FROM staff_sessions WHERE user_id = $1", [id]);
   res.json({ ok: true });
@@ -407,11 +414,12 @@ app.get("/api/admin/applications/:id", admin, async (req, res) => {
   if (!rows[0]) return bad(res, "Müraciət tapılmadı.", 404);
   const files = await pool.query("SELECT * FROM application_files WHERE application_id = $1 ORDER BY id", [req.params.id]);
   const events = await pool.query("SELECT * FROM application_events WHERE application_id = $1 ORDER BY at, id", [req.params.id]);
-  res.json({ ...rows[0], files: files.rows, events: events.rows });
+  const { bureau_xml, ...app } = rows[0];
+  res.json({ ...app, has_bureau_xml: !!bureau_xml, files: files.rows, events: events.rows });
 });
 
 // Saves the analyst's inputs; the score is always recomputed on the server.
-app.put("/api/admin/applications/:id/assessment", admin, decider, async (req, res) => {
+app.put("/api/admin/applications/:id/assessment", admin, can("apps.assess"), async (req, res) => {
   const b = req.body || {};
   const inputs = {
     incomeMonthly: num(b.incomeMonthly, 0, 1e6) ?? 0, debtMonthly: num(b.debtMonthly, 0, 1e6) ?? 0,
@@ -422,6 +430,9 @@ app.put("/api/admin/applications/:id/assessment", admin, decider, async (req, re
     months: num(b.months, 6, 84) ?? 36, rate: num(b.rate, 0, 60) ?? 17,
     akbNote: String(b.akbNote || "").slice(0, 1000)
   };
+  // Keep the bureau-only factors when an expert edits the form after an AKB report was loaded.
+  const br = (await pool.query("SELECT bureau FROM applications WHERE id = $1", [req.params.id])).rows[0]?.bureau;
+  if (br?.inputs) for (const k of ["overdueMonths12", "hardInquiries90", "prolongations", "historyMonths", "bureau"]) inputs[k] = br.inputs[k];
   const result = Scoring.assess(inputs);
   const assessment = { inputs, result, by: req.staff, at: new Date().toISOString() };
   const r = await pool.query("UPDATE applications SET assessment = $2, updated_at = now() WHERE id = $1 RETURNING id", [req.params.id, assessment]);
@@ -431,7 +442,7 @@ app.put("/api/admin/applications/:id/assessment", admin, decider, async (req, re
 });
 
 // Staff send the offer back; the page then shows it with the payment schedule.
-app.post("/api/admin/applications/:id/offer", admin, decider, async (req, res) => {
+app.post("/api/admin/applications/:id/offer", admin, can("apps.offer"), async (req, res) => {
   const b = req.body || {};
   const offer = {
     price: num(b.price, 1000, 1e7), downPct: num(b.downPct ?? 20, 0, 90), months: num(b.months ?? 36, 6, 84),
@@ -448,7 +459,7 @@ app.post("/api/admin/applications/:id/offer", admin, decider, async (req, res) =
   res.json({ ok: true, offer });
 });
 
-app.post("/api/admin/applications/:id/reject", admin, decider, async (req, res) => {
+app.post("/api/admin/applications/:id/reject", admin, can("apps.reject"), async (req, res) => {
   const reason = String(req.body?.reason || "").trim().slice(0, 500);
   if (!reason) return bad(res, "İmtina səbəbini yaz.");
   const r = await pool.query(
@@ -460,7 +471,7 @@ app.post("/api/admin/applications/:id/reject", admin, decider, async (req, res) 
   res.json({ ok: true });
 });
 
-app.post("/api/admin/applications/:id/notes", admin, async (req, res) => {
+app.post("/api/admin/applications/:id/notes", admin, can("apps.notes"), async (req, res) => {
   const text = String(req.body?.text || "").trim().slice(0, 2000);
   if (!text) return bad(res, "Qeyd boşdur.");
   const r = await pool.query("SELECT 1 FROM applications WHERE id = $1", [req.params.id]);
@@ -470,7 +481,7 @@ app.post("/api/admin/applications/:id/notes", admin, async (req, res) => {
 });
 
 // Only admins delete. Files on disk go too; the deletion itself stays in deletion_log.
-app.delete("/api/admin/applications/:id", admin, adminOnly, async (req, res) => {
+app.delete("/api/admin/applications/:id", admin, can("apps.delete"), async (req, res) => {
   const reason = String(req.body?.reason || "").trim().slice(0, 300);
   if (reason.length < 3) return bad(res, "Silmə səbəbini yaz.");
   const client = await pool.connect();
@@ -491,7 +502,93 @@ app.delete("/api/admin/applications/:id", admin, adminOnly, async (req, res) => 
   res.json({ ok: true });
 });
 
-app.get("/api/admin/files/:stored", admin, async (req, res) => {
+/* ---------- AKB credit report ---------- */
+const xmlBody = express.text({ type: ["text/xml", "application/xml", "text/plain"], limit: "2mb" });
+const MANUAL_KEYS = ["incomeMonthly", "tenureMonths", "docsOk", "price", "downPct", "months", "rate", "akbNote"];
+// Every incoming report is parsed, merged with what the expert already entered (income, car, terms)
+// and scored at once; the result is stored as the current assessment.
+async function applyBureau(id, xml, actor) {
+  const { rows } = await pool.query("SELECT fin, assessment, offer FROM applications WHERE id = $1", [id]);
+  if (!rows[0]) return null;
+  const report = Akb.analyze(Akb.parse(xml), { fin: rows[0].fin });
+  const prev = rows[0].assessment?.inputs || {}, o = rows[0].offer || {};
+  const inputs = { downPct: o.downPct ?? 20, months: o.months ?? 36, rate: o.rate ?? 17, price: o.price ?? 0 };
+  for (const k of MANUAL_KEYS) if (prev[k] !== undefined) inputs[k] = prev[k];
+  Object.assign(inputs, report.inputs);
+  const result = Scoring.assess(inputs);
+  const assessment = { inputs, result, by: actor, at: new Date().toISOString(), auto: true };
+  await pool.query("UPDATE applications SET bureau = $2, bureau_xml = $3, bureau_at = now(), assessment = $4, updated_at = now() WHERE id = $1",
+    [id, report, String(xml).slice(0, 2e6), assessment]);
+  await logEvent(pool, id, actor, "bureau", {
+    reportId: report.reportId, score: result.score, grade: result.grade, verdict: result.verdict,
+    debtMonthly: report.summary.debtMonthly, active: report.summary.activeCount, flags: report.flags.length
+  });
+  return { report, assessment };
+}
+const xmlFrom = req => typeof req.body === "string" ? req.body : String(req.body?.xml || "");
+
+app.post("/api/admin/applications/:id/bureau", admin, can("apps.assess"), xmlBody, async (req, res) => {
+  let out;
+  try { out = await applyBureau(req.params.id, xmlFrom(req), `${req.staff} · AKB`); }
+  catch (e) { return bad(res, e.message); }
+  if (!out) return bad(res, "Müraciət tapılmadı.", 404);
+  res.json(out);
+});
+
+// Machine entry point for AKB/ASAN integration: the report arrives as XML and is matched to the
+// customer's open application by FİN. Enabled only when AKB_API_KEY is set.
+app.post("/api/integrations/akb", xmlBody, async (req, res) => {
+  const key = process.env.AKB_API_KEY || "", got = String(req.get("x-api-key") || "");
+  if (key.length < 20) return bad(res, "İnteqrasiya qoşulmayıb.", 404);
+  if (got.length !== key.length || !crypto.timingSafeEqual(Buffer.from(got), Buffer.from(key))) return bad(res, "İcazə yoxdur.", 401);
+  let fin;
+  try { fin = String(Akb.parse(xmlFrom(req)).borrower?.fin || "").trim().toUpperCase(); } catch (e) { return bad(res, e.message); }
+  const { rows } = await pool.query(
+    "SELECT id FROM applications WHERE upper(fin) = $1 AND status IN ('review','offer') ORDER BY created_at DESC LIMIT 1", [fin]);
+  if (!rows[0]) return bad(res, "Bu FİN üzrə açıq müraciət yoxdur.", 404);
+  const out = await applyBureau(rows[0].id, xmlFrom(req), "AKB inteqrasiyası");
+  res.json({ applicationId: rows[0].id, score: out.assessment.result.score, grade: out.assessment.result.grade,
+             verdict: out.assessment.result.verdict, flags: out.report.flags });
+});
+
+/* ---------- analytics ---------- */
+app.get("/api/admin/analytics", admin, can("analytics.view"), async (req, res) => {
+  const days = Math.min(365, Math.max(7, parseInt(req.query.days, 10) || 30));
+  const since = `now() - make_interval(days => ${days})`;
+  const q = (sql, p = []) => pool.query(sql, p).then(r => r.rows);
+  const [daily, status, grades, brands, income, timing, money, staff, bureau] = await Promise.all([
+    q(`SELECT to_char(d, 'YYYY-MM-DD') AS day,
+              (SELECT count(*)::int FROM applications a WHERE a.created_at::date = d) AS received,
+              (SELECT count(*)::int FROM application_events e WHERE e.kind IN ('offer','rejected') AND e.at::date = d) AS decided,
+              (SELECT count(*)::int FROM application_events e WHERE e.kind = 'accepted' AND e.at::date = d) AS accepted
+       FROM generate_series((${since})::date, now()::date, interval '1 day') d ORDER BY d`),
+    q(`SELECT status, count(*)::int AS n FROM applications WHERE created_at >= ${since} GROUP BY status`),
+    q(`SELECT assessment->'result'->>'grade' AS grade, count(*)::int AS n FROM applications
+       WHERE created_at >= ${since} AND assessment IS NOT NULL GROUP BY 1 ORDER BY 1`),
+    q(`SELECT brand, count(*)::int AS n FROM applications WHERE created_at >= ${since} GROUP BY brand ORDER BY n DESC LIMIT 6`),
+    q(`SELECT s AS source, count(*)::int AS n FROM applications, unnest(income_sources) s WHERE created_at >= ${since} GROUP BY s ORDER BY n DESC`),
+    q(`SELECT round(avg(extract(epoch FROM (e.first - a.created_at)) / 3600)::numeric, 1)::float AS avg_hours,
+              round((percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM (e.first - a.created_at)) / 3600))::numeric, 1)::float AS median_hours
+       FROM applications a JOIN (SELECT application_id, min(at) AS first FROM application_events WHERE kind IN ('offer','rejected') GROUP BY 1) e
+         ON e.application_id = a.id WHERE a.created_at >= ${since}`),
+    q(`SELECT count(*) FILTER (WHERE status = 'accepted')::int AS accepted_n,
+              coalesce(sum((offer->>'price')::numeric * (1 - coalesce((offer->'final'->>'downPct')::numeric, (offer->>'downPct')::numeric) / 100))
+                FILTER (WHERE status = 'accepted'), 0)::float AS financed,
+              coalesce(avg((offer->>'price')::numeric) FILTER (WHERE offer IS NOT NULL), 0)::float AS avg_price,
+              coalesce(avg((offer->'final'->>'downPct')::numeric - (offer->>'downPct')::numeric) FILTER (WHERE offer ? 'final'), 0)::float AS avg_dp_raise,
+              coalesce(avg((assessment->'result'->>'score')::numeric), 0)::float AS avg_score
+       FROM applications WHERE created_at >= ${since}`),
+    q(`SELECT actor, count(*) FILTER (WHERE kind = 'offer')::int AS offers, count(*) FILTER (WHERE kind = 'rejected')::int AS rejects,
+              count(*) FILTER (WHERE kind = 'assessed')::int AS assessed
+       FROM application_events WHERE at >= ${since} AND kind IN ('offer','rejected','assessed') GROUP BY actor ORDER BY count(*) DESC LIMIT 8`),
+    q(`SELECT count(*) FILTER (WHERE bureau IS NOT NULL)::int AS with_bureau, count(*)::int AS total,
+              coalesce(avg((bureau->'summary'->>'debtMonthly')::numeric), 0)::float AS avg_debt
+       FROM applications WHERE created_at >= ${since}`)
+  ]);
+  res.json({ days, daily, status, grades, brands, income, timing: timing[0], money: money[0], staff, bureau: bureau[0] });
+});
+
+app.get("/api/admin/files/:stored", admin, can("docs.view"), async (req, res) => {
   const f = path.basename(req.params.stored);
   const { rows } = await pool.query("SELECT original_name, mime FROM application_files WHERE stored_name = $1", [f]);
   if (!rows[0]) return bad(res, "Fayl tapılmadı.", 404);

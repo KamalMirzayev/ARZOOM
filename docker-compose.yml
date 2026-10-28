@@ -40,6 +40,7 @@ services:
       SMS_METHOD: ${SMS_METHOD:-GET}
       SMS_BODY: ${SMS_BODY:-}
       SMS_HEADERS: ${SMS_HEADERS:-}
+      AKB_API_KEY: ${AKB_API_KEY:-}
       UPLOAD_DIR: /app/uploads
     volumes:
       - uploads:/app/uploads

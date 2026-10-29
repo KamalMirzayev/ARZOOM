@@ -467,7 +467,7 @@ details.inq summary{cursor:pointer;font-weight:600;font-size:13px;margin-top:14p
 
 <div id="app" hidden>
   <nav class="side" aria-label="Panel">
-    <div class="brand"><span class="logoplate"><img src="/logo.png" alt="Arzoom Avto"></span><small>Qiymətləndirmə</small></div>
+    <div class="brand"><a href="#" id="logoHome" aria-label="Ümumi baxış" style="display:inline-flex;justify-self:start"><span class="logoplate"><img src="/logo.png" alt="Arzoom Avto"></span></a><small>Qiymətləndirmə</small></div>
     <div class="nav"><h6>Panel</h6>
       <button type="button" id="homeBtn" title="Ümumi baxış" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span class="t">Ümumi baxış</span></button>
       <button type="button" id="analyticsBtn" title="Analitika" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span class="t">Analitika</span></button>
@@ -705,6 +705,7 @@ async function renderHome(){
 }
 $("#analyticsBtn").onclick=renderAnalytics;
 $("#homeBtn").onclick=()=>{$("#shell").classList.add("open");renderHome()};
+$("#logoHome").onclick=e=>{e.preventDefault();$("#homeBtn").click()};
 document.addEventListener("click",e=>{const b=e.target.closest("[data-st-go]");if(b){status=b.dataset.stGo;$("#shell").classList.remove("open");loadList().catch(err=>toast(err.message))}});
 $("#detail").addEventListener("click",e=>{const b=e.target.closest(".queue [data-id]");if(b)openApp(b.dataset.id)});
 

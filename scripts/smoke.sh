@@ -21,7 +21,7 @@ echo "✓ səhifələr"
 
 apply() { # $1 phone, $2 file
   local code; code=$(curl -fsS -X POST "$B/api/otp" -H "Content-Type: application/json" -d "{\"phone\":\"$1\"}" | J demoCode)
-  curl -sS -X POST "$B/api/applications" -F fin=5ABC12D -F idSeries=AZE -F idNumber=12345678 -F phone="$1" \
+  curl -sS -X POST "$B/api/applications" -F fin=5ABC12D -F idSeries=AZE -F idNumber=12345678 -F birthDate=1990-05-17 -F phone="$1" \
     -F incomeSources=work,biz -F voen=1234567890 -F brand=Toyota -F model=Camry -F consent=true -F consentText=ok \
     -F otp="$code" -F "file_work=@$2;type=application/pdf"
 }
@@ -32,6 +32,7 @@ R2=$(apply 994501112235 "$TMP/arayis.pdf"); ID2=$(echo "$R2" | J id); TOK2=$(ech
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H 'x-admin-token: wrong-token-xxxxxxxx' "$B/api/admin/applications")" = 401 ] || fail; echo "✓ yanlış açar 401"
 curl -fsS "${H[@]}" "$B/api/admin/applications?status=review" | grep -c "$ID" >/dev/null || fail
 STORED=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J 'files[0].stored_name')
+[ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J birth_date)" = 1990-05-17 ] || fail; echo "✓ doğum tarixi saxlanılır"
 curl -fsS "${H[@]}" "$B/api/admin/files/$STORED" -o "$TMP/dl" && head -c 5 "$TMP/dl" | grep -q "%PDF" || fail; echo "✓ sənəd açılır"
 
 A=$(curl -fsS -X PUT "${H[@]}" "$B/api/admin/applications/$ID/assessment" \
@@ -95,11 +96,15 @@ curl -fsS -H "x-admin-token: $ES" "$B/api/admin/me" | grep -c '"apps.notes"' >/d
 curl -fsS -X POST -H "x-admin-token: $ES" "$B/api/admin/logout" >/dev/null
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/stats")" = 401 ] || fail; echo "✓ çıxışdan sonra sessiya bağlanır"
 # Təhlükəsizlik
-R=$(curl -sS -X POST "$B/api/applications" -F fin=5ABC12D -F idSeries=AZE -F idNumber=12345678 -F phone=994501112299 -F incomeSources=work \
+R=$(curl -sS -X POST "$B/api/applications" -F fin=5ABC12D -F idSeries=AZE -F idNumber=12345678 -F birthDate=1990-05-17 -F phone=994501112299 -F incomeSources=work \
   --form-string 'brand=<img src=x onerror=alert(1)>' -F model=Camry -F consent=true -F consentText=ok -F otp=000000)
 echo "$R" | grep -c "Avtomobil seçilməyib" >/dev/null || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/applications" -F fin=5ABC12D -F idSeries=toString -F idNumber=1 -F phone=994501112299 -F incomeSources=work -F brand=Toyota -F model=Camry -F consent=true)" = 400 ] || fail
-echo "✓ marka/model və vəsiqə seriyası yoxlanılır"
+for d in "$(date -d '-17 years' +%F)" 1990-02-30 17.05.1990; do
+  curl -sS -X POST "$B/api/applications" -F fin=5ABC12D -F idSeries=AZE -F idNumber=12345678 -F birthDate="$d" -F phone=994501112299 -F incomeSources=work \
+    -F brand=Toyota -F model=Camry -F consent=true | grep -q "Doğum tarixi" || fail
+done
+echo "✓ marka/model və vəsiqə seriyası, doğum tarixi yoxlanılır"
 curl -sSI "$B/admin" | grep -i "^content-security-policy" | grep -q "script-src 'self' 'sha256-" || fail
 curl -sSI "$B/admin" | grep -i "^content-security-policy" | grep -vq "script-src[^;]*unsafe-inline" || fail; echo "✓ CSP: inline skript yalnız hash ilə"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/users" -d '{"username":"weakpw","name":"X","password":"aaaaaaaaaaaa"}')" = 400 ] || fail

@@ -19,6 +19,8 @@ set_env() {
 get_env() { grep "^$1=" .env | tail -1 | cut -d= -f2- | sed "s/^'//; s/'$//"; }
 
 [ -n "${DOMAIN:-}" ] && set_env SITE_ADDRESS "$DOMAIN"
+# Robocall panel address (e.g. aicall.arzoomavto.az); kept in .env for later deploys.
+[ -n "${AICALL_DOMAIN:-}" ] && set_env AICALL_ADDRESS "$AICALL_DOMAIN"
 # Without a website domain the corporate site is served on the app's address, port 8443.
 cur_web=$(get_env WEBSITE_ADDRESS || true)
 if [ -n "${WEBSITE_DOMAIN:-}" ]; then

@@ -5,7 +5,9 @@ const crypto = require("crypto");
 const express = require("express");
 const helmet = require("helmet");
 const multer = require("multer");
-const { Pool } = require("pg");
+const { Pool, types } = require("pg");
+// DATE columns stay plain YYYY-MM-DD strings, with no time zone shift.
+types.setTypeParser(1082, v => v);
 const { sendSms, configured: SMS_ON } = require("./lib/sms");
 const Scoring = require("./lib/scoring");
 const Akb = require("./lib/akb");
@@ -23,6 +25,14 @@ const DEMO_SMS = !SMS_ON && process.env.DEMO_SMS !== "false";
 const newCode = () => DEMO_SMS ? (process.env.DEMO_OTP || "123456") : String(crypto.randomInt(100000, 1000000));
 const SITE_URL = process.env.SITE_ADDRESS && process.env.SITE_ADDRESS !== "localhost" ? `https://${process.env.SITE_ADDRESS}` : "";
 const INCOME = ["work", "biz", "pension", "social"];
+// Date of birth as YYYY-MM-DD: a real calendar date, 18 to 80 years ago.
+function birthDate(v) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v || "")); if (!m) return null;
+  const d = new Date(Date.UTC(+m[1], m[2] - 1, +m[3]));
+  if (d.getUTCMonth() !== m[2] - 1 || d.getUTCDate() !== +m[3]) return null;
+  const now = new Date(), age = (y, dd) => Date.UTC(now.getUTCFullYear() - y, now.getUTCMonth(), now.getUTCDate()) - dd.getTime();
+  return age(18, d) >= 0 && age(80, d) < 0 ? m[0] : null;
+}
 const SERIES = { AZE: 8, AA: 7, AB: 7 };
 // Car names come from the page's catalogue; anything with markup or quotes is refused (they reach the panel and staff SMS).
 const CAR_TEXT = /^[\p{L}\p{N} .,:+&()\/-]{1,80}$/u;
@@ -205,6 +215,7 @@ app.post("/api/applications", submitLimit, upload.any(), async (req, res) => {
   const err =
     !/^[0-9A-Z]{7}$/.test(fin) ? "FİN kod düzgün deyil." :
     !Object.hasOwn(SERIES, String(b.idSeries)) || !new RegExp(`^\\d{${SERIES[b.idSeries]}}$`).test(b.idNumber || "") ? "Vəsiqə nömrəsi düzgün deyil." :
+    !birthDate(b.birthDate) ? "Doğum tarixi düzgün deyil: müraciət üçün 18 yaş tamam olmalıdır." :
     !/^994\d{9}$/.test(phone) ? "Mobil nömrə düzgün deyil." :
     !sources.length ? "Gəlir mənbəyi seçilməyib." :
     sources.includes("biz") && !/^\d{10}$/.test(b.voen || "") ? "VÖEN 10 rəqəm olmalıdır." :
@@ -222,10 +233,10 @@ app.post("/api/applications", submitLimit, upload.any(), async (req, res) => {
     for (let i = 0; i < 5 && !id; i++) {
       const cand = `AA-${new Date().getFullYear()}-${crypto.randomInt(100000, 1000000)}`;
       const r = await client.query(
-        `INSERT INTO applications (id, fin, id_series, id_number, phone, income_sources, voen, brand, model, consent_text, consent_at, client_ip)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now(), $11) ON CONFLICT (id) DO NOTHING RETURNING id`,
+        `INSERT INTO applications (id, fin, id_series, id_number, phone, income_sources, voen, brand, model, consent_text, consent_at, client_ip, birth_date)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now(), $11, $12) ON CONFLICT (id) DO NOTHING RETURNING id`,
         [cand, fin, b.idSeries, b.idNumber, phone, sources, sources.includes("biz") ? b.voen : null,
-         String(b.brand).slice(0, 60), String(b.model).slice(0, 80), String(b.consentText || "").slice(0, 2000), req.ip]
+         String(b.brand).slice(0, 60), String(b.model).slice(0, 80), String(b.consentText || "").slice(0, 2000), req.ip, birthDate(b.birthDate)]
       );
       id = r.rows[0]?.id;
     }

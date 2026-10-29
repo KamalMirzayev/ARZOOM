@@ -115,3 +115,5 @@ CREATE TABLE IF NOT EXISTS audit_log (
   target    TEXT
 );
 CREATE INDEX IF NOT EXISTS audit_log_at_idx ON audit_log (at DESC);
+-- Doğum tarixi (müraciət formasının 1-ci addımı)
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS birth_date DATE;

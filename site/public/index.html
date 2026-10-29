@@ -136,6 +136,7 @@ p{margin:0}
 .calc-head .dot::after{content:"";width:7px;height:7px;border-radius:50%;background:var(--red);box-shadow:0 0 12px var(--red)}
 .cf{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin-top:18px}
 .cf-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13.5px;color:var(--n-muted);font-weight:600}
+.cf-row .from{font-size:11.5px;font-weight:600;opacity:.75;margin-left:4px}
 .cf-row b{color:var(--n-ink);font-size:15.5px}
 .price-in{display:flex;align-items:center;gap:8px;background:rgb(0 0 0 / .22);border-radius:14px;padding:0 16px;box-shadow:inset 0 0 0 1px var(--n-line-2);transition:box-shadow .2s}
 .price-in:focus-within{box-shadow:inset 0 0 0 1px var(--glow),0 0 0 4px rgb(124 147 255 / .15)}
@@ -447,7 +448,7 @@ footer{background:var(--night);color:var(--n-ink);border-top:1px solid var(--n-l
           </div>
 
           <div class="cf">
-            <div class="cf-row"><label for="cDown">İlkin ödəniş</label><b id="cDownV" class="num">20% · 9 380 ₼</b></div>
+            <div class="cf-row"><label for="cDown">İlkin ödəniş <small class="from">20%-dən</small></label><b id="cDownV" class="num">20% · 9 380 ₼</b></div>
             <input type="range" id="cDown" min="20" max="70" step="1" value="20">
           </div>
 
@@ -467,12 +468,12 @@ footer{background:var(--night);color:var(--n-ink);border-top:1px solid var(--n-l
             <span class="big num" id="cPay">1 338<small>₼ / ay</small></span>
             <div class="kv">
               <div><span>Maliyyələşmə məbləği</span><span id="cFin" class="num">37 520 ₼</span></div>
-              <div><span>Birdəfəlik komissiya, 1,5%</span><span id="cComm" class="num">563 ₼</span></div>
+              <div><span>Birdəfəlik komissiya, 1,5%-dən</span><span id="cComm" class="num">563 ₼</span></div>
               <div><span>Ümumi faiz xərci</span><span id="cInt" class="num">10 640 ₼</span></div>
             </div>
           </div>
           <a class="btn white" href="https://lizinq.arzoomavto.az/" data-app>Bu şərtlərlə müraciət et <svg class="ic"><use href="#i-arrow"/></svg></a>
-          <p class="fine">Nümunə şərtlər: illik <span id="cRate">17</span>%, annuitet ödəniş. Faiz və son şərtlər müraciət qiymətləndiriləndən sonra fərdi təklifdə göstərilir.</p>
+          <p class="fine">Minimal şərtlərlə hesablanıb: ilkin ödəniş 20%-dən, illik faiz <span id="cRate">17</span>%-dən, komissiya 1,5%-dən, annuitet ödəniş. Son şərtlər müraciət qiymətləndiriləndən sonra fərdi təklifdə göstərilir və bunlardan yuxarı ola bilər.</p>
         </form>
       </div>
     </div>
@@ -514,7 +515,7 @@ footer{background:var(--night);color:var(--n-ink);border-top:1px solid var(--n-l
             <a class="btn pri" href="https://lizinq.arzoomavto.az/" data-app>Müraciət et <svg class="ic"><use href="#i-arrow"/></svg></a>
             <button type="button" class="btn line" id="sCalc">Kalkulyatorda hesabla</button>
           </div>
-          <p class="note">Nümunə şərtlər: 20% ilkin ödəniş, 36 ay, illik 17%. Qiymətlər istinad üçündür.</p>
+          <p class="note">Minimal şərtlərlə: ilkin ödəniş 20%-dən, 36 ay, illik faiz 17%-dən. Qiymətlər istinad üçündür.</p>
         </div>
       </div>
       <div class="marks" aria-label="Markalar" lang="en">

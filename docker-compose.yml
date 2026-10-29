@@ -77,6 +77,10 @@ services:
       SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
       WEBSITE_ADDRESS: ${WEBSITE_ADDRESS:-website.localhost}
       ADMIN_ALLOW: ${ADMIN_ALLOW:-0.0.0.0/0 ::/0}
+      AICALL_ADDRESS: ${AICALL_ADDRESS:-aicall.localhost}
+    # Robocall hostda işləyir; Caddy ona host.docker.internal ünvanı ilə çatır.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "80:80"
       - "443:443"

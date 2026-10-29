@@ -80,6 +80,7 @@ nav.tabs .count{display:inline-grid;place-items:center;min-width:19px;height:19p
 .inp.err{border-color:var(--bad)}
 .err-msg{font-size:12.5px;color:var(--bad)}
 .combo{display:grid;grid-template-columns:100px minmax(0,1fr);gap:8px}
+.dob{display:grid;grid-template-columns:76px minmax(0,1fr) 96px;gap:8px}
 .note{font-size:13.5px;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--raised);color:var(--muted);display:flex;gap:10px;align-items:flex-start}
 .note svg{flex:none;width:16px;height:16px;margin-top:2px;color:var(--gold)}
 .note.warn{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
@@ -302,6 +303,13 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-si
             </div>
             <span class="hint" id="idHint">AZE seriyası üçün 8 rəqəm.</span>
             <span class="err-msg" data-err="aIdNo" hidden></span></div>
+          <div class="field"><label for="aDobD">Doğum tarixi <span class="hint">Gün, ay, il</span></label>
+            <div class="dob">
+              <select class="inp mono" id="aDobD" aria-label="Gün" autocomplete="bday-day"><option value="">Gün</option></select>
+              <select class="inp" id="aDobM" aria-label="Ay" autocomplete="bday-month"><option value="">Ay</option></select>
+              <select class="inp mono" id="aDobY" aria-label="İl" autocomplete="bday-year"><option value="">İl</option></select>
+            </div>
+            <span class="err-msg" data-err="aDob" hidden>Doğum tarixini seç. Müraciət üçün 18 yaş tamam olmalıdır.</span></div>
           <div class="field"><label for="aPhone">Mobil nömrə <span class="hint">SMS təsdiq kodu bu nömrəyə gələcək</span></label>
             <div class="combo">
               <select class="inp mono" id="aOp" aria-label="Operator kodu"><option>050</option><option>051</option><option>010</option><option>055</option><option>099</option><option>070</option><option>077</option></select>
@@ -515,6 +523,19 @@ const inc={work:{on:true},pension:{on:true}};
 const incNames=()=>INC.filter(s=>inc[s.k]?.on).map(s=>s.t).join(", ")||"—";
 const docCount=()=>INC.reduce((n,s)=>n+(inc[s.k]?.on?(inc[s.k].files||[]).length:0),0);
 const voen=()=>inc.biz?.on?(inc.biz.voen||""):"";
+// Date of birth: three native selects, which phones show as scroll wheels.
+const MONTHS=["Yanvar","Fevral","Mart","Aprel","May","İyun","İyul","Avqust","Sentyabr","Oktyabr","Noyabr","Dekabr"];
+const dobY0=new Date().getFullYear()-18;
+$("#aDobM").insertAdjacentHTML("beforeend",MONTHS.map((m,i)=>`<option value="${i+1}">${m}</option>`).join(""));
+$("#aDobY").insertAdjacentHTML("beforeend",Array.from({length:63},(_,i)=>`<option>${dobY0-i}</option>`).join(""));
+function dobDays(){const d=$("#aDobD"),cur=+d.value,n=new Date(+$("#aDobY").value||2000,+$("#aDobM").value||1,0).getDate();
+  d.innerHTML=`<option value="">Gün</option>`+Array.from({length:n},(_,i)=>`<option${i+1===cur?" selected":""}>${i+1}</option>`).join("")}
+dobDays();
+const dobIso=()=>{const y=$("#aDobY").value,m=$("#aDobM").value,d=$("#aDobD").value;return y&&m&&d?`${y}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`:""};
+const dobText=()=>dobIso()?`${$("#aDobD").value} ${MONTHS[$("#aDobM").value-1]} ${$("#aDobY").value}`:"";
+const adult=iso=>{if(!iso)return false;const t=new Date(),b=new Date(iso+"T00:00:00");return new Date(b.getFullYear()+18,b.getMonth(),b.getDate())<=t};
+["#aDobM","#aDobY"].forEach(s=>$(s).addEventListener("change",dobDays));
+["#aDobD","#aDobM","#aDobY"].forEach(s=>$(s).addEventListener("change",()=>{if(adult(dobIso())){err("aDob",false);["#aDobD","#aDobM","#aDobY"].forEach(x=>$(x).classList.remove("err"))}renderSide()}));
 const phoneFull=()=>`+994 ${$("#aOp").value.slice(1)} ${$("#aPhone").value}`;
 const curModel=()=>model&&CATALOG[brand].find(m=>m[0]===model);
 const appCar=()=>model?`${brand} ${model}`:"—";
@@ -553,7 +574,7 @@ function renderSide(){
   $("#sBrand").textContent=m?`${brand} · ${BODYNAME[m[1]]}${m[2]?" · "+PT[m[2]][0].toLocaleUpperCase("az")+PT[m[2]].slice(1):""}`:(step>=2?brand:"Avtomobil");
   $("#sCar").textContent=m?model:(step>=2?"Model seçin":"Hələ seçilməyib");
   $("#sStep").textContent=`Addım ${step+1} / 5 · ${STEPS[step]}`;$("#sBar").style.width=((step+1)/5*100)+"%";
-  const rows=[["FİN kod",$("#aFin").value.toUpperCase()||"—"],["Şəxsiyyət vəsiqəsi",$("#aIdNo").value?$("#aIdSer").value+" "+$("#aIdNo").value:"—"],["Mobil nömrə",$("#aPhone").value?phoneFull():"—"]];
+  const rows=[["FİN kod",$("#aFin").value.toUpperCase()||"—"],["Şəxsiyyət vəsiqəsi",$("#aIdNo").value?$("#aIdSer").value+" "+$("#aIdNo").value:"—"],["Doğum tarixi",dobText()||"—"],["Mobil nömrə",$("#aPhone").value?phoneFull():"—"]];
   if(step>=1)rows.push(["Gəlir mənbəyi",incNames()]);
   $("#sKv").innerHTML=kvHtml(rows);
 }
@@ -586,7 +607,7 @@ function renderStep(){
   $("#nextBtn").disabled=step===0&&!$("#cConsent").checked;
   if(step===1)renderInc();
   if(step===2){renderBrands();renderModels()}
-  if(step===3)$("#revAll").innerHTML=kvHtml([["FİN kod",$("#aFin").value.toUpperCase()],["Şəxsiyyət vəsiqəsi",$("#aIdSer").value+" "+$("#aIdNo").value],["Mobil",phoneFull()],
+  if(step===3)$("#revAll").innerHTML=kvHtml([["FİN kod",$("#aFin").value.toUpperCase()],["Şəxsiyyət vəsiqəsi",$("#aIdSer").value+" "+$("#aIdNo").value],["Doğum tarixi",dobText()],["Mobil",phoneFull()],
     ["Gəlir mənbəyi",incNames()],...(voen()?[["VÖEN",voen()]]:[]),["Yüklənmiş sənədlər",docCount()+" sənəd"],["Avtomobil",appCar()]]);
   if(step===4)startOtp(); else clearInterval(otpT);
   renderSide();
@@ -598,6 +619,7 @@ function validate(){
     bad|=err("aFin",!/^[0-9A-Z]{7}$/i.test($("#aFin").value.trim()));
     const len=$("#aIdSer").value==="AZE"?8:7;
     bad|=err("aIdNo",!new RegExp(`^\\d{${len}}$`).test($("#aIdNo").value.trim()),`${$("#aIdSer").value} seriyası üçün nömrə ${len} rəqəm olmalıdır.`);
+    bad|=err("aDob",!adult(dobIso()));["#aDobD","#aDobM","#aDobY"].forEach(s=>$(s).classList.toggle("err",!adult(dobIso())));
     bad|=err("aPhone",$("#aPhone").value.replace(/\D/g,"").length!==7);
   }
   if(step===1){bad|=err("inc",!Object.values(inc).some(x=>x.on));
@@ -623,7 +645,7 @@ async function submitApp(){
   if(!API)return submitLocal();
   if(sending)return; sending=true; $("#nextBtn").disabled=true; $("#nextBtn").textContent="Göndərilir...";
   const fd=new FormData();
-  fd.append("fin",$("#aFin").value.trim().toUpperCase());fd.append("idSeries",$("#aIdSer").value);fd.append("idNumber",$("#aIdNo").value.trim());
+  fd.append("fin",$("#aFin").value.trim().toUpperCase());fd.append("idSeries",$("#aIdSer").value);fd.append("idNumber",$("#aIdNo").value.trim());fd.append("birthDate",dobIso());
   fd.append("phone",phoneFull());fd.append("incomeSources",INC.filter(s=>inc[s.k]?.on).map(s=>s.k).join(","));fd.append("voen",voen());
   fd.append("brand",brand);fd.append("model",model);fd.append("consent","true");fd.append("consentText",$(".consent span").textContent.trim());fd.append("otp",otpVal());
   INC.forEach(s=>{if(inc[s.k]?.on)(FILES[s.k]||[]).forEach(f=>fd.append("file_"+s.k,f))});

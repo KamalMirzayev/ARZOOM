@@ -500,6 +500,9 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const grp=n=>Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");
 const azn=n=>grp(n)+" ₼";
+// birth_date arrives as an ISO date; shown as day.month.year with the age.
+const fmtDob=s=>{const [y,m,d]=String(s).slice(0,10).split("-").map(Number),t=new Date();
+  const age=t.getFullYear()-y-((t.getMonth()+1<m||(t.getMonth()+1===m&&t.getDate()<d))?1:0);return `${String(d).padStart(2,"0")}.${String(m).padStart(2,"0")}.${y} · ${age} yaş`};
 const dt=s=>{const d=new Date(s);return d.toLocaleDateString("az-AZ",{day:"2-digit",month:"2-digit",year:"numeric"})+" "+d.toLocaleTimeString("az-AZ",{hour:"2-digit",minute:"2-digit"})};
 // Keys match REJECT_REASONS in server.js, which holds the full text the customer gets.
 const REJECT_CODES={credit:"Kredit tarixçəsi uyğun deyil",income:"Gəlir aylıq ödəniş üçün kifayət etmir",debt:"Borc yükü yüksəkdir",docs:"Sənədlər natamam və ya yoxlanılmadı",terms:"Lizinq şərtlərinə uyğun deyil"};
@@ -866,6 +869,7 @@ function renderDetail(){
       <dl class="kv">
         <dt>FİN kod</dt><dd class="mono" lang="en">${esc(a.fin)}</dd>
         <dt>Şəxsiyyət vəsiqəsi</dt><dd class="mono">${esc(a.id_series)} ${esc(a.id_number)}</dd>
+        ${a.birth_date?`<dt>Doğum tarixi</dt><dd>${esc(fmtDob(a.birth_date))}</dd>`:""}
         <dt>Mobil</dt><dd><a href="tel:+${esc(a.phone)}">+${esc(a.phone)}</a></dd>
         <dt>Gəlir mənbəyi</dt><dd>${a.income_sources.map(s=>INCOME[s]).join(", ")}</dd>
         ${a.voen?`<dt>VÖEN</dt><dd class="mono">${esc(a.voen)}</dd>`:""}

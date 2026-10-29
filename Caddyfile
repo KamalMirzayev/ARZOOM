@@ -6,6 +6,20 @@
 	servers {
 		protocols h1 h2 h3
 	}
+	# Proxy error logs also carry request headers; strip the same secrets there.
+	log default {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>headers>X-Admin-Token delete
+				request>headers>X-App-Token delete
+				request>headers>X-Api-Key delete
+				request>headers>Authorization delete
+				request>headers>Cookie delete
+			}
+		}
+	}
 }
 
 (secure) {
@@ -18,9 +32,20 @@
 		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
 		-Server
 	}
+	# Access log without secrets: staff/customer session keys, API keys and cookies are removed.
 	log {
 		output stdout
-		format console
+		format filter {
+			wrap console
+			fields {
+				request>headers>X-Admin-Token delete
+				request>headers>X-App-Token delete
+				request>headers>X-Api-Key delete
+				request>headers>Authorization delete
+				request>headers>Cookie delete
+				resp_headers>Set-Cookie delete
+			}
+		}
 	}
 }
 
@@ -53,4 +78,53 @@
 	redir @www https://{re.www.1}{uri} 308
 
 	reverse_proxy website:8080
+}
+
+# Robocall (AI zəng sistemi, /opt/robocall): Docker-də deyil, hostda systemd ilə işləyir.
+# Ünvan .env-dəki AICALL_ADDRESS-dən gəlir, məs. aicall.arzoomavto.az. Servislər hostun 3001/4000/8090 portlarındadır;
+# ufw yalnız Docker şəbəkəsindən (172.16.0.0/12) bu portlara icazə verməlidir.
+{$AICALL_ADDRESS:aicall.localhost} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	# Access log without secrets: staff/customer session keys, API keys and cookies are removed.
+	log {
+		output stdout
+		format filter {
+			wrap console
+			fields {
+				request>headers>X-Admin-Token delete
+				request>headers>X-App-Token delete
+				request>headers>X-Api-Key delete
+				request>headers>Authorization delete
+				request>headers>Cookie delete
+				resp_headers>Set-Cookie delete
+			}
+		}
+	}
+
+	request_body {
+		max_size 50MB
+	}
+
+	# Telefon (Asterisk idarəsi) API-si və canlı monitor: telephony servisi.
+	@telephony path_regexp telephony ^/api/(telephony|sip-accounts|trunks|ivr|dialplan)/
+	handle @telephony {
+		reverse_proxy host.docker.internal:8090
+	}
+	handle /ws/live-monitor* {
+		reverse_proxy host.docker.internal:8090
+	}
+	# Gemini və monitor WebSocket-ləri: callbot backend.
+	handle /ws/* {
+		reverse_proxy host.docker.internal:4000
+	}
+	# Qalan hər şey (panel və onun /api/* proxy-ləri): Next.js frontend.
+	handle {
+		reverse_proxy host.docker.internal:3001
+	}
 }

@@ -36,6 +36,9 @@ services:
       DEMO_SMS: ${DEMO_SMS:-true}
       DEMO_OTP: ${DEMO_OTP:-123456}
       SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+      SOFTLINE_USER: ${SOFTLINE_USER:-}
+      SOFTLINE_KEY: ${SOFTLINE_KEY:-}
+      SOFTLINE_SENDER: ${SOFTLINE_SENDER:-Arzoomavto}
       SMS_URL: ${SMS_URL:-}
       SMS_METHOD: ${SMS_METHOD:-GET}
       SMS_BODY: ${SMS_BODY:-}

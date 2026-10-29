@@ -3,6 +3,7 @@
 # DOMAIN verilibsə, .env-dəki SITE_ADDRESS onunla yenilənir (HTTPS sertifikatı bu ünvana alınır).
 # WEBSITE_DOMAIN verilibsə (məs. "arzoomavto.az www.arzoomavto.az"), korporativ saytın WEBSITE_ADDRESS-i yenilənir;
 # verilməyibsə, sayt https://SITE_ADDRESS:8443 ünvanında açılır.
+# SOFTLINE_USER / SOFTLINE_KEY / SOFTLINE_SENDER verilibsə, SMS provayderi .env-ə yazılır.
 # NEW_POSTGRES_PASSWORD / NEW_ADMIN_TOKEN (GitHub secrets) verilibsə, parollar .env-də və bazada dəyişdirilir.
 set -euo pipefail
 cd /opt/arzoom
@@ -26,6 +27,10 @@ elif [ -z "$cur_web" ] || [[ "$cur_web" == *:8443 ]]; then
   set_env WEBSITE_ADDRESS "https://$(get_env SITE_ADDRESS):8443"
 fi
 command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active" && ufw allow 8443/tcp >/dev/null || true
+# SMS (Softline): verilibsə .env-ə yazılır, sonrakı yeniləmələrdə yenidən vermək lazım deyil.
+[ -n "${SOFTLINE_USER:-}" ] && set_env SOFTLINE_USER "$SOFTLINE_USER"
+[ -n "${SOFTLINE_KEY:-}" ] && set_env SOFTLINE_KEY "$SOFTLINE_KEY" && echo "SMS açarı yeniləndi."
+[ -n "${SOFTLINE_SENDER:-}" ] && set_env SOFTLINE_SENDER "$SOFTLINE_SENDER"
 [ -n "${NEW_ADMIN_TOKEN:-}" ] && [ "$NEW_ADMIN_TOKEN" != "$(get_env ADMIN_TOKEN)" ] && set_env ADMIN_TOKEN "$NEW_ADMIN_TOKEN" && echo "ADMIN_TOKEN yeniləndi."
 
 if [ -n "${NEW_POSTGRES_PASSWORD:-}" ] && [ "$NEW_POSTGRES_PASSWORD" != "$(get_env POSTGRES_PASSWORD)" ]; then

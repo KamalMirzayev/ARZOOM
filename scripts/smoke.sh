@@ -14,7 +14,7 @@ printf '%%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%%%EOF\n' > "$TMP/arayis.pdf
 echo '<script>alert(1)</script>' > "$TMP/fake.pdf"
 
 curl -fsS "$B/api/health" | grep -c '"ok":true' >/dev/null
-curl -fsS "$B/" | grep -c "məsafədən avtomobil lizinqi üçün müraciət" >/dev/null
+curl -fsS "$B/" | grep -c "Yeni avtomobiliniz, bir müraciət məsafəsində" >/dev/null
 curl -fsS "$B/admin" | grep -c "Qiymətləndirmə" >/dev/null
 curl -fsS "$B/admin/scoring.js" | grep -c "assess" >/dev/null
 echo "✓ səhifələr"

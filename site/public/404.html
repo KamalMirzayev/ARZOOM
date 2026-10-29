@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Səhifə tapılmadı · Arzoom Avto</title>
+<meta name="description" content="Axtardığın səhifə tapılmadı.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#05081A">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,300..800&family=Manrope:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="page.css">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a href="/" aria-label="Arzoom Avto, əsas səhifə"><span class="logoplate"><img src="logo.png" alt="Arzoom" width="135" height="22"></span></a>
+  <a class="back" href="/">← <span>Əsas səhifə</span></a>
+</div></header>
+<main>
+<section class="hero" style="min-height:calc(100svh - 76px - 70px);display:grid;align-items:center"><div class="wrap">
+  <span class="label">Xəta 404</span>
+  <h1>Bu səhifə tapılmadı</h1>
+  <p>Ünvan dəyişib və ya səhv yazılıb. Əsas səhifədən davam et, ya da birbaşa onlayn müraciət göndər.</p>
+  <p style="display:flex;gap:12px;flex-wrap:wrap;margin-top:28px">
+    <a class="back" href="/" style="background:#fff;color:#0B1030">Əsas səhifə</a>
+    <a class="back" id="app" href="https://lizinq.arzoomavto.az/">Onlayn müraciət</a>
+  </p>
+</div></section>
+</main>
+<script>if(!/(^|\.)arzoomavto\.az$/.test(location.hostname))document.getElementById("app").href=`https://${location.hostname}/`</script>
+<footer><div class="wrap">
+  <span>© <span id="yr">2026</span> Arzoom Avto MMC · Sumqayıt şossesi, 6-cı km · <a href="tel:*5665">*5665</a> · <a href="mailto:info@arzoomavto.az">info@arzoomavto.az</a></span>
+  <nav aria-label="Hüquqi"><a href="mexfilik.html">Məxfilik siyasəti</a><a href="sertler.html">İstifadə şərtləri</a></nav>
+</div></footer>
+<script>document.getElementById("yr").textContent=new Date().getFullYear()</script>
+</body>
+</html>

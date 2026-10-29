@@ -13,7 +13,9 @@
 <meta property="og:image" content="https://arzoomavto.az/logo.png">
 <meta property="og:locale" content="az_AZ">
 <meta name="theme-color" content="#05081A">
-<link rel="icon" href="logo.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="logo.png" sizes="any">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FinancialService","name":"Arzoom Avto MMC","alternateName":"Arzoom Avto","url":"https://arzoomavto.az/","logo":"https://arzoomavto.az/logo.png","description":"Fiziki şəxslər, sahibkarlar və şirkətlər üçün avtomobil lizinqi.","email":"info@arzoomavto.az","telephone":"*5665","address":{"@type":"PostalAddress","streetAddress":"Sumqayıt şossesi, 6-cı km","addressLocality":"Bakı","addressCountry":"AZ"},"areaServed":"AZ","sameAs":["https://avtoskan.az/"]}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,300..800&family=Manrope:wght@400;500;600;700&display=swap">
@@ -86,7 +88,8 @@ p{margin:0}
 .top .btn.line{box-shadow:inset 0 0 0 1px var(--n-line-2)}
 .burger{display:none;width:46px;height:46px;border-radius:50%;border:0;background:rgb(255 255 255 / .06);box-shadow:inset 0 0 0 1px var(--n-line-2);cursor:pointer;place-items:center;color:#fff}
 .burger .ic{width:20px;height:20px}
-@media (max-width:1280px){.top .acts .btn.line{display:none}}
+@media (max-width:1280px){.top .acts .btn.line{display:none}.top .wrap{gap:16px}.menu{gap:0}.menu a{padding:10px 9px}.menu a::after{left:9px;right:9px}}
+@media (min-width:1081px) and (max-width:1180px){.hphone{display:none}}
 @media (max-width:1080px){.menu{display:none}.burger{display:grid}.top .acts{margin-left:auto}}
 @media (max-width:560px){.top .acts .btn.pri{display:none}.logoplate img{height:20px}}
 .drawer{position:fixed;inset:76px 0 0 0;z-index:49;background:rgb(5 8 26 / .97);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);color:var(--n-ink);padding:8px max(var(--gut),env(safe-area-inset-left,0px)) 28px;display:flex;flex-direction:column;gap:2px;overflow:auto}
@@ -114,8 +117,13 @@ p{margin:0}
 .facts div:last-child{border-right:0;margin-right:0}
 .facts b{display:block;font-family:var(--f-display);font-stretch:110%;font-weight:600;font-size:clamp(24px,2.2vw,32px);letter-spacing:-.02em;line-height:1.1}
 .facts span{font-size:13.5px;color:var(--n-muted)}
+@media (min-width:1041px) and (max-height:860px){
+  .hero{padding:92px 0 36px}.hero h1{font-size:clamp(40px,4.4vw,72px);margin:16px 0 18px}.hero .btns{margin-top:26px}.facts{margin-top:28px}.facts div{padding-top:16px}
+  .calc{padding:22px 26px}.cf{margin-top:12px;gap:6px}.price-in input{padding:10px 0;font-size:20px}.terms button{padding:7px 0}
+  .result{margin-top:14px;padding-top:12px}.result .big{font-size:42px}.kv{margin-top:6px}.kv div{padding:6px 0}.calc .btn{margin-top:14px;padding:13px 22px}.calc .fine{margin-top:10px}
+}
 @media (max-width:1040px){.hero-grid{grid-template-columns:minmax(0,1fr)}.hero{min-height:0;padding-top:116px}.hero-copy{max-width:720px}}
-@media (max-width:560px){.hero .btns .btn{flex:1 1 100%}.facts{grid-template-columns:repeat(3,minmax(0,1fr))}.facts div{padding-right:12px;margin-right:12px}.facts b{font-size:21px}.facts span{font-size:12px;display:block;line-height:1.35;margin-top:2px}}
+@media (max-width:560px){.label{letter-spacing:.18em}.hero .label::before{display:none}.hero .btns .btn{flex:1 1 100%}.facts{grid-template-columns:repeat(3,minmax(0,1fr))}.facts div{padding-right:10px;margin-right:10px}.facts b{font-size:21px}.facts span{font-size:12px;display:block;line-height:1.35;margin-top:2px;text-wrap:balance}}
 
 /* calculator: glass card */
 .calc{position:relative;border-radius:28px;padding:clamp(24px,2.4vw,32px);color:var(--n-ink);
@@ -238,7 +246,12 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 /* documents + why */
 .split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(24px,3vw,40px);align-items:stretch}
 @media (max-width:900px){.split{grid-template-columns:minmax(0,1fr)}}
-.box{background:var(--paper-2);border-radius:24px;padding:clamp(26px,3vw,44px);box-shadow:inset 0 0 0 1px var(--line)}
+.box{background:var(--paper-2);border-radius:24px;padding:clamp(26px,3vw,44px);box-shadow:inset 0 0 0 1px var(--line);display:flex;flex-direction:column}
+.box>.label{align-self:flex-start}
+.boxcta{margin-top:auto;padding-top:28px;display:flex;flex-wrap:wrap;gap:14px 20px;align-items:center;justify-content:space-between}
+.boxcta>div{display:grid;gap:2px}
+.boxcta span{color:var(--muted);font-size:14px}
+.boxcta a.tel{font-family:var(--f-display);font-stretch:110%;font-weight:700;font-size:22px;text-decoration:none;color:var(--ink)}
 .sec.alt .box{background:var(--paper)}
 .box h3{font-size:clamp(24px,2vw,30px);font-stretch:104%;margin:14px 0 8px}
 .box>p{color:var(--muted);font-size:15.5px}
@@ -266,6 +279,21 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .sister h3{font-size:clamp(20px,2vw,26px);font-stretch:104%;margin:8px 0 6px}
 .sister p{color:var(--muted);font-size:15.5px;max-width:70ch}
 @media (max-width:820px){.sister{grid-template-columns:minmax(0,1fr)}.sister .badge{display:none}}
+
+/* about */
+.about{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:clamp(32px,6vw,104px);align-items:start}
+.about .head{margin:0}
+.about .txt{display:grid;gap:16px;font-size:17px;color:var(--muted)}
+.about .txt strong{color:var(--ink)}
+.vals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:30px}
+.val{background:var(--paper);border-radius:20px;padding:22px;display:grid;gap:8px;align-content:start;box-shadow:inset 0 0 0 1px var(--line)}
+.val .ic{color:var(--blue-ink);width:26px;height:26px;margin-bottom:6px}
+.val b{font-size:16.5px;line-height:1.3}
+.val span{color:var(--muted);font-size:14.5px;line-height:1.55}
+.req{margin-top:22px;display:flex;flex-wrap:wrap;gap:6px 18px;font-size:14px;color:var(--muted)}
+.req b{color:var(--ink);font-weight:700}
+@media (max-width:1000px){.about{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:700px){.vals{grid-template-columns:minmax(0,1fr)}}
 
 /* faq */
 .faq{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:clamp(28px,5vw,96px);align-items:start}
@@ -309,6 +337,9 @@ footer{background:var(--night);color:var(--n-ink);border-top:1px solid var(--n-l
 .foot ul a{text-decoration:none;font-weight:600;font-size:15px;color:rgb(255 255 255 / .82)}
 .foot ul a:hover{color:#fff}
 .legal{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:48px;padding-top:24px;border-top:1px solid var(--n-line);color:var(--n-muted);font-size:13px}
+.legal .lnk{display:flex;gap:20px;flex-wrap:wrap}
+.legal .lnk a{text-decoration:none}
+.legal .lnk a:hover{color:#fff}
 @media (max-width:900px){.foot{grid-template-columns:repeat(2,minmax(0,1fr))}.foot>div:first-child{grid-column:1/-1}}
 
 /* mobile action bar */
@@ -360,6 +391,7 @@ footer{background:var(--night);color:var(--n-ink);border-top:1px solid var(--n-l
       <a href="#modeller">Modellər</a>
       <a href="#lizinq">Lizinq növləri</a>
       <a href="#nece">Necə işləyir</a>
+      <a href="#haqqimizda">Haqqımızda</a>
       <a href="#suallar">Sual-cavab</a>
       <a href="#elaqe">Əlaqə</a>
     </nav>
@@ -376,6 +408,7 @@ footer{background:var(--night);color:var(--n-ink);border-top:1px solid var(--n-l
   <a href="#modeller">Modellər</a>
   <a href="#lizinq">Lizinq növləri</a>
   <a href="#nece">Necə işləyir</a>
+  <a href="#haqqimizda">Haqqımızda</a>
   <a href="#suallar">Sual-cavab</a>
   <a href="#elaqe">Əlaqə</a>
   <div class="btns">
@@ -484,7 +517,7 @@ footer{background:var(--night);color:var(--n-ink);border-top:1px solid var(--n-l
           <p class="note">Nümunə şərtlər: 20% ilkin ödəniş, 36 ay, illik 17%. Qiymətlər istinad üçündür.</p>
         </div>
       </div>
-      <div class="marks" aria-label="Markalar">
+      <div class="marks" aria-label="Markalar" lang="en">
         <span>Toyota</span><span>Mitsubishi</span><span>Mazda</span><span>Ford</span><span>Honda</span><span>Subaru</span><span>BYD</span>
       </div>
     </div>
@@ -571,6 +604,10 @@ footer{background:var(--night);color:var(--n-ink);border-top:1px solid var(--n-l
           <div><b><svg class="ic"><use href="#i-check"/></svg>Gizli ödəniş yoxdur</b><span>Komissiya və faiz xərci təklifdə ayrıca yazılır.</span></div>
           <div><b><svg class="ic"><use href="#i-check"/></svg>SMS ilə xəbər</b><span>Hər mərhələdə status dəyişəndə xəbərdar olursan.</span></div>
         </div>
+        <div class="boxcta">
+          <div><span>Sualın qaldı? Menecerə zəng et</span><a class="tel" href="tel:*5665">*5665</a></div>
+          <a class="btn pri" href="https://lizinq.arzoomavto.az/" data-app>Onlayn müraciət <svg class="ic"><use href="#i-arrow"/></svg></a>
+        </div>
       </div>
     </div>
   </section>
@@ -586,6 +623,30 @@ footer{background:var(--night);color:var(--n-ink);border-top:1px solid var(--n-l
           <p>Avtoskan VIN kodu ilə qəza, sığorta, texniki baxış və mülkiyyət qeydlərini bir neçə saniyəyə göstərir. Qısa nəticə pulsuzdur.</p>
         </div>
         <a class="btn line" href="https://avtoskan.az/" rel="noopener">VIN yoxla <svg class="ic"><use href="#i-arrow"/></svg></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- about -->
+  <section class="sec alt" id="haqqimizda" aria-labelledby="h-about">
+    <div class="wrap about">
+      <div class="head">
+        <div>
+          <span class="label rv">Haqqımızda</span>
+          <h2 id="h-about" class="rv d1">Avtomobil lizinqini sadə və şəffaf edirik</h2>
+        </div>
+      </div>
+      <div>
+        <div class="txt rv">
+          <p><strong>Arzoom Avto MMC</strong> fiziki şəxslərə, sahibkarlara və şirkətlərə avtomobil lizinqi təklif edir. Məqsədimiz avtomobil almağı növbədən və kağız işindən azad etməkdir: müraciət onlayn, təklif fərdi, şərtlər əvvəlcədən aydın.</p>
+          <p>Arzoom ailəsinə avtomobilin tarixçəsini VIN kodu ilə yoxlayan Avtoskan da daxildir. Seçdiyin avtomobilin keçmişinə müqavilədən əvvəl baxa bilərsən.</p>
+        </div>
+        <div class="vals">
+          <div class="val rv"><svg class="ic"><use href="#i-shield"/></svg><b>Şəffaf şərtlər</b><span>Faiz, komissiya və ödəniş qrafiki imzadan əvvəl görünür.</span></div>
+          <div class="val rv d1"><svg class="ic"><use href="#i-phone-ok"/></svg><b>Rəqəmsal proses</b><span>Müraciət, təklif və status bir onlayn kabinetdə.</span></div>
+          <div class="val rv d2"><svg class="ic"><use href="#i-user"/></svg><b>Canlı dəstək</b><span>Sualın olanda *5665 nömrəsində menecer kömək edir.</span></div>
+        </div>
+        <div class="req rv"><span><b>Arzoom Avto MMC</b></span><span>Baş ofis: Sumqayıt şossesi, 6-cı km</span><span>info@arzoomavto.az</span></div>
       </div>
     </div>
   </section>
@@ -643,7 +704,7 @@ footer{background:var(--night);color:var(--n-ink);border-top:1px solid var(--n-l
       </div>
       <div>
         <h4>Lizinq</h4>
-        <ul><li><a href="#kalkulyator">Kalkulyator</a></li><li><a href="#modeller">Modellər</a></li><li><a href="#lizinq">Lizinq növləri</a></li><li><a href="#nece">Necə işləyir</a></li></ul>
+        <ul><li><a href="#kalkulyator">Kalkulyator</a></li><li><a href="#modeller">Modellər</a></li><li><a href="#lizinq">Lizinq növləri</a></li><li><a href="#nece">Necə işləyir</a></li><li><a href="#haqqimizda">Haqqımızda</a></li></ul>
       </div>
       <div>
         <h4>Müştəri</h4>
@@ -654,7 +715,7 @@ footer{background:var(--night);color:var(--n-ink);border-top:1px solid var(--n-l
         <ul><li><a href="https://avtoskan.az/" rel="noopener">Avtoskan: VIN yoxlama</a></li></ul>
       </div>
     </div>
-    <div class="legal"><span>© <span id="yr">2026</span> Arzoom Avto MMC. Bütün hüquqlar qorunur.</span><span>arzoomavto.az</span></div>
+    <div class="legal"><span>© <span id="yr">2026</span> Arzoom Avto MMC. Bütün hüquqlar qorunur.</span><nav class="lnk" aria-label="Hüquqi"><a href="mexfilik.html">Məxfilik siyasəti</a><a href="sertler.html">İstifadə şərtləri</a></nav></div>
   </div>
 </footer>
 

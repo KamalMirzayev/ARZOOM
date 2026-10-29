@@ -13,14 +13,15 @@
 		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 		-Server
 	}
-	@pages path / /index.html
+	@pages path / *.html *.txt *.xml
 	header @pages Cache-Control "no-cache"
-	@assets not path / /index.html
+	@assets not path / *.html *.txt *.xml
 	header @assets Cache-Control "public, max-age=86400"
 
-	# Naməlum ünvanlar əsas səhifəyə qayıdır.
+	# Naməlum ünvanlar 404 statusu ilə xəta səhifəsini göstərir.
 	handle_errors 404 {
-		redir * / 302
+		rewrite * /404.html
+		file_server
 	}
 
 	file_server

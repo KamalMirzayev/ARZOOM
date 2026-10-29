@@ -220,6 +220,10 @@ label.btn input{position:absolute;width:1px;height:1px;opacity:0}
 .tl li.done .dot{background:var(--gold);border-color:var(--gold);color:var(--gold-ink)}
 .tl li.done::before{background:var(--gold-2)}
 .tl li.now .dot{border-color:var(--gold);box-shadow:0 0 0 5px var(--gold-soft)}
+.tl li.ok .dot{background:var(--ok);border-color:var(--ok);color:#fff}
+.tl li.ok b{color:var(--ok)}
+.tl li.bad .dot{background:var(--bad);border-color:var(--bad);color:#fff}
+.tl li.bad b{color:var(--bad)}
 .tl b{display:block;font-size:14px}
 .tl small{color:var(--muted);font-size:12.5px}
 .tablewrap{overflow:auto;max-height:340px;border:1px solid var(--line);border-radius:11px}
@@ -638,7 +642,8 @@ async function syncApps(){
     if(j.status==="cancelled"){a.gone=true;return}
     if(j.offer&&(!a.offer||a.offer.at!==j.offer.at||!!a.offer.final!==!!j.offer.final))a.offer=offerFromServer(j.offer);
     if(j.status==="offer"&&a.state==="review")a.state="offer";
-    if(["accepted","declined","rejected"].includes(j.status))a.state=j.status}catch(e){}}));
+    if(["accepted","declined","rejected"].includes(j.status))a.state=j.status;
+    a.rejectWhy=j.reject_public||""}catch(e){}}));
   apps=apps.filter(a=>!a.gone);saveApps();renderApps();
 }
 function submitLocal(serverId,token){
@@ -698,18 +703,21 @@ function renderApps(){
     const lvl={review:2,offer:4,accepted:6,declined:4,rejected:4}[a.state];
     const steps=[["Müraciət SMS ilə təsdiqləndi",`${hm} · ${a.phone}`],["Məlumatlar təhlükəsiz ötürüldü","Arzoom Avto MMC, şifrələnmiş kanal"],
       ["Qərar sistemi təhlil edir","Kredit tarixçəsi, gəlir və risk göstəriciləri"],["Kredit ekspertinin baxışı","Lazım olduqda ekspert qərarı yoxlayır"],
-      [a.state==="declined"?"Təklifdən imtina edildi":a.state==="rejected"?"Müraciət təsdiqlənmədi":"Fərdi təklif və ödəniş qrafiki",
-       a.state==="rejected"?"Hazırda təklif verə bilmirik":a.state==="declined"?"Müraciət bağlandı":"İlkin ödənişi artıraraq şərtləri uyğunlaşdıra bilərsən"],
+      [a.state==="declined"?"Təklifdən imtina edildi":a.state==="rejected"?"Müraciət təsdiqlənmədi":a.state==="review"?"Qərar və fərdi təklif":"Müraciət təsdiqləndi, təklif hazırdır",
+       a.state==="rejected"?(a.rejectWhy||"Müraciət lizinq şərtlərimizə uyğun gəlmir"):a.state==="declined"?"Müraciət bağlandı":"İlkin ödənişi artıraraq şərtləri uyğunlaşdıra bilərsən"],
       ["Son təklif təsdiqləndi, satışa ötürüldü",a.state==="accepted"?`İlkin ödəniş ${chosenDp(a)}% · satış meneceri əlaqə saxlayacaq`:"Müqavilə, sığorta və təhvil satış bölməsində"]];
+    // The decision step turns green when approved and red when not; after a "no" nothing further is shown.
+    const stopped=["declined","rejected"].includes(a.state), shown=stopped?steps.slice(0,5):steps;
+    const stepCls=i=>i===4&&stopped?"bad":i===4&&a.state!=="review"||i===5&&a.state==="accepted"?"ok":i<lvl?"done":i===lvl?"now":"";
     const [cls,txt]=ST[a.state];
     return `<article class="panel">
       <div class="app-head"><div><span class="eyebrow mono">${a.id}</span><h3>${esc(a.brand)} ${esc(a.model)}</h3></div><span class="status ${cls}">${txt}</span></div>
       <div class="app-grid">
         <div class="stack" style="gap:18px">
           <div class="review">${kvHtml([["FİN kod",a.fin],["Şəxsiyyət vəsiqəsi",a.idc],["Gəlir mənbəyi",a.src],...(a.voen?[["VÖEN",a.voen]]:[]),["Sənədlər",a.docs+" yüklənib"]])}</div>
-          <ol class="tl">${steps.map(([b,s],i)=>`<li class="${i<lvl?"done":i===lvl&&!["declined","rejected"].includes(a.state)?"now":""}"><span class="dot">${i<lvl?"✓":""}</span><span><b>${b}</b><small>${esc(s)}</small></span></li>`).join("")}</ol>
+          <ol class="tl">${shown.map(([b,s],i)=>{const c=stepCls(i);return `<li class="${c}"><span class="dot">${c==="bad"?"✕":c==="ok"||c==="done"?"✓":""}</span><span><b>${b}</b><small>${esc(s)}</small></span></li>`}).join("")}</ol>
         </div>
-        <div class="stack" style="gap:16px">${a.state==="rejected"?`<div class="waiting"><h3>Müraciət təsdiqlənmədi</h3><p style="margin:0">Təəssüf ki, hazırda bu müraciətə müsbət cavab verə bilmirik. Sualın olarsa, Arzoom Avto ilə əlaqə saxla.</p></div>`:a.offer?offerHtml(a):`<div class="waiting"><svg viewBox="0 0 122 46" style="width:150px;height:56px;color:var(--line-2)" aria-hidden="true">${carSvg(a.body)}</svg><h3>Cavab gözlənilir</h3><p style="margin:0">Təklif hazır olanda aylıq ödəniş və qrafik burada açılacaq.</p>${API?"":`<button type="button" class="btn ghost sm" data-sim="${a.id}">Demo: təklifi göstər</button>`}</div>`}</div>
+        <div class="stack" style="gap:16px">${a.state==="rejected"?`<div class="waiting"><h3>Müraciət təsdiqlənmədi</h3><p style="margin:0">${esc(a.rejectWhy||"Müraciət lizinq şərtlərimizə uyğun gəlmir.")} Sualın olarsa, *5665 nömrəsinə zəng et.</p></div>`:a.offer?offerHtml(a):`<div class="waiting"><svg viewBox="0 0 122 46" style="width:150px;height:56px;color:var(--line-2)" aria-hidden="true">${carSvg(a.body)}</svg><h3>Cavab gözlənilir</h3><p style="margin:0">Təklif hazır olanda aylıq ödəniş və qrafik burada açılacaq.</p>${API?"":`<button type="button" class="btn ghost sm" data-sim="${a.id}">Demo: təklifi göstər</button>`}</div>`}</div>
       </div>
       ${a.state==="review"||a.state==="offer"?`<div style="margin-top:18px"><button type="button" class="btn ghost sm" data-del="${a.id}">Müraciəti ləğv et</button></div>`:""}</article>`}).join("");
 }
@@ -734,7 +742,7 @@ function appFromServer(j,token){
   const m=(CATALOG[j.brand]||[]).find(x=>x[0]===j.model)||[j.model,"suv","",0];
   const names=Object.fromEntries(INC.map(s=>[s.k,s.t]));
   return {id:j.id,at:j.created_at,fin:j.fin,idc:`${j.id_series} ${j.id_number}`,phone:fmtPhone(j.phone),brand:j.brand,model:j.model,body:m[1],price:m[3],
-    src:j.income_sources.map(k=>names[k]).join(", "),voen:j.voen||"",docs:j.files,state:j.status,offer:j.offer?offerFromServer(j.offer):null,token};
+    src:j.income_sources.map(k=>names[k]).join(", "),voen:j.voen||"",docs:j.files,state:j.status,rejectWhy:j.reject_public||"",offer:j.offer?offerFromServer(j.offer):null,token};
 }
 function showFound(id){
   findReset();$("#fId").value="";$("#fFin").value="";renderApps();

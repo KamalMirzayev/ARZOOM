@@ -67,6 +67,15 @@ async function notify(id, phone, text, to = "Müştəri") {
   catch (e) { console.error(e.message); await logEvent(pool, id, "Sistem", "sms", { to, text, error: e.message }).catch(() => {}); }
 }
 const money = x => Math.round(x).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " AZN";
+const cabinet = () => SITE_URL ? ` ${SITE_URL}/#muracietlerim` : "";
+// Customer-facing rejection reasons; staff pick one, it goes to the cabinet and the SMS.
+const REJECT_REASONS = {
+  credit: "Kredit tarixçəniz lizinq şərtlərimizə uyğun gəlmir.",
+  income: "Təsdiqlənmiş gəliriniz seçdiyiniz avtomobilin aylıq ödənişi üçün kifayət etmir.",
+  debt: "Mövcud kredit öhdəlikləriniz səbəbindən borc yükünüz icazə verilən həddən yüksəkdir.",
+  docs: "Təqdim etdiyiniz sənədlər natamamdır və ya yoxlanıla bilmədi.",
+  terms: "Müraciətiniz lizinq şərtlərimizə uyğun gəlmir."
+};
 // Final terms the customer confirmed: the offer with their chosen down payment.
 function finalTerms(o, dp) {
   const down = o.price * dp / 100, F = o.price - down;
@@ -81,7 +90,7 @@ async function announceAccepted(id) {
   const panel = SITE_URL ? ` Panel: ${SITE_URL}/admin` : "";
   const staff = await pool.query("SELECT name, role, phone FROM staff_users WHERE active AND phone IS NOT NULL");
   await Promise.all([
-    notify(id, a.phone, `Arzoom Avto: Müraciət № ${id}. Son təklifi təsdiqlədiniz: ${a.brand} ${a.model}, ${terms}. Satış mütəxəssisi sizinlə əlaqə saxlayacaq.`),
+    notify(id, a.phone, `Arzoom Avto: Müraciət № ${id}. Son təklifi təsdiqlədiniz: ${a.brand} ${a.model}, ${terms}. Müqavilə və avtomobilin təhvili üçün satış mütəxəssisi sizinlə əlaqə saxlayacaq.`),
     ...staff.rows.map(u => notify(id, u.phone, u.role === "sales"
       ? `Arzoom Avto: Müraciət № ${id} satışa ötürüldü. Müştəri son təklifi təsdiqlədi: ${a.brand} ${a.model}, ${terms}. Müştəri ilə əlaqə saxlayın.${panel}`
       : `Arzoom Avto: Müraciət № ${id} anderraytinq üçün. Müştəri son təklifi təsdiqlədi: ${a.brand} ${a.model}, ${terms}.${panel}`, u.name))
@@ -148,7 +157,7 @@ async function tokenApp(req) {
 const num = (v, lo, hi) => { const x = +v; return Number.isFinite(x) && x >= lo && x <= hi ? x : null; };
 const maskPhone = p => `+${p.slice(0, 3)} ${p.slice(3, 5)} *** ** ${p.slice(-2)}`;
 const CUSTOMER_FIELDS = `a.id, a.created_at, a.updated_at, a.fin, a.id_series, a.id_number, a.phone, a.income_sources, a.voen,
-  a.brand, a.model, a.status, a.offer, (SELECT count(*)::int FROM application_files f WHERE f.application_id = a.id) AS files`;
+  a.brand, a.model, a.status, a.offer, a.reject_public, (SELECT count(*)::int FROM application_files f WHERE f.application_id = a.id) AS files`;
 
 /* ---------- applications ---------- */
 const upload = multer({
@@ -205,7 +214,7 @@ app.post("/api/applications", submitLimit, upload.any(), async (req, res) => {
     const token = await issueToken(client, id);
     await client.query("COMMIT");
     res.status(201).json({ id, status: "review", token });
-    notify(id, phone, `Arzoom Avto: Müraciətiniz qəbul edildi. Müraciət № ${id}. Bu nömrə və FİN kodunuzla müraciətin vəziyyətinə saytda baxa bilərsiniz.${SITE_URL ? " " + SITE_URL : ""}`);
+    notify(id, phone, `Arzoom Avto: Müraciətiniz № ${id} qəbul edildi və yoxlanılır. Qərar barədə SMS göndərəcəyik. Statusa baxmaq:${cabinet() || " saytda, müraciət nömrəsi və FİN kodu ilə."}`);
   } catch (e) {
     await client.query("ROLLBACK"); cleanup(); console.error(e);
     bad(res, "Müraciət saxlanılmadı. Bir az sonra yenidən cəhd et.", 500);
@@ -253,10 +262,11 @@ app.get("/api/applications/:id", lookupLimit, async (req, res) => {
 app.post("/api/applications/:id/cancel", lookupLimit, async (req, res) => {
   if (!(await tokenApp(req))) return bad(res, "İcazə yoxdur.", 401);
   const r = await pool.query(
-    "UPDATE applications SET status = 'cancelled', updated_at = now() WHERE id = $1 AND status IN ('review','offer') RETURNING id",
+    "UPDATE applications SET status = 'cancelled', updated_at = now() WHERE id = $1 AND status IN ('review','offer') RETURNING id, phone",
     [req.params.id]);
   if (!r.rowCount) return bad(res, "Müraciət tapılmadı.", 404);
   await logEvent(pool, req.params.id, "Müştəri", "cancelled");
+  notify(req.params.id, r.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id} sizin istəyinizlə ləğv edildi. Yeni müraciət üçün:${SITE_URL ? " " + SITE_URL : " *5665"}`);
   res.json({ ok: true });
 });
 
@@ -273,12 +283,14 @@ app.post("/api/applications/:id/decision", lookupLimit, async (req, res) => {
     if (dp == null) return bad(res, `İlkin ödəniş ${rows[0].offer.downPct}% ilə 70% arasında olmalıdır.`);
     final = { downPct: dp, at: new Date().toISOString() };
   }
-  await pool.query(
+  const done = await pool.query(
     `UPDATE applications SET status = $2, updated_at = now(),
        offer = CASE WHEN $3::jsonb IS NULL THEN offer ELSE jsonb_set(offer, '{final}', $3::jsonb) END
-     WHERE id = $1 AND status = 'offer'`, [req.params.id, d, final]);
+     WHERE id = $1 AND status = 'offer' RETURNING phone`, [req.params.id, d, final]);
+  if (!done.rowCount) return bad(res, "Təklif tapılmadı.", 404);
   await logEvent(pool, req.params.id, "Müştəri", d, final);
   if (d === "accepted") announceAccepted(req.params.id).catch(e => console.error(e.message));
+  else notify(req.params.id, done.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id} üzrə təklifdən imtina etdiniz, müraciət bağlandı. Fikrinizi dəyişsəniz, *5665 nömrəsinə zəng edin.`);
   res.json({ ok: true, final });
 });
 
@@ -451,23 +463,27 @@ app.post("/api/admin/applications/:id/offer", admin, can("apps.offer"), async (r
   if (offer.price == null) return bad(res, "Qiymət düzgün deyil.");
   if (Object.values(offer).some(v => v == null)) return bad(res, "Təklif şərtləri düzgün deyil.");
   const r = await pool.query(
-    `UPDATE applications SET status = 'offer', offer = $2, reject_reason = NULL, decided_by = $3, updated_at = now()
+    `UPDATE applications SET status = 'offer', offer = $2, reject_reason = NULL, reject_public = NULL, decided_by = $3, updated_at = now()
      WHERE id = $1 AND status IN ('review','offer','rejected') RETURNING id, phone`, [req.params.id, offer, req.staff]);
   if (!r.rowCount) return bad(res, "Bu müraciətə təklif göndərmək olmur.", 409);
   await logEvent(pool, req.params.id, req.staff, "offer", offer);
-  notify(req.params.id, r.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id}. Təklifiniz hazırdır, ödəniş qrafikinə baxıb təsdiqləyin.${SITE_URL ? " Ətraflı: " + SITE_URL : ""}`);
+  const pay = Scoring.pmt(offer.price * (1 - offer.downPct / 100), offer.rate, offer.months);
+  notify(req.params.id, r.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id} təsdiqləndi. Təklif: ilkin ödəniş ${offer.downPct}%, aylıq ${money(pay)}, ${offer.months} ay. Kabinetdə qrafikə baxıb təsdiqləyin.${cabinet()}`);
   res.json({ ok: true, offer });
 });
 
 app.post("/api/admin/applications/:id/reject", admin, can("apps.reject"), async (req, res) => {
   const reason = String(req.body?.reason || "").trim().slice(0, 500);
+  const code = String(req.body?.code || "");
+  if (!REJECT_REASONS[code]) return bad(res, "Müştəriyə göstəriləcək səbəbi seç.");
   if (!reason) return bad(res, "İmtina səbəbini yaz.");
+  const pub = REJECT_REASONS[code];
   const r = await pool.query(
-    `UPDATE applications SET status = 'rejected', reject_reason = $2, decided_by = $3, updated_at = now()
-     WHERE id = $1 AND status IN ('review','offer') RETURNING id, phone`, [req.params.id, reason, req.staff]);
+    `UPDATE applications SET status = 'rejected', reject_reason = $2, reject_public = $4, decided_by = $3, updated_at = now()
+     WHERE id = $1 AND status IN ('review','offer') RETURNING id, phone`, [req.params.id, reason, req.staff, pub]);
   if (!r.rowCount) return bad(res, "Bu müraciəti rədd etmək olmur.", 409);
-  await logEvent(pool, req.params.id, req.staff, "rejected", { reason });
-  notify(req.params.id, r.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id}. Hazırda müraciətinizə müsbət cavab verə bilmirik. Sualınız olarsa, bizimlə əlaqə saxlayın.`);
+  await logEvent(pool, req.params.id, req.staff, "rejected", { reason, code });
+  notify(req.params.id, r.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id} təsdiqlənmədi. Səbəb: ${pub} Sualınız varsa, *5665 nömrəsinə zəng edin.`);
   res.json({ ok: true });
 });
 

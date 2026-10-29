@@ -60,8 +60,11 @@ echo "$AK" | J assessment.result.grade | grep -qE '^[ABCD]$' || fail; echo "✓ 
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "x-admin-token: $S" -H "Content-Type: text/xml" -d '<foo/>' "$B/api/admin/applications/$ID/bureau")" = 400 ] || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Content-Type: text/xml" -d '<foo/>' "$B/api/integrations/akb")" != 200 ] || fail; echo "✓ yanlış XML və açarsız inteqrasiya rədd edilir"
 
-curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID2/reject" -d '{"reason":"DTI 70%"}' >/dev/null
-[ "$(curl -fsS -H "x-app-token: $TOK2" "$B/api/applications/$ID2" | J status)" = rejected ] || fail; echo "✓ rədd axını"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID2/reject" -d '{"reason":"DTI 70%"}')" = 400 ] || fail; echo "✓ müştəri səbəbi seçilmədən rədd olmur"
+curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID2/reject" -d '{"reason":"DTI 70%","code":"debt"}' >/dev/null
+R2=$(curl -fsS -H "x-app-token: $TOK2" "$B/api/applications/$ID2")
+[ "$(echo "$R2" | J status)" = rejected ] && echo "$R2" | J reject_public | grep -q "borc yükünüz" || fail; echo "✓ rədd axını, müştəri səbəbi görür"
+sleep 1; curl -fsS "${H[@]}" "$B/api/admin/applications/$ID2" | grep -q "təsdiqlənmədi. Səbəb: Mövcud kredit" || fail; echo "✓ rədd SMS-ində səbəb var"
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID2/notes" -d '{"text":"zəng edildi"}' >/dev/null
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID2" | J 'events.length')" -ge 3 ] || fail; echo "✓ tarixçə"
 curl -fsS "${H[@]}" "$B/api/admin/stats" | grep -c '"accepted"' >/dev/null || fail; echo "✓ statistika"

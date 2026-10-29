@@ -19,6 +19,9 @@ mkdir -p "$APP_DIR"
 chmod +x "$APP_DIR"/deploy/*.sh
 
 [ -f "$APP_DIR/.env" ] || bash "$APP_DIR/deploy/bootstrap.sh"
+# Keep the address already in .env (e.g. a domain); only a fresh install falls back to the public IP.
+CUR=$(grep '^SITE_ADDRESS=' "$APP_DIR/.env" | tail -1 | cut -d= -f2- | tr -d "'" || true)
+if [ -z "${DOMAIN:-}" ] && [ -n "$CUR" ] && [ "$CUR" != localhost ]; then DOMAIN=$CUR; fi
 AICALL_DOMAIN="${AICALL_DOMAIN:-}" DOMAIN="${DOMAIN:-$(curl -fsS4 --max-time 5 https://api.ipify.org || true)}" WEBSITE_DOMAIN="${WEBSITE_DOMAIN:-}" \
 NEW_POSTGRES_PASSWORD="${NEW_POSTGRES_PASSWORD:-}" NEW_ADMIN_TOKEN="${NEW_ADMIN_TOKEN:-}" \
 SOFTLINE_USER="${SOFTLINE_USER:-}" SOFTLINE_KEY="${SOFTLINE_KEY:-}" SOFTLINE_SENDER="${SOFTLINE_SENDER:-}" \

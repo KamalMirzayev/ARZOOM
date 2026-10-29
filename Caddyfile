@@ -6,6 +6,20 @@
 	servers {
 		protocols h1 h2 h3
 	}
+	# Proxy error logs also carry request headers; strip the same secrets there.
+	log default {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>headers>X-Admin-Token delete
+				request>headers>X-App-Token delete
+				request>headers>X-Api-Key delete
+				request>headers>Authorization delete
+				request>headers>Cookie delete
+			}
+		}
+	}
 }
 
 (secure) {
@@ -18,9 +32,20 @@
 		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
 		-Server
 	}
+	# Access log without secrets: staff/customer session keys, API keys and cookies are removed.
 	log {
 		output stdout
-		format console
+		format filter {
+			wrap console
+			fields {
+				request>headers>X-Admin-Token delete
+				request>headers>X-App-Token delete
+				request>headers>X-Api-Key delete
+				request>headers>Authorization delete
+				request>headers>Cookie delete
+				resp_headers>Set-Cookie delete
+			}
+		}
 	}
 }
 
@@ -66,9 +91,20 @@
 		Referrer-Policy strict-origin-when-cross-origin
 		-Server
 	}
+	# Access log without secrets: staff/customer session keys, API keys and cookies are removed.
 	log {
 		output stdout
-		format console
+		format filter {
+			wrap console
+			fields {
+				request>headers>X-Admin-Token delete
+				request>headers>X-App-Token delete
+				request>headers>X-Api-Key delete
+				request>headers>Authorization delete
+				request>headers>Cookie delete
+				resp_headers>Set-Cookie delete
+			}
+		}
 	}
 
 	request_body {

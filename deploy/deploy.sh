@@ -52,6 +52,12 @@ for i in $(seq 1 30); do
     w=$(get_env WEBSITE_ADDRESS || true); w=${w%% *}
     case "$w" in ""|http*) ;; *) w="https://$w" ;; esac
     [ -n "$w" ] && echo "Korporativ sayt: $w"
+    if [ -n "$(get_env SOFTLINE_KEY || true)" ] || [ -n "$(get_env SMS_URL || true)" ]; then
+      echo "SMS: qoşulub. Yoxlama: cd /opt/arzoom && docker compose exec app node sms-test.js 994XXXXXXXXX"
+    else
+      echo "DİQQƏT: SMS provayderi qoşulmayıb, saytda sınaq kodu 123456 göstərilir."
+      echo "Qoşmaq üçün: curl -fsSL https://raw.githubusercontent.com/KamalMirzayev/ARZOOM/main/deploy/install.sh | sudo SOFTLINE_USER='...' SOFTLINE_KEY='...' bash"
+    fi
     exit 0
   fi
   sleep 2

@@ -80,7 +80,7 @@ nav.tabs .count{display:inline-grid;place-items:center;min-width:19px;height:19p
 .inp.err{border-color:var(--bad)}
 .err-msg{font-size:12.5px;color:var(--bad)}
 .combo{display:grid;grid-template-columns:100px minmax(0,1fr);gap:8px}
-.dob{display:grid;grid-template-columns:76px minmax(0,1fr) 96px;gap:8px}
+.dob{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr) minmax(0,1fr);gap:8px}
 .note{font-size:13.5px;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--raised);color:var(--muted);display:flex;gap:10px;align-items:flex-start}
 .note svg{flex:none;width:16px;height:16px;margin-top:2px;color:var(--gold)}
 .note.warn{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
@@ -305,9 +305,9 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-si
             <span class="err-msg" data-err="aIdNo" hidden></span></div>
           <div class="field"><label for="aDobD">Doğum tarixi <span class="hint">Gün, ay, il</span></label>
             <div class="dob">
-              <select class="inp mono" id="aDobD" aria-label="Gün" autocomplete="bday-day"><option value="">Gün</option></select>
+              <select class="inp" id="aDobD" aria-label="Gün" autocomplete="bday-day"><option value="">Gün</option></select>
               <select class="inp" id="aDobM" aria-label="Ay" autocomplete="bday-month"><option value="">Ay</option></select>
-              <select class="inp mono" id="aDobY" aria-label="İl" autocomplete="bday-year"><option value="">İl</option></select>
+              <select class="inp" id="aDobY" aria-label="İl" autocomplete="bday-year"><option value="">İl</option></select>
             </div>
             <span class="err-msg" data-err="aDob" hidden>Doğum tarixini seç. Müraciət üçün 18 yaş tamam olmalıdır.</span></div>
           <div class="field"><label for="aPhone">Mobil nömrə <span class="hint">SMS təsdiq kodu bu nömrəyə gələcək</span></label>

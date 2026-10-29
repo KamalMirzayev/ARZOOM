@@ -716,6 +716,7 @@ function renderApps(){
 function show(v){
   ["apply","mine"].forEach(k=>{$("#view-"+k).hidden=k!==v;$("#tab-"+k).setAttribute("aria-selected",k===v)});
   if(v==="mine"){clearInterval(otpT);renderApps();syncApps()}else renderStep();
+  if(v!=="mine"&&location.hash==="#muracietlerim")history.replaceState(null,"",location.pathname+location.search);
   window.scrollTo({top:0});
 }
 
@@ -872,6 +873,9 @@ $("#otp").addEventListener("input",e=>{
 $("#otp").addEventListener("keydown",e=>{const ins=$$("#otp input"),ix=ins.indexOf(e.target);if(e.key==="Backspace"&&!e.target.value&&ix>0)ins[ix-1].focus()});
 
 renderStep();renderApps();
+/* the website's "Müraciətlərim" links open the cabinet directly */
+const fromHash=()=>{if(location.hash==="#muracietlerim")show("mine")};
+fromHash();addEventListener("hashchange",fromHash);
 })();
 </script>
 </body>

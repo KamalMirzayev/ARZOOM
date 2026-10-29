@@ -103,3 +103,15 @@ CREATE TABLE IF NOT EXISTS staff_sessions (
   user_id     BIGINT NOT NULL REFERENCES staff_users(id) ON DELETE CASCADE,
   expires_at  TIMESTAMPTZ NOT NULL
 );
+-- Əməkdaş sessiyası fəaliyyətsiz qalanda bitir
+ALTER TABLE staff_sessions ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ NOT NULL DEFAULT now();
+-- Təhlükəsizlik jurnalı: girişlər, hesab dəyişiklikləri, sənədə baxış, silmə
+CREATE TABLE IF NOT EXISTS audit_log (
+  id        BIGSERIAL PRIMARY KEY,
+  at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  username  TEXT,
+  ip        TEXT,
+  action    TEXT NOT NULL,
+  target    TEXT
+);
+CREATE INDEX IF NOT EXISTS audit_log_at_idx ON audit_log (at DESC);

@@ -134,17 +134,20 @@ Sonra `cd /opt/arzoom && docker compose up -d`. `SMS_URL` olan kimi demo rejimi 
 - Server: `ufw` (yalnız SSH, 80, 443), `fail2ban` (SSH-a parol təxmini), avtomatik təhlükəsizlik yeniləmələri.
 - PostgreSQL yalnız daxili Docker şəbəkəsindədir, internetə çıxışı da yoxdur.
 - Tətbiq konteyneri read-only fayl sistemi ilə, imtiyazsız istifadəçi kimi işləyir.
-- Limitlər: SMS kodu 15 dəqiqədə 6, müraciət saatda 10, panelə 15 dəqiqədə 10 uğursuz giriş (IP üzrə).
-- Yüklənən fayllar məzmununa görə yoxlanılır: yalnız PDF, JPG, PNG, WEBP, HEIC.
-- HTTPS, HSTS, CSP, clickjacking qorunması. Panel `ADMIN_ALLOW` ilə ofis IP-lərinə bağlana bilər.
-- Gündəlik baza nüsxəsi: `/opt/arzoom/backups`, 14 gün saxlanılır. Bərpa: `gunzip -c FAYL | docker compose exec -T db psql -U arzoom arzoom`.
+- Limitlər: SMS kodu 15 dəqiqədə 6 (IP üzrə) və saatda 5 (nömrə üzrə), kabinetə giriş saatda 10 (FİN üzrə), müraciət saatda 10, panelə 15 dəqiqədə 10 uğursuz giriş (IP üzrə) və 8 (istifadəçi adı üzrə).
+- SMS kodları bazada `OTP_SECRET` açarı ilə HMAC kimi saxlanılır; açarı `deploy.sh` özü yaradır.
+- Əməkdaş sessiyası 12 saatdan, ya da `STAFF_IDLE_MINUTES` (standart 120) dəqiqə fəaliyyətsizlikdən sonra bitir. Parol: ən azı 10 simvol, hərf və rəqəm, istifadəçi adı və asan parollar olmadan.
+- Təhlükəsizlik jurnalı (Admin → İstifadəçilər): girişlər, uğursuz cəhdlər, hesab dəyişiklikləri, sənədə baxış, silmə. 1 il saxlanılır.
+- Yüklənən fayllar məzmununa görə yoxlanılır: yalnız PDF, JPG, PNG, WEBP, HEIC. Diskdəki ad təsadüfidir, yükləyənin adından heç nə götürülmür.
+- HTTPS, HSTS, CSP (inline skriptlər yalnız hash ilə, `unsafe-inline` yoxdur), clickjacking qorunması. Panel `ADMIN_ALLOW` ilə ofis IP-lərinə bağlana bilər.
+- Marka və model adlarında HTML və dırnaq qəbul edilmir (panelə və SMS-ə düşürlər).
+- Gündəlik baza nüsxəsi: `/opt/arzoom/backups` (yalnız root oxuya bilər), 14 gün saxlanılır. Bərpa: `gunzip -c FAYL | docker compose exec -T db psql -U arzoom arzoom`.
 - SSH açarı qurulandan sonra parolla girişi bağla: `/etc/ssh/sshd_config`-də `PasswordAuthentication no`, sonra `systemctl restart ssh`.
 
 ## Real istifadədən əvvəl
 - SMS provayderini qoşmaq (yuxarıda).
 - Domeni qoşmaq (yuxarıda).
 - Razılıq mətnlərini və skorinq həddlərini hüquqşünas və risk bölməsi ilə təsdiqləmək.
-- Hər əməkdaş üçün ayrıca giriş (indi ortaq açar və ad ilə işləyir).
 - AKB və ASAN Finans ilə API inteqrasiyası (indi əməkdaş hesabat məlumatlarını əl ilə daxil edir).
 
 ## Korporativ sayt (arzoomavto.az)

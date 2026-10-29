@@ -437,7 +437,7 @@ footer{background:var(--night);color:var(--n-ink);border-top:1px solid var(--n-l
           </div>
         </div>
 
-        <form class="calc rv d2" id="calc" aria-labelledby="calc-t" onsubmit="return false">
+        <form class="calc rv d2" id="calc" aria-labelledby="calc-t">
           <div class="calc-head"><span class="t" id="calc-t">Lizinq kalkulyatoru</span><span class="dot" aria-hidden="true"></span></div>
 
           <div class="cf">
@@ -725,6 +725,7 @@ footer{background:var(--night);color:var(--n-ink);border-top:1px solid var(--n-l
 </div>
 
 <script>
+document.getElementById("calc").addEventListener("submit",e=>e.preventDefault());
 /* One place to change where "apply" links go and the sample terms shown in the calculator.
    On arzoomavto.az the app lives on lizinq.arzoomavto.az; opened by IP (https://IP:8443) it is on the same host, port 443. */
 const APP_URL=/(^|\.)arzoomavto\.az$/.test(location.hostname)?"https://lizinq.arzoomavto.az/":`https://${location.hostname}/`;

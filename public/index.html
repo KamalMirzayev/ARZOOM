@@ -426,7 +426,7 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const grp=n=>Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");
 const azn=n=>grp(n)+" ₼";
 const m2=n=>{const [i,f]=n.toFixed(2).split(".");return grp(+i)+","+f+" ₼"};
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const kvHtml=a=>a.map(([k,v])=>`<div><span>${k}</span><span>${esc(v)}</span></div>`).join("");
 
 /* ---------- silhouettes by body type ---------- */

@@ -31,6 +31,10 @@ command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: acti
 [ -n "${SOFTLINE_USER:-}" ] && set_env SOFTLINE_USER "$SOFTLINE_USER"
 [ -n "${SOFTLINE_KEY:-}" ] && set_env SOFTLINE_KEY "$SOFTLINE_KEY" && echo "SMS açarı yeniləndi."
 [ -n "${SOFTLINE_SENDER:-}" ] && set_env SOFTLINE_SENDER "$SOFTLINE_SENDER"
+# Secret for SMS code hashes; created once so codes survive a restart.
+[ -n "$(get_env OTP_SECRET || true)" ] || set_env OTP_SECRET "$(openssl rand -hex 32)"
+# Backups and uploads hold customer data: only root may read them on the host.
+mkdir -p backups && chmod 700 backups
 [ -n "${NEW_ADMIN_TOKEN:-}" ] && [ "$NEW_ADMIN_TOKEN" != "$(get_env ADMIN_TOKEN)" ] && set_env ADMIN_TOKEN "$NEW_ADMIN_TOKEN" && echo "ADMIN_TOKEN yeniləndi."
 
 if [ -n "${NEW_POSTGRES_PASSWORD:-}" ] && [ "$NEW_POSTGRES_PASSWORD" != "$(get_env POSTGRES_PASSWORD)" ]; then

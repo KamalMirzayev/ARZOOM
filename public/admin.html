@@ -571,7 +571,7 @@ function back(){cur=null;$("#detail").dataset.page="account";$("#shell").classLi
 $("#pwBtn").onclick=()=>{back();$("#detail").innerHTML=`<span class="eyebrow">Hesab</span><h2 style="margin:6px 0 18px">Parolu dəyiş</h2>
   <form class="panel" id="pwForm" style="max-width:440px;display:grid;gap:12px">
     <label class="f">Hazırkı parol<input type="password" id="pwCur" autocomplete="current-password" required></label>
-    <label class="f">Yeni parol, ən azı 10 simvol<input type="password" id="pwNew" autocomplete="new-password" minlength="10" required></label>
+    <label class="f">Yeni parol: ən azı 10 simvol, hərf və rəqəm<input type="password" id="pwNew" autocomplete="new-password" minlength="10" required></label>
     <label class="f">Yeni parol təkrar<input type="password" id="pwNew2" autocomplete="new-password" required></label>
     <button class="btn" type="submit">Yadda saxla</button>
     <p class="muted" style="margin:0;font-size:12.5px">Digər cihazlardakı girişlər bağlanacaq.</p>
@@ -602,7 +602,7 @@ async function renderUsers(){
       <form class="panel" id="uForm" style="display:grid;gap:12px;align-content:start">${ph("plus","Yeni istifadəçi")}
         <label class="f">Ad və soyad<input id="uName" required placeholder="Məs. Aysel Məmmədova"></label>
         <label class="f">İstifadəçi adı<input id="uUser" required autocapitalize="off" spellcheck="false" placeholder="Məs. aysel.m"></label>
-        <label class="f">Müvəqqəti parol, ən azı 10 simvol<input id="uPass" required minlength="10" autocomplete="new-password"></label>
+        <label class="f">Müvəqqəti parol: ən azı 10 simvol, hərf və rəqəm<input id="uPass" required minlength="10" autocomplete="new-password"></label>
         <label class="f">Rol<select id="uRole"><option value="expert">Kredit eksperti</option><option value="sales">Satış mütəxəssisi</option><option value="admin">Admin</option></select></label>
         <label class="f">Mobil nömrə, SMS bildirişi üçün<input id="uPhone" inputmode="tel" placeholder="Məs. 50 123 45 67"></label>
         <button class="btn" type="submit">Yarat</button>
@@ -613,8 +613,15 @@ async function renderUsers(){
         <p class="muted" style="margin:10px 0 0;font-size:12.5px">Rol standart dəsti verir, hər əməkdaş üçün icazələri ayrıca dəyişə bilərsən. Dəyişiklikdən sonra əməkdaş yenidən daxil olur.</p>
       </section>
     </div>
-  </div>`;
+  </div>
+  <section class="panel" id="auditBox" style="margin-top:16px">${ph("shield","Təhlükəsizlik jurnalı")}<p class="muted" style="margin:0">Yüklənir…</p></section>`;
+  try{const {items}=await api("/audit");
+    $("#auditBox").innerHTML=ph("shield","Təhlükəsizlik jurnalı")+(items.length?`<div style="overflow-x:auto"><table class="dtable"><thead><tr><th>Vaxt</th><th>İstifadəçi</th><th>Əməliyyat</th><th>Obyekt</th><th>IP</th></tr></thead>
+      <tbody>${items.map(r=>`<tr${r.action==="login.fail"?' class="closed"':""}><td>${dt(r.at)}</td><td class="mono">${esc(r.username||"—")}</td><td>${esc(AUDIT[r.action]||r.action)}</td><td>${esc(r.target||"")}</td><td class="mono">${esc(r.ip||"")}</td></tr>`).join("")}</tbody></table></div>`
+      :`<p class="muted" style="margin:0">Hələ qeyd yoxdur.</p>`)}catch(e){$("#auditBox").hidden=true}
 }
+const AUDIT={"login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
+  "user.update":"İstifadəçini dəyişdi","file.view":"Sənədə baxdı","app.delete":"Müraciəti sildi"};
 $("#usersBtn").onclick=renderUsers;
 document.addEventListener("submit",async e=>{
   if(e.target.id==="pwForm"){e.preventDefault();
@@ -766,8 +773,8 @@ async function renderAnalytics(){
       <div class="funnel2">${funnel.map(([t,v],i)=>`<div style="--w:${total?Math.max(2,Math.round(v/total*100)):0}%" data-tip="${t}: ${v}${i?` · əvvəlki addımdan ${pct(v,funnel[i-1][1])}`:""}"><span>${t}</span><span>${v}<small>${i?pct(v,total):""}</small></span></div>`).join("")}</div>
       <p class="muted" style="margin:12px 0 0;font-size:12.5px">Müştəri imtinası: ${st.declined||0} · ləğv: ${st.cancelled||0}</p></section>
     <section class="panel w3">${ph("gauge","Risk dərəcələri")}${hbars("ABCD".split("").map(g=>({g,n:(d.grades.find(r=>r.grade===g)||{}).n||0})),r=>`${r.g} · ${G[r.g]}`,r=>r.n,r=>`${r.g} dərəcəsi: ${r.n} müraciət`)}</section>
-    <section class="panel w3">${ph("car","Ən çox istənən markalar")}${hbars(d.brands,r=>r.brand,r=>r.n,r=>`${r.brand}: ${r.n}`)}</section>
-    <section class="panel w3">${ph("user","Gəlir mənbəyi")}${hbars(d.income,r=>INCOME[r.source]||r.source,r=>r.n,r=>`${INCOME[r.source]||r.source}: ${r.n}`)}</section>
+    <section class="panel w3">${ph("car","Ən çox istənən markalar")}${hbars(d.brands,r=>r.brand,r=>r.n,r=>`${esc(r.brand)}: ${r.n}`)}</section>
+    <section class="panel w3">${ph("user","Gəlir mənbəyi")}${hbars(d.income,r=>INCOME[r.source]||r.source,r=>r.n,r=>`${esc(INCOME[r.source]||r.source)}: ${r.n}`)}</section>
     <section class="panel w3">${ph("user","Əməkdaşlar")}
       ${d.staff.length?`<table class="dtable"><thead><tr><th>Əməkdaş</th><th class="n">Qiymətləndirmə</th><th class="n">Təklif</th><th class="n">Rədd</th></tr></thead>
       <tbody>${d.staff.map(r=>`<tr><td>${esc(r.actor)}</td><td class="n">${r.assessed}</td><td class="n">${r.offers}</td><td class="n">${r.rejects}</td></tr>`).join("")}</tbody></table>`:`<p class="muted" style="margin:0">Bu dövrdə qərar yoxdur.</p>`}</section>

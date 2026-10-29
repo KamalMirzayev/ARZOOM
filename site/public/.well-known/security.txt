@@ -1,0 +1,4 @@
+Contact: mailto:info@arzoomavto.az
+Expires: 2027-10-31T00:00:00.000Z
+Preferred-Languages: az, en, ru
+Canonical: https://arzoomavto.az/.well-known/security.txt

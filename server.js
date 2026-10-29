@@ -24,18 +24,29 @@ const newCode = () => DEMO_SMS ? (process.env.DEMO_OTP || "123456") : String(cry
 const SITE_URL = process.env.SITE_ADDRESS && process.env.SITE_ADDRESS !== "localhost" ? `https://${process.env.SITE_ADDRESS}` : "";
 const INCOME = ["work", "biz", "pension", "social"];
 const SERIES = { AZE: 8, AA: 7, AB: 7 };
+// Car names come from the page's catalogue; anything with markup or quotes is refused (they reach the panel and staff SMS).
+const CAR_TEXT = /^[\p{L}\p{N} .,:+&()\/-]{1,80}$/u;
+// OTP hashes are keyed with a secret so a database copy alone does not reveal the 6-digit codes.
+const OTP_KEY = process.env.OTP_SECRET || crypto.randomBytes(32).toString("hex");
+const STAFF_IDLE = process.env.STAFF_IDLE_MINUTES || "120";
 
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// A dropped idle connection must not take the whole server down.
+pool.on("error", e => console.error("DB:", e.message));
 const app = express();
 // Only the Caddy proxy on the private Docker network is trusted for X-Forwarded-For.
 app.set("trust proxy", "loopback, uniquelocal");
 app.disable("x-powered-by");
+// Only the pages' own inline scripts may run, by hash: injected markup cannot execute script.
+const scriptHashes = fs.readdirSync(path.join(__dirname, "public")).filter(f => f.endsWith(".html")).flatMap(f =>
+  [...fs.readFileSync(path.join(__dirname, "public", f), "utf8").matchAll(/<script>([\s\S]*?)<\/script>/g)]
+    .map(m => `'sha256-${crypto.createHash("sha256").update(m[1]).digest("base64")}'`));
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", ...scriptHashes],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "blob:"],
@@ -55,10 +66,16 @@ app.use((req, res, next) => { if (req.path.startsWith("/api/")) res.set("Cache-C
 app.use(express.json({ limit: "100kb" }));
 
 const sha = s => crypto.createHash("sha256").update(s).digest("hex");
+const otpHash = (phone, code) => crypto.createHmac("sha256", OTP_KEY).update(`${phone}:${code}`).digest("hex");
+const sameHex = (a, b) => a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
 const normPhone = p => String(p || "").replace(/\D/g, "");
 const bad = (res, msg, code = 400) => res.status(code).json({ error: msg });
 const logEvent = (db, id, actor, kind, details = null) =>
   db.query("INSERT INTO application_events (application_id, actor, kind, details) VALUES ($1,$2,$3,$4)", [id, actor, kind, details]);
+// Security log of staff actions: sign-ins, account changes, document views, deletions.
+const audit = (req, username, action, target = null) =>
+  pool.query("INSERT INTO audit_log (username, ip, action, target) VALUES ($1,$2,$3,$4)", [username, req.ip, action, target == null ? null : String(target)])
+    .catch(e => console.error(e.message));
 // Customer notifications must never break the staff action that triggered them.
 async function notify(id, phone, text, to = "Müştəri") {
   // Without a provider the message is only recorded, so staff can see what would have gone out.
@@ -109,8 +126,17 @@ const submitLimit = rateLimit({ windowMs: 60 * 60e3, max: 10 });
 const lookupLimit = rateLimit({ windowMs: 60e3, max: 60 });
 const verifyLimit = rateLimit({ windowMs: 15 * 60e3, max: 20 });
 const adminFail = rateLimit({ windowMs: 15 * 60e3, max: 10, message: "Çox sayda uğursuz giriş. 15 dəqiqə sonra yenidən cəhd et." });
+// The same limits keyed by the target, so guessing spread over many IPs is stopped too.
+const phoneOtpLimit = rateLimit({ windowMs: 60 * 60e3, max: 5, key: req => "p" + normPhone(req.body?.phone),
+  message: "Bu nömrəyə çox sayda kod göndərilib. 1 saat sonra yenidən cəhd et." });
+const finLimit = rateLimit({ windowMs: 60 * 60e3, max: 10, key: req => "f" + String(req.body?.fin || "").trim().toUpperCase(),
+  message: "Bu FİN üzrə çox sayda cəhd olub. 1 saat sonra yenidən cəhd et." });
+const userFail = rateLimit({ windowMs: 15 * 60e3, max: 8, key: req => "u" + String(req.body?.username || "").trim().toLowerCase(),
+  message: "Bu hesaba çox sayda uğursuz giriş olub. 15 dəqiqə sonra yenidən cəhd et." });
+// Unknown usernames are checked against this hash so they take as long as a wrong password.
+const DUMMY_HASH = hashPassword(crypto.randomBytes(16).toString("hex"));
 
-app.post("/api/otp", otpLimit, async (req, res) => {
+app.post("/api/otp", otpLimit, phoneOtpLimit, async (req, res) => {
   const phone = normPhone(req.body.phone);
   if (!/^994\d{9}$/.test(phone)) return bad(res, "Mobil nömrə düzgün deyil.");
   const prev = await pool.query("SELECT 1 FROM otp_codes WHERE phone = $1 AND expires_at > now() + interval '4 minutes'", [phone]);
@@ -119,7 +145,7 @@ app.post("/api/otp", otpLimit, async (req, res) => {
   await pool.query(
     `INSERT INTO otp_codes (phone, code_hash, expires_at, attempts) VALUES ($1,$2, now() + interval '5 minutes', 0)
      ON CONFLICT (phone) DO UPDATE SET code_hash = EXCLUDED.code_hash, expires_at = EXCLUDED.expires_at, attempts = 0`,
-    [phone, sha(phone + code)]
+    [phone, otpHash(phone, code)]
   );
   if (SMS_ON) {
     try { await sendSms(phone, `Arzoom Avto: təsdiq kodunuz ${code}. Kod 5 dəqiqə etibarlıdır.`); }
@@ -132,7 +158,7 @@ async function checkOtp(phone, code) {
   const { rows } = await pool.query("SELECT code_hash, expires_at, attempts FROM otp_codes WHERE phone = $1", [phone]);
   const r = rows[0];
   if (!r || r.expires_at < new Date() || r.attempts >= 5) return false;
-  if (r.code_hash !== sha(phone + code)) {
+  if (!sameHex(r.code_hash, otpHash(phone, String(code)))) {
     await pool.query("UPDATE otp_codes SET attempts = attempts + 1 WHERE phone = $1", [phone]);
     return false;
   }
@@ -143,7 +169,7 @@ async function checkOtp(phone, code) {
 // After an SMS check the browser gets a random key for that one application; only its hash is stored.
 async function issueToken(db, appId) {
   const token = crypto.randomBytes(32).toString("base64url");
-  await db.query("INSERT INTO app_tokens (token_hash, application_id, expires_at) VALUES ($1,$2, now() + interval '90 days')", [sha(token), appId]);
+  await db.query("INSERT INTO app_tokens (token_hash, application_id, expires_at) VALUES ($1,$2, now() + interval '30 days')", [sha(token), appId]);
   await db.query("DELETE FROM app_tokens WHERE expires_at < now()");
   return token;
 }
@@ -163,9 +189,10 @@ const CUSTOMER_FIELDS = `a.id, a.created_at, a.updated_at, a.fin, a.id_series, a
 const upload = multer({
   storage: multer.diskStorage({
     destination: UPLOAD_DIR,
-    filename: (_req, file, cb) => cb(null, crypto.randomUUID() + path.extname(file.originalname).toLowerCase().slice(0, 8))
+    // The stored name never takes anything from the uploader; the type is checked from the bytes afterwards.
+    filename: (_req, _file, cb) => cb(null, crypto.randomUUID())
   }),
-  limits: { fileSize: 10 * 1024 * 1024, files: 20 },
+  limits: { fileSize: 10 * 1024 * 1024, files: 20, fields: 40, fieldSize: 10 * 1024, parts: 60 },
   fileFilter: (_req, file, cb) => cb(null, /^(image\/|application\/pdf$)/.test(file.mimetype))
 });
 
@@ -177,14 +204,14 @@ app.post("/api/applications", submitLimit, upload.any(), async (req, res) => {
   const sources = String(b.incomeSources || "").split(",").filter(s => INCOME.includes(s));
   const err =
     !/^[0-9A-Z]{7}$/.test(fin) ? "FİN kod düzgün deyil." :
-    !(b.idSeries in SERIES) || !new RegExp(`^\\d{${SERIES[b.idSeries]}}$`).test(b.idNumber || "") ? "Vəsiqə nömrəsi düzgün deyil." :
+    !Object.hasOwn(SERIES, String(b.idSeries)) || !new RegExp(`^\\d{${SERIES[b.idSeries]}}$`).test(b.idNumber || "") ? "Vəsiqə nömrəsi düzgün deyil." :
     !/^994\d{9}$/.test(phone) ? "Mobil nömrə düzgün deyil." :
     !sources.length ? "Gəlir mənbəyi seçilməyib." :
     sources.includes("biz") && !/^\d{10}$/.test(b.voen || "") ? "VÖEN 10 rəqəm olmalıdır." :
-    !b.brand || !b.model ? "Avtomobil seçilməyib." :
+    !CAR_TEXT.test(String(b.brand || "")) || !CAR_TEXT.test(String(b.model || "")) ? "Avtomobil seçilməyib." :
     b.consent !== "true" ? "Razılıq verilməyib." : null;
   const fake = files.find(f => !INCOME.includes(f.fieldname.replace(/^file_/, "")) || !sniff(f.path));
-  if (!err && fake) { cleanup(); return bad(res, `"${fake.originalname}" PDF və ya şəkil deyil.`); }
+  if (!err && fake) { cleanup(); return bad(res, `"${String(fake.originalname).slice(0, 100)}" PDF və ya şəkil deyil.`); }
   if (err) { cleanup(); return bad(res, err); }
   if (!(await checkOtp(phone, String(b.otp || "")))) { cleanup(); return bad(res, "SMS kodu yanlışdır və ya vaxtı bitib.", 401); }
 
@@ -226,7 +253,7 @@ const findApp = async (id, fin) => (await pool.query(
   "SELECT id, phone, status FROM applications WHERE id = $1 AND fin = $2",
   [String(id || "").trim().toUpperCase(), String(fin || "").trim().toUpperCase()])).rows[0];
 
-app.post("/api/lookup/otp", otpLimit, async (req, res) => {
+app.post("/api/lookup/otp", otpLimit, finLimit, async (req, res) => {
   const a = await findApp(req.body?.id, req.body?.fin);
   if (!a) return bad(res, "Bu nömrə və FİN ilə müraciət tapılmadı.", 404);
   const prev = await pool.query("SELECT 1 FROM otp_codes WHERE phone = $1 AND expires_at > now() + interval '4 minutes'", [a.phone]);
@@ -235,7 +262,7 @@ app.post("/api/lookup/otp", otpLimit, async (req, res) => {
   await pool.query(
     `INSERT INTO otp_codes (phone, code_hash, expires_at, attempts) VALUES ($1,$2, now() + interval '5 minutes', 0)
      ON CONFLICT (phone) DO UPDATE SET code_hash = EXCLUDED.code_hash, expires_at = EXCLUDED.expires_at, attempts = 0`,
-    [a.phone, sha(a.phone + code)]);
+    [a.phone, otpHash(a.phone, code)]);
   if (SMS_ON) {
     try { await sendSms(a.phone, `Arzoom Avto: Müraciət № ${a.id}. Giriş kodu ${code}. Kodu heç kimə deməyin.`); }
     catch (e) { console.error(e.message); await pool.query("DELETE FROM otp_codes WHERE phone = $1", [a.phone]); return bad(res, "SMS göndərilmədi. Bir az sonra yenidən cəhd et.", 502); }
@@ -243,7 +270,7 @@ app.post("/api/lookup/otp", otpLimit, async (req, res) => {
   res.json({ sent: true, phone: maskPhone(a.phone), ...(DEMO_SMS ? { demoCode: code } : {}) });
 });
 
-app.post("/api/lookup/verify", verifyLimit, async (req, res) => {
+app.post("/api/lookup/verify", verifyLimit, finLimit, async (req, res) => {
   const a = await findApp(req.body?.id, req.body?.fin);
   if (!a || !(await checkOtp(a.phone, String(req.body?.code || "")))) return bad(res, "Kod yanlışdır və ya vaxtı bitib.", 401);
   const token = await issueToken(pool, a.id);
@@ -298,9 +325,12 @@ app.post("/api/applications/:id/decision", lookupLimit, async (req, res) => {
 // Staff sign in with their own username and password; the panel then sends a 12-hour session key.
 const admin = (req, res, next) => adminFail(req, res, async () => {
   const t = String(req.get("x-admin-token") || "");
+  // A session ends 12 hours after sign-in, or earlier after STAFF_IDLE_MINUTES without activity.
   const { rows } = t.length < 20 ? { rows: [] } : await pool.query(
-    `SELECT u.id, u.username, u.name, u.role, u.permissions FROM staff_sessions s JOIN staff_users u ON u.id = s.user_id
-     WHERE s.token_hash = $1 AND s.expires_at > now() AND u.active`, [sha(t)]);
+    `UPDATE staff_sessions s SET last_seen = now() FROM staff_users u
+     WHERE s.token_hash = $1 AND u.id = s.user_id AND u.active AND s.expires_at > now()
+       AND s.last_seen > now() - make_interval(mins => $2::int)
+     RETURNING u.id, u.username, u.name, u.role, u.permissions`, [sha(t), STAFF_IDLE]);
   if (!rows[0]) return bad(res, "Sessiya bitib, yenidən daxil ol.", 401);
   adminFail.forgive(req);
   req.perms = Perms.effective(rows[0]);
@@ -319,13 +349,18 @@ function staffPhone(v) {
   return /^994\d{9}$/.test(full) ? full : null;
 }
 
-app.post("/api/admin/login", adminFail, async (req, res) => {
-  const username = String(req.body?.username || "").trim().toLowerCase();
+app.post("/api/admin/login", adminFail, userFail, async (req, res) => {
+  const username = String(req.body?.username || "").trim().toLowerCase().slice(0, 64);
   const { rows } = await pool.query("SELECT id, name, role, password_hash, active FROM staff_users WHERE username = $1", [username]);
   const u = rows[0];
-  // Same answer for an unknown user and a wrong password.
-  if (!u || !u.active || !checkPassword(req.body?.password, u.password_hash)) return bad(res, "İstifadəçi adı və ya parol yanlışdır.", 401);
-  adminFail.forgive(req);
+  // Same answer, and the same time, for an unknown user and a wrong password.
+  const ok = checkPassword(req.body?.password, u?.password_hash || DUMMY_HASH);
+  if (!u || !u.active || !ok) {
+    audit(req, username, "login.fail");
+    return bad(res, "İstifadəçi adı və ya parol yanlışdır.", 401);
+  }
+  adminFail.forgive(req); userFail.forgive(req);
+  audit(req, username, "login");
   const token = crypto.randomBytes(32).toString("base64url");
   await pool.query("INSERT INTO staff_sessions (token_hash, user_id, expires_at) VALUES ($1,$2, now() + interval '12 hours')", [sha(token), u.id]);
   await pool.query("UPDATE staff_users SET last_login = now() WHERE id = $1", [u.id]);
@@ -335,6 +370,7 @@ app.post("/api/admin/login", adminFail, async (req, res) => {
 
 app.post("/api/admin/logout", admin, async (req, res) => {
   await pool.query("DELETE FROM staff_sessions WHERE token_hash = $1", [sha(req.get("x-admin-token"))]);
+  audit(req, req.user.username, "logout");
   res.json({ ok: true });
 });
 
@@ -343,8 +379,9 @@ app.get("/api/admin/me", admin, (req, res) => res.json(req.user));
 app.post("/api/admin/me/password", admin, async (req, res) => {
   const { rows } = await pool.query("SELECT password_hash FROM staff_users WHERE id = $1", [req.user.id]);
   if (!checkPassword(req.body?.current, rows[0].password_hash)) return bad(res, "Hazırkı parol yanlışdır.");
-  const w = weakPassword(req.body?.next); if (w) return bad(res, w);
+  const w = weakPassword(req.body?.next, req.user.username); if (w) return bad(res, w);
   await pool.query("UPDATE staff_users SET password_hash = $2 WHERE id = $1", [req.user.id, hashPassword(req.body.next)]);
+  audit(req, req.user.username, "password.change");
   // Other devices are signed out; this one keeps its session.
   await pool.query("DELETE FROM staff_sessions WHERE user_id = $1 AND token_hash <> $2", [req.user.id, sha(req.get("x-admin-token"))]);
   res.json({ ok: true });
@@ -362,14 +399,16 @@ app.post("/api/admin/users", admin, adminOnly, async (req, res) => {
   const name = String(b.name || "").trim().slice(0, 60);
   if (!/^[a-z0-9._-]{3,32}$/.test(username)) return bad(res, "İstifadəçi adı 3–32 simvol: kiçik latın hərfləri, rəqəm, nöqtə, tire.");
   if (!name) return bad(res, "Ad və soyadı yaz.");
-  const w = weakPassword(b.password); if (w) return bad(res, w);
+  const w = weakPassword(b.password, username); if (w) return bad(res, w);
   const role = ROLES.includes(b.role) ? b.role : "expert";
   const phone = staffPhone(b.phone ?? "");
   if (phone === null) return bad(res, "Mobil nömrə düzgün deyil. Məs. 50 123 45 67");
   const r = await pool.query(
     "INSERT INTO staff_users (username, name, password_hash, role, phone) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (username) DO NOTHING RETURNING id",
     [username, name, hashPassword(b.password), role, phone || null]);
-  r.rowCount ? res.status(201).json({ id: r.rows[0].id }) : bad(res, "Bu istifadəçi adı artıq var.", 409);
+  if (!r.rowCount) return bad(res, "Bu istifadəçi adı artıq var.", 409);
+  audit(req, req.user.username, "user.create", `${username} (${role})`);
+  res.status(201).json({ id: r.rows[0].id });
 });
 
 app.post("/api/admin/users/:id", admin, adminOnly, async (req, res) => {
@@ -378,6 +417,7 @@ app.post("/api/admin/users/:id", admin, adminOnly, async (req, res) => {
   const phone = staffPhone(b.phone);
   if (phone === null) return bad(res, "Mobil nömrə düzgün deyil. Məs. 50 123 45 67");
   if (b.password != null) { const w = weakPassword(b.password); if (w) return bad(res, w); }
+  if (b.role != null && !ROLES.includes(b.role)) return bad(res, "Rol düzgün deyil.");
   const r = await pool.query(
     `UPDATE staff_users SET
        active = COALESCE($2, active), role = COALESCE($3, role), password_hash = COALESCE($4, password_hash),
@@ -390,12 +430,19 @@ app.post("/api/admin/users/:id", admin, adminOnly, async (req, res) => {
      "permissions" in b, Perms.clean(b.permissions) ? JSON.stringify(Perms.clean(b.permissions)) : null]);
   if ("permissions" in b) await pool.query("DELETE FROM staff_sessions WHERE user_id = $1 AND $1 <> $2", [id, req.user.id]).catch(() => {});
   if (!r.rowCount) return bad(res, "İstifadəçi tapılmadı.", 404);
-  if (b.active === false || b.password != null) await pool.query("DELETE FROM staff_sessions WHERE user_id = $1", [id]);
+  if (b.active === false || b.password != null || b.role != null) await pool.query("DELETE FROM staff_sessions WHERE user_id = $1 AND $1 <> $2", [id, req.user.id]);
+  const changed = ["active", "role", "phone", "permissions"].filter(k => k in b).concat(b.password != null ? ["password"] : []);
+  audit(req, req.user.username, "user.update", `#${id}: ${changed.join(", ")}`);
   res.json({ ok: true });
 });
 
+app.get("/api/admin/audit", admin, adminOnly, async (_req, res) => {
+  const { rows } = await pool.query("SELECT at, username, ip, action, target FROM audit_log ORDER BY at DESC, id DESC LIMIT 200");
+  res.json({ items: rows });
+});
+
 app.get("/api/admin/applications", admin, async (req, res) => {
-  const q = String(req.query.q || "").trim().toUpperCase();
+  const q = String(req.query.q || "").trim().toUpperCase().slice(0, 64);
   const st = String(req.query.status || "");
   const { rows } = await pool.query(
     `SELECT id, created_at, updated_at, fin, phone, brand, model, income_sources, status,
@@ -515,6 +562,7 @@ app.delete("/api/admin/applications/:id", admin, can("apps.delete"), async (req,
   finally { client.release(); }
   for (const f of files) fs.promises.unlink(path.join(UPLOAD_DIR, path.basename(f.stored_name))).catch(() => {});
   console.log(`Müraciət silindi: ${req.params.id}, ${req.user.username}`);
+  audit(req, req.user.username, "app.delete", req.params.id);
   res.json({ ok: true });
 });
 
@@ -606,12 +654,15 @@ app.get("/api/admin/analytics", admin, can("analytics.view"), async (req, res) =
 
 app.get("/api/admin/files/:stored", admin, can("docs.view"), async (req, res) => {
   const f = path.basename(req.params.stored);
-  const { rows } = await pool.query("SELECT original_name, mime FROM application_files WHERE stored_name = $1", [f]);
+  const { rows } = await pool.query("SELECT application_id, original_name, mime FROM application_files WHERE stored_name = $1", [f]);
   if (!rows[0]) return bad(res, "Fayl tapılmadı.", 404);
-  res.type(rows[0].mime || "application/octet-stream");
-  // A file is shown on its own, never able to run script in the panel's origin.
-  res.set("Content-Security-Policy", "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'");
-  res.set("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(rows[0].original_name)}`);
+  // Only types checked on upload are shown in the browser; anything else is a download.
+  const safe = /^(application\/pdf|image\/(png|jpeg|webp|heic))$/.test(rows[0].mime || "");
+  res.type(safe ? rows[0].mime : "application/octet-stream");
+  // A file is shown on its own, in a sandbox, never able to run script in the panel's origin.
+  res.set("Content-Security-Policy", "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox");
+  res.set("Content-Disposition", `${safe ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(rows[0].original_name)}`);
+  audit(req, req.user.username, "file.view", `${rows[0].application_id} · ${rows[0].original_name}`);
   res.sendFile(path.join(UPLOAD_DIR, f), err => err && !res.headersSent && bad(res, "Fayl tapılmadı.", 404));
 });
 
@@ -636,6 +687,9 @@ async function start() {
     try { await pool.query(fs.readFileSync(path.join(__dirname, "db/schema.sql"), "utf8")); break; }
     catch (e) { if (i >= 30) throw e; console.log(`DB gözlənilir (${i})...`); await new Promise(r => setTimeout(r, 2000)); }
   }
+  // Security log is kept for one year.
+  await pool.query("DELETE FROM audit_log WHERE at < now() - interval '1 year'");
+  if (!process.env.OTP_SECRET) console.warn("OTP_SECRET .env-də yoxdur: hər yenidən başlamada göndərilmiş SMS kodları etibarsız olur.");
   // First start: the "admin" account gets ADMIN_TOKEN from .env as its password; change it after signing in.
   const users = await pool.query("SELECT count(*)::int AS n FROM staff_users");
   if (!users.rows[0].n && ADMIN_TOKEN) {

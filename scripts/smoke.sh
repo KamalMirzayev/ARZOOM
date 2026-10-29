@@ -94,4 +94,17 @@ ES=$(curl -fsS -X POST "$B/api/admin/login" -H "Content-Type: application/json" 
 curl -fsS -H "x-admin-token: $ES" "$B/api/admin/me" | grep -c '"apps.notes"' >/dev/null || fail; echo "✓ fərdi icazələr: qiymətləndirmə bağlandı"
 curl -fsS -X POST -H "x-admin-token: $ES" "$B/api/admin/logout" >/dev/null
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/stats")" = 401 ] || fail; echo "✓ çıxışdan sonra sessiya bağlanır"
+# Təhlükəsizlik
+R=$(curl -sS -X POST "$B/api/applications" -F fin=5ABC12D -F idSeries=AZE -F idNumber=12345678 -F phone=994501112299 -F incomeSources=work \
+  --form-string 'brand=<img src=x onerror=alert(1)>' -F model=Camry -F consent=true -F consentText=ok -F otp=000000)
+echo "$R" | grep -c "Avtomobil seçilməyib" >/dev/null || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/applications" -F fin=5ABC12D -F idSeries=toString -F idNumber=1 -F phone=994501112299 -F incomeSources=work -F brand=Toyota -F model=Camry -F consent=true)" = 400 ] || fail
+echo "✓ marka/model və vəsiqə seriyası yoxlanılır"
+curl -sSI "$B/admin" | grep -i "^content-security-policy" | grep -q "script-src 'self' 'sha256-" || fail
+curl -sSI "$B/admin" | grep -i "^content-security-policy" | grep -vq "script-src[^;]*unsafe-inline" || fail; echo "✓ CSP: inline skript yalnız hash ilə"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/users" -d '{"username":"weakpw","name":"X","password":"aaaaaaaaaaaa"}')" = 400 ] || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/users" -d '{"username":"weakpw","name":"X","password":"weakpw-12345"}')" = 400 ] || fail; echo "✓ zəif parol qəbul edilmir"
+AU=$(curl -fsS "${H[@]}" "$B/api/admin/audit")
+for k in login.fail login file.view user.create app.delete; do echo "$AU" | grep -q "\"action\":\"$k\"" || fail; done
+[ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $SS" "$B/api/admin/audit")" = 403 ] || fail; echo "✓ təhlükəsizlik jurnalı"
 echo "Bütün yoxlamalar keçdi."

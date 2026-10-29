@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Serverdə bir əmrlə quraşdırma və yeniləmə (GitHub secrets olmadan):
-#   curl -fsSL https://raw.githubusercontent.com/KamalMirzayev/ARZOOM/main/deploy/install.sh | sudo NEW_POSTGRES_PASSWORD='...' NEW_ADMIN_TOKEN='...' DOMAIN='...' WEBSITE_DOMAIN='...' bash
+#   curl -fsSL https://raw.githubusercontent.com/KamalMirzayev/ARZOOM/main/deploy/install.sh | sudo NEW_POSTGRES_PASSWORD='...' NEW_ADMIN_TOKEN='...' DOMAIN='...' WEBSITE_DOMAIN='...' SOFTLINE_USER='...' SOFTLINE_KEY='...' bash
 # Hər dəfə işə salmaq olar: kodu yeniləyir, .env və ehtiyat nüsxələrə toxunmur.
 set -euo pipefail
 REPO=https://github.com/KamalMirzayev/ARZOOM.git
@@ -21,6 +21,7 @@ chmod +x "$APP_DIR"/deploy/*.sh
 [ -f "$APP_DIR/.env" ] || bash "$APP_DIR/deploy/bootstrap.sh"
 DOMAIN="${DOMAIN:-$(curl -fsS4 --max-time 5 https://api.ipify.org || true)}" WEBSITE_DOMAIN="${WEBSITE_DOMAIN:-}" \
 NEW_POSTGRES_PASSWORD="${NEW_POSTGRES_PASSWORD:-}" NEW_ADMIN_TOKEN="${NEW_ADMIN_TOKEN:-}" \
+SOFTLINE_USER="${SOFTLINE_USER:-}" SOFTLINE_KEY="${SOFTLINE_KEY:-}" SOFTLINE_SENDER="${SOFTLINE_SENDER:-}" \
   bash "$APP_DIR/deploy/deploy.sh"
 echo
 echo "Hazırdır. Müştəri səhifəsi: https://${DOMAIN:-SERVER_IP}  Əməkdaş paneli: https://${DOMAIN:-SERVER_IP}/admin"

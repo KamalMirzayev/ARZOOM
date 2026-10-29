@@ -108,7 +108,14 @@ Avtomatik inteqrasiya: `.env`-də `AKB_API_KEY` (ən azı 20 simvol) yazılanda 
 Paneldə Analitika səhifəsi 7, 30, 90 gün və 1 il üzrə göstərir: gündəlik axın, satış qıfı, təsdiq və satışa çevrilmə faizi, qərar müddəti, maliyyələşmə həcmi, risk dərəcələri, markalar, gəlir mənbələri və əməkdaşların qərarları.
 
 ## SMS provayderini qoşmaq
-`/opt/arzoom/.env` faylına provayderin ünvanını yaz, `{phone}` və `{text}` avtomatik doldurulur:
+Softline (gw.soft-line.az) hazır qoşulur. Açar repoya yazılmır, yalnız serverdəki `.env`-ə düşür:
+```bash
+curl -fsSL https://raw.githubusercontent.com/KamalMirzayev/ARZOOM/main/deploy/install.sh | sudo SOFTLINE_USER='...' SOFTLINE_KEY='...' bash
+cd /opt/arzoom && docker compose exec app node sms-test.js 994XXXXXXXXX   # yoxlama SMS-i
+```
+`SOFTLINE_SENDER` verilməsə, göndərən adı `Arzoomavto` olur. Softline qoşulan kimi demo rejimi (sabit 123456 kodu) öz-özünə sönür.
+
+Başqa provayder üçün `/opt/arzoom/.env` faylına provayderin ünvanını yaz, `{phone}` və `{text}` avtomatik doldurulur:
 ```bash
 SMS_URL=https://sms.provider.az/send?login=LOGIN&key=KEY&msisdn={phone}&text={text}
 # POST tələb edən provayder üçün:

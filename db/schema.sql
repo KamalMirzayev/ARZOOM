@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS otp_codes (
 -- Qiymətləndirmə (əməkdaş paneli)
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS assessment    JSONB;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS reject_reason TEXT;
+-- Reason the customer sees (cabinet and SMS); reject_reason stays internal.
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS reject_public TEXT;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS decided_by    TEXT;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS updated_at    TIMESTAMPTZ NOT NULL DEFAULT now();
 ALTER TABLE applications DROP CONSTRAINT IF EXISTS applications_status_check;

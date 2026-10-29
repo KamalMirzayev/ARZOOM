@@ -501,6 +501,8 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const grp=n=>Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");
 const azn=n=>grp(n)+" ₼";
 const dt=s=>{const d=new Date(s);return d.toLocaleDateString("az-AZ",{day:"2-digit",month:"2-digit",year:"numeric"})+" "+d.toLocaleTimeString("az-AZ",{hour:"2-digit",minute:"2-digit"})};
+// Keys match REJECT_REASONS in server.js, which holds the full text the customer gets.
+const REJECT_CODES={credit:"Kredit tarixçəsi uyğun deyil",income:"Gəlir aylıq ödəniş üçün kifayət etmir",debt:"Borc yükü yüksəkdir",docs:"Sənədlər natamam və ya yoxlanılmadı",terms:"Lizinq şərtlərinə uyğun deyil"};
 const STATUS={review:"Baxılır",offer:"Təklif göndərilib",rejected:"Rədd edilib",accepted:"Satışa ötürülüb",declined:"Müştəri imtina etdi",cancelled:"Ləğv edilib"};
 const INCOME={work:"Rəsmi iş yeri",biz:"Sahibkar",pension:"Pensiya",social:"Sosial yardım"};
 const EVENTS={bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",rejected:"Müraciət rədd edildi",note:"Qeyd",
@@ -864,7 +866,7 @@ function renderDetail(){
         ${o?`<dt>Təklif</dt><dd>${azn(o.price)}, ilkin ${o.downPct}%, ${o.months} ay, illik ${o.rate}%</dd>`:""}
       </dl>
       ${fin?`<div class="callout">Müştəri son təklifi təsdiqlədi<small>İlkin ödəniş ${fin.downPct}% · ${azn(o.price*fin.downPct/100)} · aylıq ${azn(pay)} · ${dt(fin.at)}</small></div>`:""}
-      ${a.reject_reason?`<div class="callout bad">İmtina səbəbi<small>${esc(a.reject_reason)}</small></div>`:""}
+      ${a.reject_reason?`<div class="callout bad">İmtina səbəbi<small>${a.reject_public?`Müştəriyə: ${esc(a.reject_public)}<br>`:""}Daxili: ${esc(a.reject_reason)}</small></div>`:""}
     </section>
     <section class="panel">${ph("doc","Gəlir sənədləri",`<span class="muted" style="font-size:12px">${a.files.length} fayl</span>`)}
       <div class="files">${a.income_sources.map(s=>`<div><h4>${INCOME[s]}</h4><div class="row">${(bySrc[s]||[]).map(f=>`<button type="button" class="fbtn" data-file="${esc(f.stored_name)}" title="${esc(f.original_name)}">${IC.doc}<span>${esc(f.original_name)}</span><em>${f.size_bytes?Math.max(1,Math.round(f.size_bytes/1024))+" KB":""}</em></button>`).join("")||`<span class="nofile">Sənəd yüklənməyib</span>`}</div></div>`).join("")}</div>
@@ -901,7 +903,8 @@ function renderDetail(){
             <h3>Qərar</h3>
             <button class="btn" type="button" id="sendOffer" style="width:100%" ${open?"":"disabled"}>Təklifi müştəriyə göndər</button>
             <div class="or">və ya</div>
-            <label class="f">İmtina səbəbi, müştəriyə göstərilmir<textarea id="reason" placeholder="Məs. AKB-də aktiv gecikmə, borc yükü 64%"></textarea></label>
+            <label class="f">Müştəriyə göstəriləcək səbəb (SMS və kabinet)<select id="rejectCode"><option value="">Seç…</option>${Object.entries(REJECT_CODES).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></label>
+            <label class="f">Daxili qeyd, müştəriyə göstərilmir<textarea id="reason" placeholder="Məs. AKB-də aktiv gecikmə, borc yükü 64%"></textarea></label>
             <div class="actions"><button class="btn danger" type="button" id="reject" ${["review","offer"].includes(a.status)?"":"disabled"}>Müraciəti rədd et</button></div>
             ${open?"":`<p class="muted" style="margin:10px 0 0;font-size:12.5px">Müraciət bağlanıb, qərar dəyişdirilə bilməz.</p>`}
           </div>
@@ -921,7 +924,7 @@ function renderDetail(){
   liveResult();
   if(!has("apps.assess"))$("#aForm").querySelectorAll("input,select,textarea,button").forEach(el=>el.disabled=true);
   if(!has("apps.offer"))$("#sendOffer").disabled=true;
-  if(!has("apps.reject")){$("#reject").disabled=true;$("#reason").disabled=true}
+  if(!has("apps.reject")){$("#reject").disabled=true;$("#reason").disabled=true;$("#rejectCode").disabled=true}
   if(!has("apps.offer")&&!has("apps.reject"))$("#sendOffer").closest(".panel").insertAdjacentHTML("beforeend",`<p class="muted" style="margin:10px 0 0;font-size:12.5px">Qərar vermək üçün icazən yoxdur.</p>`);
   if(!has("apps.notes"))$("#nForm").hidden=true;
   if(!has("docs.view"))document.querySelectorAll("[data-file]").forEach(b=>{b.disabled=true;b.title="Sənədləri açmaq üçün icazən yoxdur"});
@@ -1002,9 +1005,10 @@ document.addEventListener("click",async e=>{
     try{await api(`/applications/${encodeURIComponent(cur.id)}`,{method:"DELETE",body:JSON.stringify({reason})});toast(`Müraciət ${cur.id} silindi`);
       cur=null;$("#shell").classList.remove("open");await loadList();renderHome()}catch(err){toast(err.message)}}
   if(b.id==="reject"){
-    const reason=$("#reason").value.trim();if(!reason){toast("İmtina səbəbini yaz.");$("#reason").focus();return}
+    const code=$("#rejectCode").value;if(!code){toast("Müştəriyə göstəriləcək səbəbi seç.");$("#rejectCode").focus();return}
+    const reason=$("#reason").value.trim();if(!reason){toast("Daxili qeydi yaz.");$("#reason").focus();return}
     if(!confirmInline(b,"Rədd etməyi təsdiqlə"))return;
-    try{await api(`/applications/${cur.id}/reject`,{method:"POST",body:JSON.stringify({reason})});toast("Müraciət rədd edildi");await openApp(cur.id);loadList()}catch(err){toast(err.message)}}
+    try{await api(`/applications/${cur.id}/reject`,{method:"POST",body:JSON.stringify({reason,code})});toast("Müraciət rədd edildi");await openApp(cur.id);loadList()}catch(err){toast(err.message)}}
 });
 // Two-step confirm on the button itself, so no browser dialogs are needed.
 function confirmInline(b,text){

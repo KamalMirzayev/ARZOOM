@@ -224,7 +224,8 @@ app.post("/api/applications", submitLimit, upload.any(), async (req, res) => {
     sources.includes("biz") && !/^\d{10}$/.test(b.voen || "") ? "VÖEN 10 rəqəm olmalıdır." :
     noDoc ? DOC_REQUIRED[noDoc] :
     !CAR_TEXT.test(String(b.brand || "")) || !CAR_TEXT.test(String(b.model || "")) ? "Avtomobil seçilməyib." :
-    b.consent !== "true" ? "Razılıq verilməyib." : null;
+    b.consent !== "true" ? "Razılıq verilməyib." :
+    !["yes", "no"].includes(b.guarantor) ? "Zamin sualına cavab verilməyib." : null;
   const fake = files.find(f => !INCOME.includes(f.fieldname.replace(/^file_/, "")) || !sniff(f.path));
   if (!err && fake) { cleanup(); return bad(res, `"${String(fake.originalname).slice(0, 100)}" PDF və ya şəkil deyil.`); }
   if (err) { cleanup(); return bad(res, err); }
@@ -237,10 +238,10 @@ app.post("/api/applications", submitLimit, upload.any(), async (req, res) => {
     for (let i = 0; i < 5 && !id; i++) {
       const cand = `AA-${new Date().getFullYear()}-${crypto.randomInt(100000, 1000000)}`;
       const r = await client.query(
-        `INSERT INTO applications (id, fin, id_series, id_number, phone, income_sources, voen, brand, model, consent_text, consent_at, client_ip, birth_date)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now(), $11, $12) ON CONFLICT (id) DO NOTHING RETURNING id`,
+        `INSERT INTO applications (id, fin, id_series, id_number, phone, income_sources, voen, brand, model, consent_text, consent_at, client_ip, birth_date, guarantor)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now(), $11, $12, $13) ON CONFLICT (id) DO NOTHING RETURNING id`,
         [cand, fin, b.idSeries, b.idNumber, phone, sources, sources.includes("biz") ? b.voen : null,
-         String(b.brand).slice(0, 60), String(b.model).slice(0, 80), String(b.consentText || "").slice(0, 2000), req.ip, birthDate(b.birthDate)]
+         String(b.brand).slice(0, 60), String(b.model).slice(0, 80), String(b.consentText || "").slice(0, 2000), req.ip, birthDate(b.birthDate), b.guarantor === "yes"]
       );
       id = r.rows[0]?.id;
     }

@@ -876,6 +876,7 @@ function renderDetail(){
         ${a.birth_date?`<dt>Doğum tarixi</dt><dd>${esc(fmtDob(a.birth_date))}</dd>`:""}
         <dt>Mobil</dt><dd><a href="tel:+${esc(a.phone)}">+${esc(a.phone)}</a></dd>
         <dt>Gəlir mənbəyi</dt><dd>${a.income_sources.map(s=>INCOME[s]).join(", ")}</dd>
+        ${a.guarantor!=null?`<dt>Zamin</dt><dd>${a.guarantor?"Təmin edə bilər":"Təmin edə bilməz"}</dd>`:""}
         ${a.voen?`<dt>VÖEN</dt><dd class="mono">${esc(a.voen)}</dd>`:""}
         <dt>Razılıq</dt><dd>${dt(a.consent_at)} · IP ${esc(a.client_ip||"—")}</dd>
         ${o?`<dt>Təklif</dt><dd>${azn(o.price)}, ilkin ${o.downPct}%, ${o.months} ay, illik ${o.rate}%</dd>`:""}

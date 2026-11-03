@@ -23,7 +23,7 @@ apply() { # $1 phone, $2 file
   local code; code=$(curl -fsS -X POST "$B/api/otp" -H "Content-Type: application/json" -d "{\"phone\":\"$1\"}" | J demoCode)
   curl -sS -X POST "$B/api/applications" -F fin=5ABC12D -F idSeries=AZE -F idNumber=12345678 -F birthDate=1990-05-17 -F phone="$1" \
     -F incomeSources=work,biz -F voen=1234567890 -F brand=Toyota -F model=Camry -F consent=true -F consentText=ok \
-    -F otp="$code" -F "file_work=@$2;type=application/pdf"
+    -F guarantor=yes -F otp="$code" -F "file_work=@$2;type=application/pdf"
 }
 R=$(apply 994501112233 "$TMP/fake.pdf"); echo "$R" | grep -c "PDF və ya şəkil deyil" >/dev/null || fail; echo "✓ saxta fayl rədd edildi"
 R=$(apply 994501112234 "$TMP/arayis.pdf"); ID=$(echo "$R" | J id); TOK=$(echo "$R" | J token); echo "✓ müraciət $ID"
@@ -33,6 +33,7 @@ R2=$(apply 994501112235 "$TMP/arayis.pdf"); ID2=$(echo "$R2" | J id); TOK2=$(ech
 curl -fsS "${H[@]}" "$B/api/admin/applications?status=review" | grep -c "$ID" >/dev/null || fail
 STORED=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J 'files[0].stored_name')
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J birth_date)" = 1990-05-17 ] || fail; echo "✓ doğum tarixi saxlanılır"
+[ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J guarantor)" = true ] || fail; echo "✓ zamin cavabı saxlanılır"
 curl -fsS "${H[@]}" "$B/api/admin/files/$STORED" -o "$TMP/dl" && head -c 5 "$TMP/dl" | grep -q "%PDF" || fail; echo "✓ sənəd açılır"
 
 A=$(curl -fsS -X PUT "${H[@]}" "$B/api/admin/applications/$ID/assessment" \
@@ -105,10 +106,11 @@ for d in "$(date -d '-17 years' +%F)" 1990-02-30 17.05.1990; do
     -F brand=Toyota -F model=Camry -F consent=true | grep -q "Doğum tarixi" || fail
 done
 echo "✓ marka/model və vəsiqə seriyası, doğum tarixi yoxlanılır"
-INF=(-F fin=5ABC12D -F idSeries=AZE -F idNumber=12345678 -F birthDate=1990-05-17 -F phone=994501112299 -F incomeSources=informal -F brand=Toyota -F model=Camry -F consent=true -F otp=000000)
+INF=(-F fin=5ABC12D -F idSeries=AZE -F idNumber=12345678 -F birthDate=1990-05-17 -F phone=994501112299 -F incomeSources=informal -F brand=Toyota -F model=Camry -F consent=true -F guarantor=no -F otp=000000)
 curl -sS -X POST "$B/api/applications" "${INF[@]}" | grep -q "debet kart çıxarışı məcburidir" || fail
-curl -sS -X POST "$B/api/applications" "${INF[@]}" -F "file_informal=@$TMP/arayis.pdf;type=application/pdf" | grep -q "SMS kodu" || fail
-echo "✓ qeyri-rəsmi iş yeri: debet kart çıxarışı məcburidir"
+# With the statement attached the request passes the document check and stops at the missing guarantor answer.
+curl -sS -X POST "$B/api/applications" "${INF[@]/guarantor=no/guarantor=}" -F "file_informal=@$TMP/arayis.pdf;type=application/pdf" | grep -q "Zamin sualına" || fail
+echo "✓ qeyri-rəsmi iş yeri: debet kart çıxarışı məcburidir, zamin sualı cavablanmalıdır"
 curl -sSI "$B/admin" | grep -i "^content-security-policy" | grep -q "script-src 'self' 'sha256-" || fail
 curl -sSI "$B/admin" | grep -i "^content-security-policy" | grep -vq "script-src[^;]*unsafe-inline" || fail; echo "✓ CSP: inline skript yalnız hash ilə"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/users" -d '{"username":"weakpw","name":"X","password":"aaaaaaaaaaaa"}')" = 400 ] || fail

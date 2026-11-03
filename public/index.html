@@ -525,12 +525,12 @@ const STEPS=["Şəxsiyyət","Gəlir","Avtomobil","Yoxlama","SMS təsdiq"];
 let step=0, otp="", otpT=null, brand="Toyota", model=null, filter="all", q="";
 const INC=[
   {k:"work",t:"Rəsmi iş yeri",h:"Əmək müqaviləsi ilə işləyirəm",d:"Əmək haqqı arayışı və ya bank çıxarışı"},
-  {k:"informal",t:"Qeyri-rəsmi iş yeri",h:"Rəsmi müqaviləsiz işləyirəm",d:"Debet kartdan son 6 ayın çıxarışı",req:true},
+  {k:"informal",t:"Qeyri-rəsmi iş yeri",h:"Rəsmi müqaviləsiz işləyirəm",d:"Debet kartdan son 12 ayın çıxarışı",req:true},
   {k:"biz",t:"Sahibkar",h:"VÖEN üzrə fəaliyyət göstərirəm",d:"VÖEN çıxarışı və ya son 6 ayın bank çıxarışı"},
   {k:"pension",t:"Pensiya",h:"Pensiya alıram",d:"Pensiya vəsiqəsi və ya ödəniş arayışı"},
   {k:"social",t:"Sosial yardım",h:"Sosial yardım və ya müavinət alıram",d:"Təyinat haqqında arayış"}
 ];
-const inc={work:{on:true},pension:{on:true}};
+const inc={work:{on:true},informal:{on:true}};
 const incNames=()=>INC.filter(s=>inc[s.k]?.on).map(s=>s.t).join(", ")||"—";
 const docCount=()=>INC.reduce((n,s)=>n+(inc[s.k]?.on?(inc[s.k].files||[]).length:0),0);
 const voen=()=>inc.biz?.on?(inc.biz.voen||""):"";

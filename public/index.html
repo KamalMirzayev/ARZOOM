@@ -430,6 +430,19 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-si
 </div>
 
 
+<div class="modal" id="grModal" hidden role="dialog" aria-modal="true" aria-labelledby="grTitle">
+  <div class="sheet" style="width:min(460px,100%);grid-template-rows:auto auto">
+    <div class="sheet-bar"><b id="grTitle">Zamin</b><button type="button" class="sheet-x" id="grClose" aria-label="Bağla">×</button></div>
+    <div style="padding:20px 22px 22px;display:grid;gap:16px">
+      <p style="margin:0;font-size:15px;line-height:1.5">Risk tələblərinə uyğun olaraq müraciətiniz üçün zamin istənilə bilər. Lazım olarsa, zamin təmin edə bilərsinizmi?</p>
+      <div style="display:grid;gap:10px">
+        <button type="button" class="btn" data-guarantor="yes">Bəli, təmin edə bilərəm</button>
+        <button type="button" class="btn ghost" data-guarantor="no">Xeyr, təmin edə bilmərəm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="docModal" hidden role="dialog" aria-modal="true" aria-labelledby="docTitle">
   <div class="sheet">
     <div class="sheet-bar"><b id="docTitle">Razılıq ərizəsi</b><button type="button" class="sheet-x" id="docClose" aria-label="Bağla">×</button></div>
@@ -525,12 +538,15 @@ const STEPS=["Şəxsiyyət","Gəlir","Avtomobil","Yoxlama","SMS təsdiq"];
 let step=0, otp="", otpT=null, brand="Toyota", model=null, filter="all", q="";
 const INC=[
   {k:"work",t:"Rəsmi iş yeri",h:"Əmək müqaviləsi ilə işləyirəm",d:"Əmək haqqı arayışı və ya bank çıxarışı"},
-  {k:"informal",t:"Qeyri-rəsmi iş yeri",h:"Rəsmi müqaviləsiz işləyirəm",d:"Debet kartdan son 6 ayın çıxarışı",req:true},
+  {k:"informal",t:"Qeyri-rəsmi iş yeri",h:"Rəsmi müqaviləsiz işləyirəm",d:"Debet kartdan son 12 ayın çıxarışı",req:true},
   {k:"biz",t:"Sahibkar",h:"VÖEN üzrə fəaliyyət göstərirəm",d:"VÖEN çıxarışı və ya son 6 ayın bank çıxarışı"},
   {k:"pension",t:"Pensiya",h:"Pensiya alıram",d:"Pensiya vəsiqəsi və ya ödəniş arayışı"},
   {k:"social",t:"Sosial yardım",h:"Sosial yardım və ya müavinət alıram",d:"Təyinat haqqında arayış"}
 ];
-const inc={work:{on:true},pension:{on:true}};
+const inc={work:{on:true},informal:{on:true}};
+// Answer to "can you provide a guarantor if risk requires one?", asked once when leaving the income step.
+let guarantor=null;
+const GUARANTOR={yes:"Təmin edə bilər",no:"Təmin edə bilməz"};
 const incNames=()=>INC.filter(s=>inc[s.k]?.on).map(s=>s.t).join(", ")||"—";
 const docCount=()=>INC.reduce((n,s)=>n+(inc[s.k]?.on?(inc[s.k].files||[]).length:0),0);
 const voen=()=>inc.biz?.on?(inc.biz.voen||""):"";
@@ -620,7 +636,7 @@ function renderStep(){
   if(step===1)renderInc();
   if(step===2){renderBrands();renderModels()}
   if(step===3)$("#revAll").innerHTML=kvHtml([["FİN kod",$("#aFin").value.toUpperCase()],["Şəxsiyyət vəsiqəsi",$("#aIdSer").value+" "+$("#aIdNo").value],["Doğum tarixi",dobText()],["Mobil",phoneFull()],
-    ["Gəlir mənbəyi",incNames()],...(voen()?[["VÖEN",voen()]]:[]),["Yüklənmiş sənədlər",docCount()+" sənəd"],["Avtomobil",appCar()]]);
+    ["Gəlir mənbəyi",incNames()],...(voen()?[["VÖEN",voen()]]:[]),["Yüklənmiş sənədlər",docCount()+" sənəd"],["Zamin",GUARANTOR[guarantor]||"—"],["Avtomobil",appCar()]]);
   if(step===4)startOtp(); else clearInterval(otpT);
   renderSide();
 }
@@ -659,7 +675,7 @@ async function submitApp(){
   if(sending)return; sending=true; $("#nextBtn").disabled=true; $("#nextBtn").textContent="Göndərilir...";
   const fd=new FormData();
   fd.append("fin",$("#aFin").value.trim().toUpperCase());fd.append("idSeries",$("#aIdSer").value);fd.append("idNumber",$("#aIdNo").value.trim());fd.append("birthDate",dobIso());
-  fd.append("phone",phoneFull());fd.append("incomeSources",INC.filter(s=>inc[s.k]?.on).map(s=>s.k).join(","));fd.append("voen",voen());
+  fd.append("phone",phoneFull());fd.append("incomeSources",INC.filter(s=>inc[s.k]?.on).map(s=>s.k).join(","));fd.append("voen",voen());fd.append("guarantor",guarantor||"");
   fd.append("brand",brand);fd.append("model",model);fd.append("consent","true");fd.append("consentText",$(".consent span").textContent.trim());fd.append("otp",otpVal());
   INC.forEach(s=>{if(inc[s.k]?.on)(FILES[s.k]||[]).forEach(f=>fd.append("file_"+s.k,f))});
   try{
@@ -847,7 +863,14 @@ document.addEventListener("click",e=>{
 });
 $("#mSearch").addEventListener("input",e=>{q=e.target.value.trim();renderModels()});
 $("#prevBtn").addEventListener("click",()=>{if(step){step--;renderStep()}});
-$("#appForm").addEventListener("submit",e=>{e.preventDefault();if(!validate())return;if(step<STEPS.length-1){step++;renderStep();$("#appForm").scrollIntoView({block:"start",behavior:"smooth"})}else submitApp()});
+const advance=()=>{step++;renderStep();$("#appForm").scrollIntoView({block:"start",behavior:"smooth"})};
+$("#appForm").addEventListener("submit",e=>{e.preventDefault();if(!validate())return;
+  if(step===1&&!guarantor){$("#grModal").hidden=false;$("[data-guarantor=yes]").focus();return}
+  if(step<STEPS.length-1)advance();else submitApp()});
+const closeGr=()=>{$("#grModal").hidden=true;$("#nextBtn").focus()};
+$("#grModal").addEventListener("click",e=>{const b=e.target.closest("[data-guarantor]");
+  if(b){guarantor=b.dataset.guarantor;$("#grModal").hidden=true;advance()}else if(e.target.id==="grModal"||e.target.id==="grClose")closeGr()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#grModal").hidden)closeGr()});
 ["#aFin","#aIdNo","#aPhone"].forEach(s=>$(s).addEventListener("input",renderSide));
 $("#aIdSer").addEventListener("change",e=>{const len=e.target.value==="AZE"?8:7;$("#aIdNo").maxLength=len;$("#aIdNo").placeholder=len===8?"Məs. 12345678":"Məs. 1234567";$("#idHint").textContent=`${e.target.value} seriyası üçün ${len} rəqəm.`;renderSide()});
 $("#aOp").addEventListener("change",renderSide);

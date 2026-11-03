@@ -525,6 +525,7 @@ const STEPS=["Şəxsiyyət","Gəlir","Avtomobil","Yoxlama","SMS təsdiq"];
 let step=0, otp="", otpT=null, brand="Toyota", model=null, filter="all", q="";
 const INC=[
   {k:"work",t:"Rəsmi iş yeri",h:"Əmək müqaviləsi ilə işləyirəm",d:"Əmək haqqı arayışı və ya bank çıxarışı"},
+  {k:"informal",t:"Qeyri-rəsmi iş yeri",h:"Rəsmi müqaviləsiz işləyirəm",d:"Debet kartdan son 6 ayın çıxarışı",req:true},
   {k:"biz",t:"Sahibkar",h:"VÖEN üzrə fəaliyyət göstərirəm",d:"VÖEN çıxarışı və ya son 6 ayın bank çıxarışı"},
   {k:"pension",t:"Pensiya",h:"Pensiya alıram",d:"Pensiya vəsiqəsi və ya ödəniş arayışı"},
   {k:"social",t:"Sosial yardım",h:"Sosial yardım və ya müavinət alıram",d:"Təyinat haqqında arayış"}
@@ -558,9 +559,10 @@ function renderInc(){
       ${s.k==="biz"?`<label class="hint" for="aVoen" style="color:var(--ink);font-weight:600">VÖEN <span class="hint">məcburi, 10 rəqəm</span></label>
         <input class="inp mono" id="aVoen" data-voen inputmode="numeric" maxlength="10" placeholder="Məs. 1234567890" value="${esc(st.voen||"")}" style="letter-spacing:.12em">
         <span class="err-msg" data-err="aVoen" hidden>VÖEN 10 rəqəmdən ibarət olmalıdır.</span>`:""}
-      <small class="hint">${s.d}</small>
+      <small class="hint">${s.d}${s.req?` <b style="color:var(--ink)">(məcburi)</b>`:""}</small>
       ${fl.map((f,i)=>`<span class="file" style="display:flex;gap:8px;align-items:center;max-width:100%"><span style="overflow:hidden;text-overflow:ellipsis">✓ ${esc(f)}</span><button type="button" class="rmfile" data-rm="${s.k}:${i}" aria-label="${esc(f)} faylını sil">×</button></span>`).join("")}
-      <label class="btn ghost sm" for="f-${s.k}">${fl.length?"Daha sənəd əlavə et":"Sənəd yüklə"}<input type="file" id="f-${s.k}" data-file="${s.k}" accept="image/*,.pdf" multiple></label></div>`:""}
+      <label class="btn ghost sm" for="f-${s.k}">${fl.length?"Daha sənəd əlavə et":"Sənəd yüklə"}<input type="file" id="f-${s.k}" data-file="${s.k}" accept="image/*,.pdf" multiple></label>
+      ${s.req?`<span class="err-msg" data-err="doc-${s.k}" hidden>Debet kart çıxarışını yüklə: bu gəlir mənbəyi üçün məcburidir.</span>`:""}</div>`:""}
   </div>`}).join("");
   renderSide();
 }
@@ -633,7 +635,8 @@ function validate(){
     bad|=err("aPhone",$("#aPhone").value.replace(/\D/g,"").length!==7);
   }
   if(step===1){bad|=err("inc",!Object.values(inc).some(x=>x.on));
-    if(inc.biz?.on) bad|=err("aVoen",!/^\d{10}$/.test(inc.biz.voen||""))}
+    if(inc.biz?.on) bad|=err("aVoen",!/^\d{10}$/.test(inc.biz.voen||""));
+    INC.forEach(s=>{if(s.req&&inc[s.k]?.on)bad|=err("doc-"+s.k,!(inc[s.k].files||[]).length)})}
   if(step===2) bad|=err("model",!model);
   if(step===0) bad|=err("cConsent",!$("#cConsent").checked);
   if(step===4){const b=API?otpVal().length!==6:otpVal()!==otp;err("otp",b);$$("#otp input").forEach(i=>i.classList.toggle("err",b));bad|=b}

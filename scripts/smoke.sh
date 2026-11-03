@@ -105,6 +105,10 @@ for d in "$(date -d '-17 years' +%F)" 1990-02-30 17.05.1990; do
     -F brand=Toyota -F model=Camry -F consent=true | grep -q "Doğum tarixi" || fail
 done
 echo "✓ marka/model və vəsiqə seriyası, doğum tarixi yoxlanılır"
+INF=(-F fin=5ABC12D -F idSeries=AZE -F idNumber=12345678 -F birthDate=1990-05-17 -F phone=994501112299 -F incomeSources=informal -F brand=Toyota -F model=Camry -F consent=true -F otp=000000)
+curl -sS -X POST "$B/api/applications" "${INF[@]}" | grep -q "debet kart çıxarışı məcburidir" || fail
+curl -sS -X POST "$B/api/applications" "${INF[@]}" -F "file_informal=@$TMP/arayis.pdf;type=application/pdf" | grep -q "SMS kodu" || fail
+echo "✓ qeyri-rəsmi iş yeri: debet kart çıxarışı məcburidir"
 curl -sSI "$B/admin" | grep -i "^content-security-policy" | grep -q "script-src 'self' 'sha256-" || fail
 curl -sSI "$B/admin" | grep -i "^content-security-policy" | grep -vq "script-src[^;]*unsafe-inline" || fail; echo "✓ CSP: inline skript yalnız hash ilə"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/users" -d '{"username":"weakpw","name":"X","password":"aaaaaaaaaaaa"}')" = 400 ] || fail

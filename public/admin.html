@@ -511,7 +511,7 @@ const dt=s=>{const d=new Date(s);return d.toLocaleDateString("az-AZ",{day:"2-dig
 // Keys match REJECT_REASONS in server.js, which holds the full text the customer gets.
 const REJECT_CODES={credit:"Kredit tarixçəsi uyğun deyil",income:"Gəlir aylıq ödəniş üçün kifayət etmir",debt:"Borc yükü yüksəkdir",docs:"Sənədlər natamam və ya yoxlanılmadı",terms:"Lizinq şərtlərinə uyğun deyil"};
 const STATUS={review:"Baxılır",offer:"Təklif göndərilib",rejected:"Rədd edilib",accepted:"Satışa ötürülüb",declined:"Müştəri imtina etdi",cancelled:"Ləğv edilib"};
-const INCOME={work:"Rəsmi iş yeri",biz:"Sahibkar",pension:"Pensiya",social:"Sosial yardım"};
+const INCOME={work:"Rəsmi iş yeri",informal:"Qeyri-rəsmi iş yeri",biz:"Sahibkar",pension:"Pensiya",social:"Sosial yardım"};
 const EVENTS={bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",rejected:"Müraciət rədd edildi",note:"Qeyd",
   accepted:"Müştəri son təklifi təsdiqlədi: anderraytinqə və satışa ötürüldü",declined:"Müştəri təklifdən imtina etdi",cancelled:"Müştəri müraciəti ləğv etdi",sms:"SMS"};
 const FILTERS=[["","Hamısı"],["review","Baxılır"],["offer","Təklif"],["accepted","Satış"],["rejected","Rədd"],["declined","İmtina"],["cancelled","Ləğv"]];

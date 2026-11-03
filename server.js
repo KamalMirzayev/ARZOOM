@@ -24,7 +24,9 @@ const DEMO_SMS = !SMS_ON && process.env.DEMO_SMS !== "false";
 // Until SMS works every code is DEMO_OTP (123456 by default); with a provider codes are random.
 const newCode = () => DEMO_SMS ? (process.env.DEMO_OTP || "123456") : String(crypto.randomInt(100000, 1000000));
 const SITE_URL = process.env.SITE_ADDRESS && process.env.SITE_ADDRESS !== "localhost" ? `https://${process.env.SITE_ADDRESS}` : "";
-const INCOME = ["work", "biz", "pension", "social"];
+const INCOME = ["work", "informal", "biz", "pension", "social"];
+// Sources that cannot be accepted without a document: informal work is only provable by a debit-card statement.
+const DOC_REQUIRED = { informal: "Qeyri-rəsmi iş yeri üçün debet kart çıxarışı məcburidir." };
 // Date of birth as YYYY-MM-DD: a real calendar date, 18 to 80 years ago.
 function birthDate(v) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v || "")); if (!m) return null;
@@ -212,6 +214,7 @@ app.post("/api/applications", submitLimit, upload.any(), async (req, res) => {
   const fin = String(b.fin || "").toUpperCase();
   const phone = normPhone(b.phone);
   const sources = String(b.incomeSources || "").split(",").filter(s => INCOME.includes(s));
+  const noDoc = sources.find(s => DOC_REQUIRED[s] && !files.some(f => f.fieldname === "file_" + s));
   const err =
     !/^[0-9A-Z]{7}$/.test(fin) ? "FİN kod düzgün deyil." :
     !Object.hasOwn(SERIES, String(b.idSeries)) || !new RegExp(`^\\d{${SERIES[b.idSeries]}}$`).test(b.idNumber || "") ? "Vəsiqə nömrəsi düzgün deyil." :
@@ -219,6 +222,7 @@ app.post("/api/applications", submitLimit, upload.any(), async (req, res) => {
     !/^994\d{9}$/.test(phone) ? "Mobil nömrə düzgün deyil." :
     !sources.length ? "Gəlir mənbəyi seçilməyib." :
     sources.includes("biz") && !/^\d{10}$/.test(b.voen || "") ? "VÖEN 10 rəqəm olmalıdır." :
+    noDoc ? DOC_REQUIRED[noDoc] :
     !CAR_TEXT.test(String(b.brand || "")) || !CAR_TEXT.test(String(b.model || "")) ? "Avtomobil seçilməyib." :
     b.consent !== "true" ? "Razılıq verilməyib." : null;
   const fake = files.find(f => !INCOME.includes(f.fieldname.replace(/^file_/, "")) || !sniff(f.path));

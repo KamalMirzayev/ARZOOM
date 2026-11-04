@@ -1,6 +1,6 @@
 -- Arzoom Avto lizinq müraciətləri
 CREATE TABLE IF NOT EXISTS applications (
-  id            TEXT PRIMARY KEY,                 -- AA-2026-1234
+  id            TEXT PRIMARY KEY,                 -- 6-digit number (older rows: AA-2026-123456)
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   fin           CHAR(7)     NOT NULL,
   id_series     TEXT        NOT NULL CHECK (id_series IN ('AZE','AA','AB')),

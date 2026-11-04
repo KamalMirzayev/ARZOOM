@@ -246,7 +246,7 @@ app.post("/api/applications", submitLimit, upload.any(), async (req, res) => {
     await client.query("BEGIN");
     let id;
     for (let i = 0; i < 5 && !id; i++) {
-      const cand = `AA-${new Date().getFullYear()}-${crypto.randomInt(100000, 1000000)}`;
+      const cand = String(crypto.randomInt(100000, 1000000)); // short 6-digit number, easy to dictate
       const r = await client.query(
         `INSERT INTO applications (id, fin, id_series, id_number, phone, income_sources, voen, brand, model, consent_text, consent_at, client_ip, birth_date, guarantor)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now(), $11, $12, $13) ON CONFLICT (id) DO NOTHING RETURNING id`,

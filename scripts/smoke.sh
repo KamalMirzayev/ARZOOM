@@ -99,6 +99,9 @@ curl -fsS -X POST "${H[@]}" "$B/api/admin/users" -d "{\"username\":\"$U\",\"name
 ES=$(curl -fsS -X POST "$B/api/admin/login" -H "Content-Type: application/json" -d "{\"username\":\"$U\",\"password\":\"Ekspert-Parol-1\"}" | J token)
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/users")" = 403 ] || fail
 curl -fsS -H "x-admin-token: $ES" "$B/api/admin/stats" >/dev/null || fail; echo "✓ ekspert hesabı: panel var, istifadəçi idarəsi yox"
+# Excel: admin yükləyir (ZIP/xlsx), ekspertin standart icazəsi yoxdur
+[ "$(curl -fsS "${H[@]}" "$B/api/admin/export.xlsx" | head -c 2)" = "PK" ] || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/export.xlsx")" = 403 ] || fail; echo "✓ Excel-ə çıxarış: admin yükləyir, ekspert yox"
 # SMS ayarı: yalnız admin, açar heç vaxt geri qaytarılmır, natamam forma rədd edilir
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/settings/sms")" = 403 ] || fail
 SMSST=$(curl -fsS "${H[@]}" "$B/api/admin/settings/sms"); echo "$SMSST" | grep -q '"keySet"' || fail; echo "$SMSST" | grep -q '"key"' && fail

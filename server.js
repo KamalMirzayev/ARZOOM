@@ -9,6 +9,7 @@ const { Pool, types } = require("pg");
 // DATE columns stay plain YYYY-MM-DD strings, with no time zone shift.
 types.setTypeParser(1082, v => v);
 const Sms = require("./lib/sms");
+const Xlsx = require("./lib/xlsx");
 const { sendSms } = Sms;
 const Scoring = require("./lib/scoring");
 const Akb = require("./lib/akb");
@@ -509,6 +510,41 @@ app.get("/api/admin/applications", admin, async (req, res) => {
      ORDER BY created_at DESC LIMIT 500`, [st, q]);
   const counts = await pool.query("SELECT status, count(*)::int AS n FROM applications GROUP BY status");
   res.json({ items: rows, counts: Object.fromEntries(counts.rows.map(r => [r.status, r.n])) });
+});
+
+/* ---------- Excel export ---------- */
+// All applications (or the current filter) as .xlsx. Holds personal data, so it needs its own permission and is audited.
+const EXPORT_STATUS = { review: "Baxılır", offer: "Təklif göndərilib", rejected: "Rədd edilib", accepted: "Satışa ötürülüb", declined: "Müştəri imtina etdi", cancelled: "Ləğv edilib" };
+app.get("/api/admin/export.xlsx", admin, async (req, res) => {
+  if (!req.perms.includes("apps.export")) return bad(res, "Excel-ə çıxarmaq üçün icazən yoxdur.", 403);
+  const q = String(req.query.q || "").trim().toUpperCase().slice(0, 64);
+  const st = String(req.query.status || "");
+  const { rows } = await pool.query(
+    `SELECT id, created_at, updated_at, status, fin, id_series, id_number, birth_date::text AS birth_date, phone, income_sources, voen, brand, model, guarantor,
+            assessment->'result'->>'grade' AS grade, (assessment->'result'->>'score')::int AS score, offer, reject_public, decided_by
+     FROM applications
+     WHERE ($1 = '' OR status = $1)
+       AND ($2 = '' OR id ILIKE '%' || $2 || '%' OR fin ILIKE '%' || $2 || '%' OR phone LIKE '%' || $2 || '%' OR upper(model) LIKE '%' || $2 || '%')
+     ORDER BY created_at DESC`, [st, q]);
+  const cols = [["Müraciət №", 14], ["Daxil olub", 17], ["Status", 18], ["FİN", 10], ["Şəxsiyyət vəsiqəsi", 16], ["Doğum tarixi", 12],
+    ["Telefon", 15], ["Gəlir mənbələri", 28], ["VÖEN", 12], ["Marka", 14], ["Model", 18], ["Zamin", 8], ["Bal", 7], ["Risk dərəcəsi", 10],
+    ["Avtomobilin qiyməti", 14], ["İlkin ödəniş %", 10], ["İlkin ödəniş", 13], ["İlkin kredit məbləği", 15], ["Müddət (ay)", 10],
+    ["İllik faiz %", 10], ["Aylıq ödəniş", 13], ["Rədd səbəbi", 30], ["Qərar verən", 14], ["Son dəyişiklik", 17]].map(([title, width]) => ({ title, width }));
+  const r2 = x => Math.round(x * 100) / 100;
+  const data = rows.map(a => {
+    const o = a.offer, t = o?.price ? finalTerms(o, o.final?.downPct ?? o.downPct) : null;
+    return [a.id, a.created_at, EXPORT_STATUS[a.status] || a.status, a.fin, `${a.id_series} ${a.id_number}`,
+      a.birth_date ? a.birth_date.split("-").reverse().join(".") : "", "+" + a.phone,
+      (a.income_sources || []).map(s => INCOME_NAMES[s] || s).join(", "), a.voen || "", a.brand, a.model,
+      a.guarantor == null ? "" : a.guarantor ? "Bəli" : "Xeyr", a.score ?? "", a.grade || "",
+      t ? o.price : "", t ? t.dp : "", t ? r2(t.down) : "", t ? r2(t.credit) : "", t ? t.months : "", t ? o.rate : "", t ? r2(t.pay) : "",
+      a.reject_public || "", a.decided_by || "", a.updated_at];
+  });
+  audit(req, req.user.username, "apps.export", `${rows.length} müraciət${st ? `, status: ${st}` : ""}${q ? `, axtarış: ${q}` : ""}`);
+  const day = new Date(Date.now() + 4 * 3600e3).toISOString().slice(0, 10);
+  res.set({ "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "Content-Disposition": `attachment; filename="arzoom-muracietler-${day}.xlsx"`, "Cache-Control": "no-store" });
+  res.send(Xlsx.build("Müraciətlər", cols, data));
 });
 
 app.get("/api/admin/stats", admin, async (_req, res) => {

@@ -208,7 +208,7 @@ async function tokenApp(req) {
 const num = (v, lo, hi) => { const x = +v; return Number.isFinite(x) && x >= lo && x <= hi ? x : null; };
 const maskPhone = p => `+${p.slice(0, 3)} ${p.slice(3, 5)} *** ** ${p.slice(-2)}`;
 const CUSTOMER_FIELDS = `a.id, a.created_at, a.updated_at, a.fin, a.id_series, a.id_number, a.phone, a.income_sources, a.voen,
-  a.brand, a.model, a.status, a.offer, a.reject_public, (SELECT count(*)::int FROM application_files f WHERE f.application_id = a.id) AS files`;
+  a.brand, a.model, a.status, a.offer, a.reject_public, a.info_request, (SELECT count(*)::int FROM application_files f WHERE f.application_id = a.id) AS files`;
 
 /* ---------- applications ---------- */
 const upload = multer({
@@ -319,10 +319,46 @@ app.get("/api/applications/:id", lookupLimit, async (req, res) => {
   rows[0] ? res.json(rows[0]) : bad(res, "Müraciət tapılmadı.", 404);
 });
 
+// The customer answers a request for more information: a text and/or extra documents. The application goes back to review.
+app.post("/api/applications/:id/info", lookupLimit, upload.array("file_extra", 10), async (req, res) => {
+  const files = req.files || [];
+  const cleanup = () => files.forEach(f => fs.rm(f.path, () => {}));
+  if (!(await tokenApp(req))) { cleanup(); return bad(res, "Giriş müddəti bitib. Müraciəti yenidən SMS kodu ilə tap.", 401); }
+  const text = String(req.body?.text || "").trim().slice(0, 2000);
+  if (!text && !files.length) { cleanup(); return bad(res, "Cavab yazın və ya sənəd əlavə edin."); }
+  const fake = files.find(f => !sniff(f.path));
+  if (fake) { cleanup(); return bad(res, `"${String(fake.originalname).slice(0, 100)}" PDF və ya şəkil deyil.`); }
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const r = await client.query(
+      `UPDATE applications SET status = 'review', updated_at = now(),
+         info_request = info_request || jsonb_build_object('answer', $2::text, 'answeredAt', now(), 'files', $3::int)
+       WHERE id = $1 AND status = 'info' RETURNING id, brand, model, info_request`, [req.params.id, text, files.length]);
+    if (!r.rowCount) { await client.query("ROLLBACK"); cleanup(); return bad(res, "Bu müraciət üçün əlavə məlumat gözlənilmir.", 409); }
+    for (const f of files)
+      await client.query(
+        `INSERT INTO application_files (application_id, income_source, original_name, stored_name, mime, size_bytes) VALUES ($1,'extra',$2,$3,$4,$5)`,
+        [req.params.id, f.originalname.slice(0, 200), f.filename, sniff(f.path), f.size]);
+    await logEvent(client, req.params.id, "Müştəri", "info_reply", { text, files: files.length });
+    await client.query("COMMIT");
+    res.json({ ok: true, status: "review" });
+    // The staff member who asked gets an SMS that the answer is in.
+    const by = r.rows[0].info_request?.byUser;
+    if (by) {
+      const u = (await pool.query("SELECT name, phone FROM staff_users WHERE username = $1 AND active AND phone IS NOT NULL", [by])).rows[0];
+      if (u) notify(req.params.id, u.phone, `Arzoom Avto: Müraciət № ${req.params.id} (${r.rows[0].brand} ${r.rows[0].model}) üzrə müştəri əlavə məlumatı göndərdi.${SITE_URL ? ` Panel: ${SITE_URL}/admin` : ""}`, u.name);
+    }
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {}); cleanup(); console.error(e);
+    bad(res, "Cavab saxlanılmadı. Bir az sonra yenidən cəhd et.", 500);
+  } finally { client.release(); }
+});
+
 app.post("/api/applications/:id/cancel", lookupLimit, async (req, res) => {
   if (!(await tokenApp(req))) return bad(res, "İcazə yoxdur.", 401);
   const r = await pool.query(
-    "UPDATE applications SET status = 'cancelled', updated_at = now() WHERE id = $1 AND status IN ('review','offer') RETURNING id, phone",
+    "UPDATE applications SET status = 'cancelled', updated_at = now() WHERE id = $1 AND status IN ('review','info','offer') RETURNING id, phone",
     [req.params.id]);
   if (!r.rowCount) return bad(res, "Müraciət tapılmadı.", 404);
   await logEvent(pool, req.params.id, "Müştəri", "cancelled");
@@ -528,7 +564,7 @@ app.get("/api/admin/applications", admin, async (req, res) => {
 
 /* ---------- Excel export ---------- */
 // All applications (or the current filter) as .xlsx. Holds personal data, so it needs its own permission and is audited.
-const EXPORT_STATUS = { review: "Baxılır", offer: "Təklif göndərilib", rejected: "Rədd edilib", accepted: "Satışa ötürülüb", declined: "Müştəri imtina etdi", cancelled: "Ləğv edilib" };
+const EXPORT_STATUS = { review: "Baxılır", info: "Əlavə məlumat gözlənilir", offer: "Təklif göndərilib", rejected: "Rədd edilib", accepted: "Satışa ötürülüb", declined: "Müştəri imtina etdi", cancelled: "Ləğv edilib" };
 app.get("/api/admin/export.xlsx", admin, async (req, res) => {
   if (!req.perms.includes("apps.export")) return bad(res, "Excel-ə çıxarmaq üçün icazən yoxdur.", 403);
   const q = String(req.query.q || "").trim().toUpperCase().slice(0, 64);
@@ -618,12 +654,32 @@ app.post("/api/admin/applications/:id/offer", admin, brandGate, can("apps.offer"
   if (Object.values(offer).some(v => v == null)) return bad(res, "Təklif şərtləri düzgün deyil.");
   const r = await pool.query(
     `UPDATE applications SET status = 'offer', offer = $2, reject_reason = NULL, reject_public = NULL, decided_by = $3, updated_at = now()
-     WHERE id = $1 AND status IN ('review','offer','rejected') RETURNING id, phone`, [req.params.id, offer, req.staff]);
+     WHERE id = $1 AND status IN ('review','info','offer','rejected') RETURNING id, phone, brand, model`, [req.params.id, offer, req.staff]);
   if (!r.rowCount) return bad(res, "Bu müraciətə təklif göndərmək olmur.", 409);
   await logEvent(pool, req.params.id, req.staff, "offer", offer);
   const pay = Scoring.pmt(offer.price * (1 - offer.downPct / 100), offer.rate, offer.months);
   notify(req.params.id, r.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id} təsdiqləndi. Təklif: ilkin ödəniş ${offer.downPct}%, ilkin kredit məbləği ${money(offer.price * (1 - offer.downPct / 100))}, aylıq ${money(pay)}, ${offer.months} ay. Kabinetdə qrafikə baxıb təsdiqləyin.${cabinet()}`);
+  // The offer also goes to the sales specialists of this brand (or those without a brand), so they can call the customer.
+  const { brand, model } = r.rows[0], credit = money(offer.price * (1 - offer.downPct / 100));
+  const sales = await pool.query(
+    "SELECT name, phone FROM staff_users WHERE active AND phone IS NOT NULL AND role = 'sales' AND (cardinality(brands) = 0 OR $1 = ANY(brands))", [brand]);
+  for (const u of sales.rows)
+    notify(req.params.id, u.phone, `Arzoom Avto: Müraciət № ${req.params.id} üzrə müştəriyə təklif göndərildi: ${brand} ${model}, qiymət ${money(offer.price)}, ilkin ödəniş ${offer.downPct}%, ilkin kredit məbləği ${credit}, aylıq ${money(pay)}, ${offer.months} ay.${SITE_URL ? ` Panel: ${SITE_URL}/admin` : ""}`, u.name);
   res.json({ ok: true, offer });
+});
+
+// Before an offer the expert may ask the customer for more documents or information. The customer answers in the cabinet.
+app.post("/api/admin/applications/:id/request-info", admin, brandGate, can("apps.assess"), async (req, res) => {
+  const text = String(req.body?.text || "").trim().slice(0, 300);
+  if (text.length < 5) return bad(res, "Müştəridən nə tələb olunduğunu yaz.");
+  const request = { text, at: new Date().toISOString(), by: req.staff, byUser: req.user.username };
+  const r = await pool.query(
+    `UPDATE applications SET status = 'info', info_request = $2, updated_at = now()
+     WHERE id = $1 AND status IN ('review','info') RETURNING id, phone`, [req.params.id, request]);
+  if (!r.rowCount) return bad(res, "Bu müraciət üçün məlumat istəmək olmur.", 409);
+  await logEvent(pool, req.params.id, req.staff, "info_request", { text });
+  notify(req.params.id, r.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id} üzrə əlavə məlumat lazımdır: ${text} Kabinetdə cavab yazın və ya sənəd yükləyin.${cabinet()}`);
+  res.json({ ok: true, request });
 });
 
 app.post("/api/admin/applications/:id/reject", admin, brandGate, can("apps.reject"), async (req, res) => {
@@ -634,7 +690,7 @@ app.post("/api/admin/applications/:id/reject", admin, brandGate, can("apps.rejec
   const pub = REJECT_REASONS[code];
   const r = await pool.query(
     `UPDATE applications SET status = 'rejected', reject_reason = $2, reject_public = $4, decided_by = $3, updated_at = now()
-     WHERE id = $1 AND status IN ('review','offer') RETURNING id, phone`, [req.params.id, reason, req.staff, pub]);
+     WHERE id = $1 AND status IN ('review','info','offer') RETURNING id, phone`, [req.params.id, reason, req.staff, pub]);
   if (!r.rowCount) return bad(res, "Bu müraciəti rədd etmək olmur.", 409);
   await logEvent(pool, req.params.id, req.staff, "rejected", { reason, code });
   notify(req.params.id, r.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id} təsdiqlənmədi. Səbəb: ${pub} Sualınız varsa, *5665 nömrəsinə zəng edin.`);
@@ -715,7 +771,7 @@ app.post("/api/integrations/akb", xmlBody, async (req, res) => {
   let fin;
   try { fin = String(Akb.parse(xmlFrom(req)).borrower?.fin || "").trim().toUpperCase(); } catch (e) { return bad(res, e.message); }
   const { rows } = await pool.query(
-    "SELECT id FROM applications WHERE upper(fin) = $1 AND status IN ('review','offer') ORDER BY created_at DESC LIMIT 1", [fin]);
+    "SELECT id FROM applications WHERE upper(fin) = $1 AND status IN ('review','info','offer') ORDER BY created_at DESC LIMIT 1", [fin]);
   if (!rows[0]) return bad(res, "Bu FİN üzrə açıq müraciət yoxdur.", 404);
   const out = await applyBureau(rows[0].id, xmlFrom(req), "AKB inteqrasiyası");
   res.json({ applicationId: rows[0].id, score: out.assessment.result.score, grade: out.assessment.result.grade,

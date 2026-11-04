@@ -108,7 +108,7 @@ label.chk input{width:17px;height:17px;accent-color:var(--blue);flex:none}
 .nav button b{margin-left:auto;font-family:var(--f-mono);font-weight:500;font-size:11.5px;color:#8F9AC4;background:rgb(255 255 255 / .06);border-radius:6px;padding:1px 7px}
 .nav button[aria-pressed="true"] b{color:#FFFFFF;background:rgb(255 255 255 / .14)}
 .nav .sd{width:8px;height:8px;border-radius:50%;flex:none;margin:0 4px 0 5px;background:#6E79A6}
-.sd.s-review{background:#E9BE62}.sd.s-offer{background:#7E95FF}.sd.s-accepted{background:#6FCF97}.sd.s-rejected,.sd.s-declined{background:#F08A80}.sd.s-cancelled{background:#6E79A6}
+.sd.s-review{background:#E9BE62}.sd.s-info{background:#5EC8D8}.sd.s-offer{background:#7E95FF}.sd.s-accepted{background:#6FCF97}.sd.s-rejected,.sd.s-declined{background:#F08A80}.sd.s-cancelled{background:#6E79A6}
 .me{margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:rgb(255 255 255 / .05);border:1px solid rgb(255 255 255 / .08)}
 .av{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:13px;color:#FFFFFF;background:linear-gradient(135deg,#5273FF,#8E5BFF);flex:none}
 .me .who{min-width:0;flex:1;font-size:12.5px;line-height:1.3}
@@ -135,7 +135,9 @@ aside{border-right:1px solid var(--line);display:flex;flex-direction:column;min-
 .item:hover{background:var(--raised)}
 .item[aria-current="true"]{background:var(--blue-soft);border-color:color-mix(in srgb,var(--blue) 35%,transparent)}
 .tile{grid-row:span 2;width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:13px;letter-spacing:.02em}
-.tile.s-review{background:var(--warn-soft);color:var(--warn)}.tile.s-offer{background:var(--blue-soft);color:var(--blue)}.tile.s-accepted{background:var(--ok-soft);color:var(--ok)}
+.tile.s-review{background:var(--warn-soft);color:var(--warn)}
+.s-info{background:rgba(94,200,216,.16);color:#2A9BAD}
+.tile.s-info{background:rgba(94,200,216,.16);color:#2A9BAD}.tile.s-offer{background:var(--blue-soft);color:var(--blue)}.tile.s-accepted{background:var(--ok-soft);color:var(--ok)}
 .tile.s-rejected,.tile.s-declined{background:var(--bad-soft);color:var(--bad)}.tile.s-cancelled{background:var(--line);color:var(--muted)}
 .item .no{font-family:var(--f-mono);font-weight:600;font-size:13px;white-space:nowrap;letter-spacing:-.01em}
 .item .car{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -517,11 +519,11 @@ const fmtDob=s=>{const [y,m,d]=String(s).slice(0,10).split("-").map(Number),t=ne
 const dt=s=>{const d=new Date(s);return d.toLocaleDateString("az-AZ",{day:"2-digit",month:"2-digit",year:"numeric"})+" "+d.toLocaleTimeString("az-AZ",{hour:"2-digit",minute:"2-digit"})};
 // Keys match REJECT_REASONS in server.js, which holds the full text the customer gets.
 const REJECT_CODES={credit:"Kredit tarixçəsi uyğun deyil",income:"Gəlir aylıq ödəniş üçün kifayət etmir",debt:"Borc yükü yüksəkdir",docs:"Sənədlər natamam və ya yoxlanılmadı",terms:"Lizinq şərtlərinə uyğun deyil"};
-const STATUS={review:"Baxılır",offer:"Təklif göndərilib",rejected:"Rədd edilib",accepted:"Satışa ötürülüb",declined:"Müştəri imtina etdi",cancelled:"Ləğv edilib"};
-const INCOME={work:"Rəsmi iş yeri",informal:"Qeyri-rəsmi iş yeri",biz:"Sahibkar",pension:"Pensiya",social:"Sosial yardım"};
-const EVENTS={bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",rejected:"Müraciət rədd edildi",note:"Qeyd",
+const STATUS={review:"Baxılır",info:"Əlavə məlumat gözlənilir",offer:"Təklif göndərilib",rejected:"Rədd edilib",accepted:"Satışa ötürülüb",declined:"Müştəri imtina etdi",cancelled:"Ləğv edilib"};
+const INCOME={extra:"Əlavə sənədlər (müştəri cavabı)",work:"Rəsmi iş yeri",informal:"Qeyri-rəsmi iş yeri",biz:"Sahibkar",pension:"Pensiya",social:"Sosial yardım"};
+const EVENTS={info_request:"Müştəridən əlavə məlumat istənildi",info_reply:"Müştəri əlavə məlumat göndərdi",bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",rejected:"Müraciət rədd edildi",note:"Qeyd",
   accepted:"Müştəri son təklifi təsdiqlədi: anderraytinqə və satışa ötürüldü",declined:"Müştəri təklifdən imtina etdi",cancelled:"Müştəri müraciəti ləğv etdi",sms:"SMS"};
-const FILTERS=[["","Hamısı"],["review","Baxılır"],["offer","Təklif"],["accepted","Satış"],["rejected","Rədd"],["declined","İmtina"],["cancelled","Ləğv"]];
+const FILTERS=[["","Hamısı"],["review","Baxılır"],["info","Məlumat"],["offer","Təklif"],["accepted","Satış"],["rejected","Rədd"],["declined","İmtina"],["cancelled","Ləğv"]];
 
 const SVG=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const IC={
@@ -855,7 +857,7 @@ async function openApp(id){
 const val=(a,k,d="")=>a.assessment?.inputs?.[k]??a.offer?.[k]??d;
 function steps(a){
   const st=a.status,offered=["offer","accepted","declined"].includes(st);
-  const S=[["Daxil oldu",1],["Qiymətləndirmə",a.assessment||st!=="review"?1:"now"],
+  const S=[["Daxil oldu",1],[st==="info"?"Əlavə məlumat gözlənilir":"Qiymətləndirmə",st==="info"?"now":a.assessment||st!=="review"?1:"now"],
     ["Təklif",st==="rejected"?"bad":offered?1:a.assessment?"now":0],
     ["Müştəri təsdiqi",st==="accepted"?1:st==="declined"||st==="cancelled"?"bad":st==="offer"?"now":0],
     ["Satış",st==="accepted"?"now":0]];
@@ -898,7 +900,7 @@ function akbHtml(a){
   </section>`;
 }
 function renderDetail(){
-  const a=cur,open=["review","offer","rejected"].includes(a.status);
+  const a=cur,open=["review","info","offer","rejected"].includes(a.status);
   const bySrc={};a.files.forEach(f=>(bySrc[f.income_source]??=[]).push(f));
   const res=a.assessment?.result,o=a.offer,fin=o?.final;
   const dp=fin?.downPct??o?.downPct,pay=o?Scoring.pmt(o.price*(1-dp/100),o.rate,o.months):res?.pay;
@@ -935,10 +937,11 @@ function renderDetail(){
         ${o?`<dt>Təklif</dt><dd>${azn(o.price)}, ilkin ${o.downPct}%, ${o.months} ay, illik ${o.rate}%</dd>`:""}
       </dl>
       ${fin?`<div class="callout">Müştəri son təklifi təsdiqlədi<small>İlkin ödəniş ${fin.downPct}% · ${azn(o.price*fin.downPct/100)} · kredit ${azn(o.price*(1-fin.downPct/100))} · aylıq ${azn(pay)} · ${dt(fin.at)}</small></div>`:""}
+      ${a.info_request?`<div class="callout">${a.status==="info"?"Müştəridən əlavə məlumat gözlənilir":"Əlavə məlumat sorğusu"}<small>Sorğu: ${esc(a.info_request.text)} · ${esc(a.info_request.by||"")}, ${dt(a.info_request.at)}${a.info_request.answeredAt?`<br>Cavab: ${esc(a.info_request.answer||"—")}${a.info_request.files?` · ${a.info_request.files} sənəd`:""} · ${dt(a.info_request.answeredAt)}`:""}</small></div>`:""}
       ${a.reject_reason?`<div class="callout bad">İmtina səbəbi<small>${a.reject_public?`Müştəriyə: ${esc(a.reject_public)}<br>`:""}Daxili: ${esc(a.reject_reason)}</small></div>`:""}
     </section>
     <section class="panel">${ph("doc","Gəlir sənədləri",`<span class="muted" style="font-size:12px">${a.files.length} fayl</span>`)}
-      <div class="files">${a.income_sources.map(s=>`<div><h4>${INCOME[s]}</h4><div class="row">${(bySrc[s]||[]).map(f=>`<button type="button" class="fbtn" data-file="${esc(f.stored_name)}" title="${esc(f.original_name)}">${IC.doc}<span>${esc(f.original_name)}</span><em>${f.size_bytes?Math.max(1,Math.round(f.size_bytes/1024))+" KB":""}</em></button>`).join("")||`<span class="nofile">Sənəd yüklənməyib</span>`}</div></div>`).join("")}</div>
+      <div class="files">${(bySrc.extra?["extra"]:[]).concat(a.income_sources).map(s=>`<div><h4>${INCOME[s]}</h4><div class="row">${(bySrc[s]||[]).map(f=>`<button type="button" class="fbtn" data-file="${esc(f.stored_name)}" title="${esc(f.original_name)}">${IC.doc}<span>${esc(f.original_name)}</span><em>${f.size_bytes?Math.max(1,Math.round(f.size_bytes/1024))+" KB":""}</em></button>`).join("")||`<span class="nofile">Sənəd yüklənməyib</span>`}</div></div>`).join("")}</div>
     </section>
 
     ${akbHtml(a)}
@@ -973,9 +976,12 @@ function renderDetail(){
             <h3>Qərar</h3>
             <button class="btn" type="button" id="sendOffer" style="width:100%" ${open?"":"disabled"}>Təklifi müştəriyə göndər</button>
             <div class="or">və ya</div>
+            <label class="f">Müştəridən əlavə sənəd və ya məlumat istə<textarea id="infoText" maxlength="300" placeholder="Məs. Son 6 ayın əmək haqqı arayışı və ya iş yerinin ünvanı"></textarea></label>
+            <div class="actions"><button class="btn ghost" type="button" id="askInfo" ${["review","info"].includes(a.status)?"":"disabled"}>Məlumat istə</button></div>
+            <div class="or">və ya</div>
             <label class="f">Müştəriyə göstəriləcək səbəb (SMS və kabinet)<select id="rejectCode"><option value="">Seç…</option>${Object.entries(REJECT_CODES).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></label>
             <label class="f">Daxili qeyd, müştəriyə göstərilmir<textarea id="reason" placeholder="Məs. AKB-də aktiv gecikmə, borc yükü 64%"></textarea></label>
-            <div class="actions"><button class="btn danger" type="button" id="reject" ${["review","offer"].includes(a.status)?"":"disabled"}>Müraciəti rədd et</button></div>
+            <div class="actions"><button class="btn danger" type="button" id="reject" ${["review","info","offer"].includes(a.status)?"":"disabled"}>Müraciəti rədd et</button></div>
             ${open?"":`<p class="muted" style="margin:10px 0 0;font-size:12.5px">Müraciət bağlanıb, qərar dəyişdirilə bilməz.</p>`}
           </div>
         </div>
@@ -995,18 +1001,20 @@ function renderDetail(){
   creditCalc();
   if(!has("apps.assess"))$("#aForm").querySelectorAll("input,select,textarea,button").forEach(el=>el.disabled=true);
   if(!has("apps.offer"))$("#sendOffer").disabled=true;
+  if(!has("apps.assess")){$("#askInfo").disabled=true;$("#infoText").disabled=true}
   if(!has("apps.reject")){$("#reject").disabled=true;$("#reason").disabled=true;$("#rejectCode").disabled=true}
   if(!has("apps.offer")&&!has("apps.reject"))$("#sendOffer").closest(".panel").insertAdjacentHTML("beforeend",`<p class="muted" style="margin:10px 0 0;font-size:12.5px">Qərar vermək üçün icazən yoxdur.</p>`);
   if(!has("apps.notes"))$("#nForm").hidden=true;
   if(!has("docs.view"))document.querySelectorAll("[data-file]").forEach(b=>{b.disabled=true;b.title="Sənədləri açmaq üçün icazən yoxdur"});
   if($("#akbBox"))tipOn($("#akbBox"));
 }
-const EV_IC={bureau:["shield",""],created:["inbox",""],assessed:["gauge",""],offer:["send",""],rejected:["x","k-bad"],note:["pen",""],accepted:["check","k-ok"],declined:["x","k-bad"],cancelled:["x","k-bad"],sms:["msg","k-sms"]};
+const EV_IC={info_request:["msg",""],info_reply:["inbox","k-ok"],bureau:["shield",""],created:["inbox",""],assessed:["gauge",""],offer:["send",""],rejected:["x","k-bad"],note:["pen",""],accepted:["check","k-ok"],declined:["x","k-bad"],cancelled:["x","k-bad"],sms:["msg","k-sms"]};
 function evHtml(e){
   const d=e.details||{};
   const extra=e.kind==="bureau"?`${d.score} bal, ${d.grade} · ${Scoring.VERDICTS[d.verdict]||""} · aylıq borc ${azn(d.debtMonthly||0)}${d.flags?` · ${d.flags} xəbərdarlıq`:""}`:e.kind==="assessed"?`${d.score} bal, ${d.grade} · ${Scoring.VERDICTS[d.verdict]||""}`:
     e.kind==="offer"?`${azn(d.price)}, ilkin ${d.downPct}%, ${d.months} ay, illik ${d.rate}%`:
     e.kind==="rejected"?d.reason:e.kind==="note"?d.text:e.kind==="sms"?(d.error?"Göndərilmədi: "+d.error:d.text)+(d.demo?" (SMS provayderi qoşulmayıb, göndərilmədi)":""):
+    e.kind==="info_request"?d.text:e.kind==="info_reply"?[d.text,d.files?`${d.files} sənəd`:""].filter(Boolean).join(" · "):
     e.kind==="created"?`${d.files||0} sənəd`:e.kind==="accepted"&&d.downPct!=null?`ilkin ödəniş ${d.downPct}%`:"";
   const [ic,cls]=EV_IC[e.kind]||["clock",""];
   const title=e.kind==="sms"?`SMS${d.to?" → "+d.to:""}`:EVENTS[e.kind]||e.kind;
@@ -1075,6 +1083,10 @@ document.addEventListener("click",async e=>{
     if(!confirmInline(b,"Silməyi təsdiqlə: "+cur.id))return;
     try{await api(`/applications/${encodeURIComponent(cur.id)}`,{method:"DELETE",body:JSON.stringify({reason})});toast(`Müraciət ${cur.id} silindi`);
       cur=null;$("#shell").classList.remove("open");await loadList();renderHome()}catch(err){toast(err.message)}}
+  if(b.id==="askInfo"){
+    const text=$("#infoText").value.trim();if(text.length<5){toast("Müştəridən nə tələb olunduğunu yaz.");$("#infoText").focus();return}
+    try{await api(`/applications/${encodeURIComponent(cur.id)}/request-info`,{method:"POST",body:JSON.stringify({text})});
+      toast("Sorğu müştəriyə SMS ilə göndərildi");await openApp(cur.id);loadList()}catch(err){toast(err.message)}}
   if(b.id==="reject"){
     const code=$("#rejectCode").value;if(!code){toast("Müştəriyə göstəriləcək səbəbi seç.");$("#rejectCode").focus();return}
     const reason=$("#reason").value.trim();if(!reason){toast("Daxili qeydi yaz.");$("#reason").focus();return}

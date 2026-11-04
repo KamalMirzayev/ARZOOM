@@ -126,3 +126,5 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_by  TEXT,
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Müraciət nömrəsi: ardıcıl, 1001-dən başlayır
+CREATE SEQUENCE IF NOT EXISTS application_no_seq START 1001;

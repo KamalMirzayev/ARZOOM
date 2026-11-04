@@ -370,7 +370,6 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-si
             <button type="button" class="btn ghost sm" id="resend" disabled>Kodu yenidən göndər</button>
             <span class="hint" id="otpTimer"></span>
           </div>
-          <div class="note warn" id="otpDemo"></div>
         </div>
 
         <div class="btns" style="margin-top:28px">
@@ -421,12 +420,11 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-si
       </div>
       <span class="hint" id="fInfo" hidden></span>
       <span class="err-msg" id="fErr" hidden></span>
-      <div class="note warn" id="fDemo" hidden></div>
     </form>
     <div class="apps" id="apps"></div>
   </section>
 
-  <footer>Bu səhifə prototipdir. Müraciət məlumatları heç yerə göndərilmir və SMS real deyil, hər şey yalnız bu brauzerdə saxlanılır. Təklifdəki rəqəmlər nümunədir.</footer>
+  <footer>Müraciətlər Arzoom Avto MMC-nin serverinə göndərilir.</footer>
 </div>
 
 
@@ -520,7 +518,7 @@ const heroCar=t=>{
 const BODYNAME={sedan:"Sedan",hatch:"Hetçbek",suv:"Krossover / SUV",pickup:"Pikap",van:"Miniven / furqon",sport:"İdman"};
 const FILTERS=[["all","Hamısı"],["sedan","Sedan"],["hatch","Hetçbek"],["suv","SUV"],["pickup","Pikap"],["van","Miniven"],["sport","İdman"],["e","Elektrik / hibrid"]];
 
-/* ---------- catalogue: [model, body, powertrain (H hibrid, P plug-in, E elektrik), sample price ₼ for the demo offer] ---------- */
+/* ---------- catalogue: [model, body, powertrain (H hibrid, P plug-in, E elektrik), sample price ₼ for the sample offer] ---------- */
 const CATALOG={
   "Toyota":[["Yaris","hatch","H",34900],["Yaris Cross","suv","H",42900],["Corolla","sedan","H",46900],["Corolla Cross","suv","H",54900],["Camry","sedan","H",79900],["Crown","sedan","H",99000],["Prius","hatch","P",64900],["C-HR","suv","H",56900],["RAV4","suv","H",69900],["bZ4X","suv","E",74900],["Highlander","suv","H",104900],["Grand Highlander","suv","H",119000],["Fortuner","suv","",84900],["Land Cruiser Prado","suv","",129000],["Land Cruiser 300","suv","",219000],["Sequoia","suv","H",189000],["4Runner","suv","",109000],["Hilux","pickup","",74900],["Tacoma","pickup","",89900],["Tundra","pickup","H",139000],["Sienna","van","H",99000],["Alphard","van","H",179000],["Hiace","van","",79900],["GR86","sport","",79900],["GR Supra","sport","",139000]],
   "Mitsubishi":[["Mirage","hatch","",24900],["Attrage","sedan","",26900],["ASX","suv","",39900],["Xforce","suv","",41900],["Eclipse Cross","suv","",49900],["Outlander","suv","",62900],["Outlander PHEV","suv","P",79900],["Xpander","van","",37900],["Pajero Sport","suv","",72900],["Pajero","suv","",79900],["L200 / Triton","pickup","",62900],["Destinator","suv","",54900]],
@@ -535,7 +533,7 @@ const PT={H:"hibrid",P:"plug-in",E:"elektrik"};
 
 /* ---------- state ---------- */
 const STEPS=["Şəxsiyyət","Gəlir","Avtomobil","Yoxlama","SMS təsdiq"];
-let step=0, otp="", otpT=null, brand="Toyota", model=null, filter="all", q="";
+let step=0, otpT=null, brand="Toyota", model=null, filter="all", q="";
 const INC=[
   {k:"work",t:"Rəsmi iş yeri",h:"Əmək müqaviləsi ilə işləyirəm",d:"Əmək haqqı arayışı və ya bank çıxarışı"},
   {k:"informal",t:"Qeyri-rəsmi iş yeri",h:"Rəsmi müqaviləsiz işləyirəm",d:"Debet kartdan son 12 ayın çıxarışı",req:true},
@@ -610,16 +608,12 @@ function renderSide(){
 /* ---------- OTP ---------- */
 const otpVal=()=>$$("#otp input").map(i=>i.value).join("");
 function startOtp(){
-  otp="123456";
   $("#otpPhone").textContent=phoneFull();
   $("#otp").innerHTML=Array.from({length:6},(_,i)=>`<input class="inp" id="otp${i}" inputmode="numeric" maxlength="6" aria-label="Rəqəm ${i+1}" ${i===0?'autocomplete="one-time-code"':""}>`).join("");
-  if(API){otp="";$("#otpDemo").hidden=true;
-    fetch("/api/otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({phone:phoneFull()})})
-      .then(r=>r.json().then(j=>({ok:r.ok,j}))).then(({ok,j})=>{if(!ok){err("otp",true,j.error);return}
-        if(j.demoCode){otp=j.demoCode;$("#otpDemo").hidden=false;$("#otpDemo").textContent=`Sınaq rejimi: SMS provayderi qoşulana qədər kod ${j.demoCode}.`}})
-      .catch(()=>err("otp",true,"Kod göndərilmədi. Yenidən cəhd et."))}
-  else $("#otpDemo").textContent=`Prototip: real SMS göndərilmir. Sınaq üçün kod ${otp}.`;
   err("otp",false);
+  fetch("/api/otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({phone:phoneFull()})})
+    .then(r=>r.json().then(j=>({ok:r.ok,j}))).then(({ok,j})=>{if(!ok)err("otp",true,j.error||"Kod göndərilmədi. Yenidən cəhd et.")})
+    .catch(()=>err("otp",true,"Server ilə əlaqə yoxdur. Səhifəni yenilə və ya bir az sonra yenidən cəhd et."));
   let left=60;$("#resend").disabled=true;clearInterval(otpT);
   const tick=()=>{$("#otpTimer").textContent=left>0?`Yeni kod ${left} saniyədən sonra istənə bilər.`:"";if(left--<=0){clearInterval(otpT);$("#resend").disabled=false}};
   tick();otpT=setInterval(tick,1000);
@@ -655,7 +649,7 @@ function validate(){
     INC.forEach(s=>{if(s.req&&inc[s.k]?.on)bad|=err("doc-"+s.k,!(inc[s.k].files||[]).length)})}
   if(step===2) bad|=err("model",!model);
   if(step===0) bad|=err("cConsent",!$("#cConsent").checked);
-  if(step===4){const b=API?otpVal().length!==6:otpVal()!==otp;err("otp",b);$$("#otp input").forEach(i=>i.classList.toggle("err",b));bad|=b}
+  if(step===4){const b=otpVal().length!==6;err("otp",b);$$("#otp input").forEach(i=>i.classList.toggle("err",b));bad|=b}
   if(bad){const f=$("#appForm .inp.err");f&&f.focus()}
   return !bad;
 }
@@ -668,10 +662,9 @@ const saveApps=()=>{try{localStorage.setItem("arzoom-apps4",JSON.stringify(apps)
 let API=false, sending=false;
 const FILES={};
 fetch("/api/health").then(r=>r.ok?r.json():null).then(j=>{if(j&&j.ok){API=true;
-  $("footer").textContent="Müraciətlər Arzoom Avto MMC-nin serverinə göndərilir."+(j.demoSms?" SMS provayderi hələ qoşulmayıb: təsdiq kodu ekranda göstərilir.":"");
   if(!$("#view-mine").hidden)syncApps()}}).catch(()=>{});
 async function submitApp(){
-  if(!API)return submitLocal();
+  if(!API)return err("otp",true,"Server ilə əlaqə yoxdur. Səhifəni yenilə və ya bir az sonra yenidən cəhd et.");
   if(sending)return; sending=true; $("#nextBtn").disabled=true; $("#nextBtn").textContent="Göndərilir...";
   const fd=new FormData();
   fd.append("fin",$("#aFin").value.trim().toUpperCase());fd.append("idSeries",$("#aIdSer").value);fd.append("idNumber",$("#aIdNo").value.trim());fd.append("birthDate",dobIso());
@@ -781,12 +774,11 @@ function show(v){
 
 
 /* ---------- find an application: number + FİN + SMS code ---------- */
-let findStage=0, findOtp="";
+let findStage=0;
 const fmtPhone=p=>{p=String(p).replace(/\D/g,"");return `+${p.slice(0,3)} ${p.slice(3,5)} ${p.slice(5)}`};
-function findMsg(err,info,demo){
+function findMsg(err,info){
   $("#fErr").hidden=!err;$("#fErr").textContent=err||"";
   $("#fInfo").hidden=!info;$("#fInfo").textContent=info||"";
-  $("#fDemo").hidden=!demo;$("#fDemo").textContent=demo||"";
 }
 function findReset(){findStage=0;$("#findA").hidden=false;$("#findB").hidden=true;$("#fCode").value="";findMsg()}
 function appFromServer(j,token){
@@ -809,25 +801,21 @@ $("#find").addEventListener("submit",async e=>{
     if(!/^[0-9A-Z]{7}$/.test(fin))return findMsg("FİN kod 7 simvoldan ibarətdir.");
     $("#fSend").disabled=true;
     try{
-      let phone,demo;
-      if(API){const r=await fetch("/api/lookup/otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,fin})});const j=await r.json();
-        if(!r.ok)return findMsg(j.error||"Kod göndərilmədi.");phone=j.phone;demo=j.demoCode?`Sınaq rejimi: SMS provayderi qoşulana qədər kod ${j.demoCode}.`:""}
-      else{const a=apps.find(x=>x.id===id&&x.fin===fin);if(!a)return findMsg("Bu nömrə və FİN ilə müraciət tapılmadı.");
-        phone=a.phone;findOtp="123456";demo=`Prototip: real SMS göndərilmir. Sınaq üçün kod ${findOtp}.`}
-      findStage=1;$("#findA").hidden=true;$("#findB").hidden=false;findMsg("",`Kod ${phone} nömrəsinə göndərildi. 5 dəqiqə etibarlıdır.`,demo);
+      const r=await fetch("/api/lookup/otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,fin})});const j=await r.json();
+      if(!r.ok)return findMsg(j.error||"Kod göndərilmədi.");
+      findStage=1;$("#findA").hidden=true;$("#findB").hidden=false;findMsg("",`Kod ${j.phone} nömrəsinə göndərildi. 5 dəqiqə etibarlıdır.`);
       setTimeout(()=>$("#fCode").focus(),50);
     }catch(e){findMsg("Bağlantı xətası. Yenidən cəhd et.")}finally{$("#fSend").disabled=false}
     return;
   }
   const code=$("#fCode").value.replace(/\D/g,"");
-  if(code.length!==6)return findMsg("6 rəqəmli kodu yaz.",$("#fInfo").textContent,$("#fDemo").textContent);
+  if(code.length!==6)return findMsg("6 rəqəmli kodu yaz.",$("#fInfo").textContent);
   $("#fVerify").disabled=true;
   try{
-    if(API){const r=await fetch("/api/lookup/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,fin,code})});const j=await r.json();
-      if(!r.ok)return findMsg(j.error||"Kod yanlışdır.",$("#fInfo").textContent,$("#fDemo").textContent);
-      if(j.application.status==="cancelled"){findReset();return findMsg("Bu müraciət ləğv edilib.")}
-      apps=apps.filter(x=>x.id!==j.application.id);apps.unshift(appFromServer(j.application,j.token));saveApps()}
-    else if(code!==findOtp)return findMsg("Kod yanlışdır. Yenidən yoxla.",$("#fInfo").textContent,$("#fDemo").textContent);
+    const r=await fetch("/api/lookup/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,fin,code})});const j=await r.json();
+    if(!r.ok)return findMsg(j.error||"Kod yanlışdır.",$("#fInfo").textContent);
+    if(j.application.status==="cancelled"){findReset();return findMsg("Bu müraciət ləğv edilib.")}
+    apps=apps.filter(x=>x.id!==j.application.id);apps.unshift(appFromServer(j.application,j.token));saveApps();
     showFound(id);
   }catch(e){findMsg("Bağlantı xətası. Yenidən cəhd et.")}finally{$("#fVerify").disabled=false}
 });
@@ -934,7 +922,7 @@ $("#otp").addEventListener("input",e=>{
   const i=e.target,ins=$$("#otp input"),ix=ins.indexOf(i),d=i.value.replace(/\D/g,"");
   if(d.length>1){d.slice(0,6-ix).split("").forEach((c,k)=>{if(ins[ix+k])ins[ix+k].value=c});ins[Math.min(5,ix+d.length-1)].focus()}
   else{i.value=d;if(d&&ix<5)ins[ix+1].focus()}
-  if(otpVal().length===6&&(API||otpVal()===otp)&&!sending)$("#appForm").requestSubmit();
+  if(otpVal().length===6&&!sending)$("#appForm").requestSubmit();
 });
 $("#otp").addEventListener("keydown",e=>{const ins=$$("#otp input"),ix=ins.indexOf(e.target);if(e.key==="Backspace"&&!e.target.value&&ix>0)ins[ix-1].focus()});
 

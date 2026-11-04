@@ -19,8 +19,20 @@ curl -fsS "$B/admin" | grep -c "Qiymətləndirmə" >/dev/null
 curl -fsS "$B/admin/scoring.js" | grep -c "assess" >/dev/null
 echo "✓ səhifələr"
 
+# There is no test code in the app: SMS codes are random and only sent by SMS. The test writes a code
+# straight into otp_codes, hashed the way the server hashes it (needs the server's DATABASE_URL and OTP_SECRET).
+seed() { # $1 phone, $2 code
+  node -e 'const c=require("crypto"),{Client}=require("pg");const [p,k]=process.argv.slice(1);
+    const h=c.createHmac("sha256",process.env.OTP_SECRET).update(p+":"+k).digest("hex"),db=new Client({connectionString:process.env.DATABASE_URL});
+    db.connect().then(()=>db.query("INSERT INTO otp_codes (phone, code_hash, expires_at, attempts) VALUES ($1,$2, now() + interval '"'"'5 minutes'"'"', 0) ON CONFLICT (phone) DO UPDATE SET code_hash = EXCLUDED.code_hash, expires_at = EXCLUDED.expires_at, attempts = 0",[p,h])).then(()=>db.end())' "$1" "$2"
+}
+: "${OTP_SECRET:?OTP_SECRET lazımdır}" "${DATABASE_URL:?DATABASE_URL lazımdır}"
+SMS_ON=$(curl -fsS "$B/api/health" | J sms)
+if [ "$SMS_ON" = false ]; then
+  [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/otp" -H "Content-Type: application/json" -d '{"phone":"994501112233"}')" = 503 ] || fail; echo "✓ SMS provayderi yoxdursa kod verilmir (sınaq kodu yoxdur)"
+fi
 apply() { # $1 phone, $2 file
-  local code; code=$(curl -fsS -X POST "$B/api/otp" -H "Content-Type: application/json" -d "{\"phone\":\"$1\"}" | J demoCode)
+  local code; code=$(printf "%06d" $((RANDOM * RANDOM % 1000000))); seed "$1" "$code"
   curl -sS -X POST "$B/api/applications" -F fin=5ABC12D -F idSeries=AZE -F idNumber=12345678 -F birthDate=1990-05-17 -F phone="$1" \
     -F incomeSources=work,biz -F voen=1234567890 -F brand=Toyota -F model=Camry -F consent=true -F consentText=ok \
     -F guarantor=yes -F otp="$code" -F "file_work=@$2;type=application/pdf"
@@ -74,10 +86,10 @@ curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID2/notes" -d '{"text":"
 curl -fsS "${H[@]}" "$B/api/admin/stats" | grep -c '"accepted"' >/dev/null || fail; echo "✓ statistika"
 # Başqa cihazdan: nömrə + FİN + SMS kodu
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/lookup/otp" -H "Content-Type: application/json" -d "{\"id\":\"$ID2\",\"fin\":\"0000000\"}")" = 404 ] || fail; echo "✓ yanlış FİN tapılmır"
-L=$(curl -fsS -X POST "$B/api/lookup/otp" -H "Content-Type: application/json" -d "{\"id\":\"$ID2\",\"fin\":\"5abc12d\"}")
-echo "$L" | grep -c '\*\*\*' >/dev/null || fail
+[ "$SMS_ON" = true ] || [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/lookup/otp" -H "Content-Type: application/json" -d "{\"id\":\"$ID2\",\"fin\":\"5abc12d\"}")" = 503 ] || fail
+seed 994501112235 482913
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/lookup/verify" -H "Content-Type: application/json" -d "{\"id\":\"$ID2\",\"fin\":\"5ABC12D\",\"code\":\"000000\"}")" = 401 ] || fail; echo "✓ yanlış kod 401"
-V=$(curl -fsS -X POST "$B/api/lookup/verify" -H "Content-Type: application/json" -d "{\"id\":\"$ID2\",\"fin\":\"5ABC12D\",\"code\":\"$(echo "$L" | J demoCode)\"}")
+V=$(curl -fsS -X POST "$B/api/lookup/verify" -H "Content-Type: application/json" -d "{\"id\":\"$ID2\",\"fin\":\"5ABC12D\",\"code\":\"482913\"}")
 NT=$(echo "$V" | J token); [ "$(echo "$V" | J application.status)" = rejected ] || fail
 [ "$(curl -fsS -H "x-app-token: $NT" "$B/api/applications/$ID2" | J id)" = "$ID2" ] || fail; echo "✓ nömrə + FİN + SMS ilə giriş"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-app-token: $NT" "$B/api/applications/$ID")" = 401 ] || fail; echo "✓ açar yalnız öz müraciətini açır"

@@ -24,7 +24,7 @@ PostgreSQL internetə açılmır, ona yalnız tətbiq konteyneri qoşulur. Sayt 
 | Metod | Yol | Nə edir |
 |---|---|---|
 | GET | `/api/health` | Tətbiq və baza işləyirmi |
-| POST | `/api/otp` | SMS kodu yaradır (`DEMO_SMS=true` olanda kod cavabda qaytarılır) |
+| POST | `/api/otp` | Təsadüfi kod yaradır və SMS ilə göndərir (provayder qoşulmayıbsa 503) |
 | POST | `/api/applications` | Müraciəti və sənədləri saxlayır, SMS kodunu yoxlayır |
 | GET | `/api/applications/:id?fin=` | Müştəri öz müraciətinin statusunu görür |
 | POST | `/api/applications/:id/cancel` | Müraciəti ləğv edir |
@@ -114,7 +114,7 @@ Softline (gw.soft-line.az) hazır qoşulur. Açar repoya yazılmır, yalnız ser
 curl -fsSL https://raw.githubusercontent.com/KamalMirzayev/ARZOOM/main/deploy/install.sh | sudo SOFTLINE_USER='...' SOFTLINE_KEY='...' bash
 cd /opt/arzoom && docker compose exec app node sms-test.js 994XXXXXXXXX   # yoxlama SMS-i
 ```
-`SOFTLINE_SENDER` verilməsə, göndərən adı `Arzoomavto` olur. Softline qoşulan kimi demo rejimi (sabit 123456 kodu) öz-özünə sönür.
+`SOFTLINE_SENDER` verilməsə, göndərən adı `Arzoomavto` olur. Sınaq kodu yoxdur: kod yalnız SMS ilə gedir, provayder qoşulmayıbsa müştəri müraciət göndərə bilmir.
 
 Başqa provayder üçün `/opt/arzoom/.env` faylına provayderin ünvanını yaz, `{phone}` və `{text}` avtomatik doldurulur:
 ```bash
@@ -124,7 +124,7 @@ SMS_URL=https://sms.provider.az/send?login=LOGIN&key=KEY&msisdn={phone}&text={te
 # SMS_BODY={"to":"{phone}","message":"{text}"}
 # SMS_HEADERS={"Authorization":"Bearer TOKEN","Content-Type":"application/json"}
 ```
-Sonra `cd /opt/arzoom && docker compose up -d`. `SMS_URL` olan kimi demo rejimi öz-özünə sönür.
+Sonra `cd /opt/arzoom && docker compose up -d`.
 
 ## Domen
 1. DNS-də `A` qeydi: `lizinq.arzoom.az → 91.107.161.76`.

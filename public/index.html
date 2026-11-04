@@ -716,7 +716,7 @@ function figsHtml(a){
     <div class="big">${grp(o.pmt)}<small>₼ / ay</small></div>
     <div class="muted" style="margin-top:6px">${o.n} ay · illik ${o.rate}%</div>
     ${save>=1?`<span class="save">İlkin təklifdən ${grp(save)} ₼ az</span>`:""}
-    <div class="kv">${kvHtml([["Avtomobilin qiyməti",azn(o.price)],[`İlkin ödəniş, ${o.downPct}%`,azn(o.down)],["Maliyyələşmə məbləği",azn(o.F)],["Birdəfəlik komissiya",azn(o.comm)],["Ümumi faiz xərci",azn(o.pmt*o.n-o.F)]])}</div>`;
+    <div class="kv">${kvHtml([["Avtomobilin qiyməti",azn(o.price)],[`İlkin ödəniş, ${o.downPct}%`,azn(o.down)],["İlkin kredit məbləği",azn(o.F)],["Birdəfəlik komissiya",azn(o.comm)],["Ümumi faiz xərci",azn(o.pmt*o.n-o.F)]])}</div>`;
 }
 const schedHtml=o=>schedRows(o).map(r=>`<tr><td>${r[0]}</td><td>${m2(r[1])}</td><td>${m2(r[2])}</td><td>${m2(r[3])}</td><td>${m2(r[4])}</td></tr>`).join("");
 function schedRows(o){let bal=o.F;const r=o.rate/100/12,rows=[];for(let t=1;t<=o.n;t++){const i=bal*r,pr=o.pmt-i;bal-=pr;rows.push([t,o.pmt,pr,i,Math.max(0,bal)])}return rows}

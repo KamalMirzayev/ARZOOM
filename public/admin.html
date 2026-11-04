@@ -173,7 +173,7 @@ main{padding:26px clamp(18px,2.4vw,34px) 40px;min-width:0;max-width:1240px}
 .appno .btn{font-family:var(--f-body)}
 .car2{font-family:var(--f-display);font-stretch:100%;font-weight:700;font-size:17px;margin-top:4px}
 .hero .sub{color:var(--muted);font-size:13px;margin-top:4px}
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
 .stat{background:var(--raised);border-radius:12px;padding:12px 14px;border:1px solid var(--line)}
 .stat small{color:var(--muted);font-size:11.5px;display:block}
 .stat b{font-family:var(--f-display);font-stretch:100%;font-size:20px;font-weight:800;display:block;margin-top:2px;white-space:nowrap}
@@ -874,6 +874,7 @@ function renderDetail(){
       <div class="stat"><small>Skor</small><b>${res?`${res.score} <span class="grade g-${res.grade}">${res.grade}</span>`:"—"}</b></div>
       <div class="stat"><small>Avtomobilin qiyməti</small><b>${price?azn(price):"—"}</b></div>
       <div class="stat"><small>İlkin ödəniş${fin?" (son)":""}</small><b>${dp!=null&&price?`${dp}% · ${azn(price*dp/100)}`:"—"}</b></div>
+      <div class="stat"><small>İlkin kredit məbləği</small><b>${dp!=null&&price?azn(price*(1-dp/100)):"—"}</b></div>
       <div class="stat"><small>Aylıq ödəniş</small><b>${pay?azn(pay):"—"}</b></div>
     </div>
     ${steps(a)}
@@ -891,7 +892,7 @@ function renderDetail(){
         <dt>Razılıq</dt><dd>${dt(a.consent_at)} · IP ${esc(a.client_ip||"—")}</dd>
         ${o?`<dt>Təklif</dt><dd>${azn(o.price)}, ilkin ${o.downPct}%, ${o.months} ay, illik ${o.rate}%</dd>`:""}
       </dl>
-      ${fin?`<div class="callout">Müştəri son təklifi təsdiqlədi<small>İlkin ödəniş ${fin.downPct}% · ${azn(o.price*fin.downPct/100)} · aylıq ${azn(pay)} · ${dt(fin.at)}</small></div>`:""}
+      ${fin?`<div class="callout">Müştəri son təklifi təsdiqlədi<small>İlkin ödəniş ${fin.downPct}% · ${azn(o.price*fin.downPct/100)} · kredit ${azn(o.price*(1-fin.downPct/100))} · aylıq ${azn(pay)} · ${dt(fin.at)}</small></div>`:""}
       ${a.reject_reason?`<div class="callout bad">İmtina səbəbi<small>${a.reject_public?`Müştəriyə: ${esc(a.reject_public)}<br>`:""}Daxili: ${esc(a.reject_reason)}</small></div>`:""}
     </section>
     <section class="panel">${ph("doc","Gəlir sənədləri",`<span class="muted" style="font-size:12px">${a.files.length} fayl</span>`)}

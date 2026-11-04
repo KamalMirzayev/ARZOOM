@@ -701,12 +701,6 @@ function submitLocal(serverId,token){
     brand,model,body:m[1],price:m[3],src:incNames(),voen:voen(),docs:docCount(),state:"review",token});
   saveApps();step=0;$("#cConsent").checked=false;clearInterval(otpT);show("mine");
 }
-/* sample offer until real terms are agreed: 20% down, 36 months, 17% */
-function makeOffer(a){
-  const down=Math.round(a.price*0.2),F=a.price-down,rate=17,n=36,r=rate/100/12;
-  a.offer={price:a.price,downPct:20,commPct:1.5,down,F,rate,n,pmt:F*r/(1-Math.pow(1+r,-n)),comm:Math.round(F*0.015),at:new Date().toISOString()};
-  a.state="offer";
-}
 const DP_MAX=70;
 // Recomputes the offer for the down payment the customer chose (never below what was offered).
 function offerAt(o,dp){
@@ -777,7 +771,7 @@ function renderApps(){
           <div class="review">${kvHtml([["FİN kod",a.fin],["Şəxsiyyət vəsiqəsi",a.idc],["Gəlir mənbəyi",a.src],...(a.voen?[["VÖEN",a.voen]]:[]),["Sənədlər",a.docs+" yüklənib"]])}</div>
           <ol class="tl">${shown.map(([b,s],i)=>{const c=stepCls(i);return `<li class="${c}"><span class="dot">${c==="bad"?"✕":c==="ok"||c==="done"?"✓":""}</span><span><b>${b}</b><small>${esc(s)}</small></span></li>`}).join("")}</ol>
         </div>
-        <div class="stack" style="gap:16px">${a.state==="info"?infoHtml(a):a.state==="rejected"?`<div class="waiting"><h3>Müraciət təsdiqlənmədi</h3><p style="margin:0">${esc(a.rejectWhy||"Müraciət lizinq şərtlərimizə uyğun gəlmir.")} Sualın olarsa, *5665 nömrəsinə zəng et.</p></div>`:a.offer?offerHtml(a):`<div class="waiting"><svg viewBox="0 0 122 46" style="width:150px;height:56px;color:var(--line-2)" aria-hidden="true">${carSvg(a.body)}</svg><h3>Cavab gözlənilir</h3><p style="margin:0">Təklif hazır olanda aylıq ödəniş və qrafik burada açılacaq.</p>${API?"":`<button type="button" class="btn ghost sm" data-sim="${a.id}">Demo: təklifi göstər</button>`}</div>`}</div>
+        <div class="stack" style="gap:16px">${a.state==="info"?infoHtml(a):a.state==="rejected"?`<div class="waiting"><h3>Müraciət təsdiqlənmədi</h3><p style="margin:0">${esc(a.rejectWhy||"Müraciət lizinq şərtlərimizə uyğun gəlmir.")} Sualın olarsa, *5665 nömrəsinə zəng et.</p></div>`:a.offer?offerHtml(a):`<div class="waiting"><svg viewBox="0 0 122 46" style="width:150px;height:56px;color:var(--line-2)" aria-hidden="true">${carSvg(a.body)}</svg><h3>Cavab gözlənilir</h3><p style="margin:0">Təklif hazır olanda aylıq ödəniş və qrafik burada açılacaq.</p></div>`}</div>
       </div>
       ${["review","info","offer"].includes(a.state)?`<div style="margin-top:18px"><button type="button" class="btn ghost sm" data-del="${a.id}">Müraciəti ləğv et</button></div>`:""}</article>`}).join("");
 }
@@ -856,7 +850,6 @@ document.addEventListener("click",e=>{
   if(b.dataset.brand){if(brand!==b.dataset.brand){brand=b.dataset.brand;model=null;filter="all";q="";$("#mSearch").value=""}renderBrands();renderModels();renderSide()}
   if(b.dataset.filter){filter=b.dataset.filter;renderBrands();renderModels()}
   if(b.dataset.model){model=b.dataset.model;err("model",false);renderModels();renderSide()}
-  if(b.dataset.sim){makeOffer(A(b.dataset.sim));saveApps();renderApps()}
   const decide=async(id,d)=>{const a=A(id),dp=chosenDp(a);
     if(API){try{const r=await fetch(`/api/applications/${encodeURIComponent(a.id)}/decision`,{method:"POST",headers:{"Content-Type":"application/json","x-app-token":a.token||""},body:JSON.stringify({decision:d,downPct:dp})});
       if(!r.ok){const j=await r.json().catch(()=>({}));b.textContent=j.error||"Xəta baş verdi";return}}catch(e){b.textContent="Bağlantı xətası";return}}

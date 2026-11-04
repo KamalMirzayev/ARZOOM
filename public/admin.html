@@ -1046,7 +1046,7 @@ function confirmInline(b,text){
 }
 
 if(token)start().catch(()=>{});
-setInterval(()=>{if(token&&!$("#app").hidden)loadList().catch(()=>{})},60000);
+setInterval(()=>{if(token&&!$("#app").hidden)loadList().catch(()=>{})},20000);
 </script>
 </body>
 </html>

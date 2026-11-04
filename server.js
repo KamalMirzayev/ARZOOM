@@ -126,13 +126,13 @@ async function announceAccepted(id) {
       : `Arzoom Avto: Müraciət № ${id} anderraytinq üçün. Müştəri son təklifi təsdiqlədi: ${a.brand} ${a.model}, ${terms}.${panel}`, u.name))
   ]);
 }
-// A new application goes by SMS to every active risk expert and sales manager with a phone on file.
+// A new application goes by SMS to every active admin, risk expert and sales manager with a phone on file.
 // The text carries no FİN or customer phone: staff open the panel for the details.
 async function announceNew(id) {
   const { rows } = await pool.query("SELECT brand, model, income_sources FROM applications WHERE id = $1", [id]);
   const a = rows[0]; if (!a) return;
   const panel = SITE_URL ? ` Panel: ${SITE_URL}/admin` : "";
-  const staff = await pool.query("SELECT name, phone FROM staff_users WHERE active AND phone IS NOT NULL AND role IN ('expert','sales')");
+  const staff = await pool.query("SELECT name, phone FROM staff_users WHERE active AND phone IS NOT NULL AND role IN ('admin','expert','sales')");
   const text = `Arzoom Avto: Yeni müraciət № ${id}. ${a.brand} ${a.model}, gəlir: ${a.income_sources.map(s => INCOME_NAMES[s] || s).join(", ")}.${panel}`;
   await Promise.all(staff.rows.map(u => notify(id, u.phone, text, u.name)));
 }

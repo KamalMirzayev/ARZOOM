@@ -99,6 +99,10 @@ curl -fsS -X POST "${H[@]}" "$B/api/admin/users" -d "{\"username\":\"$U\",\"name
 ES=$(curl -fsS -X POST "$B/api/admin/login" -H "Content-Type: application/json" -d "{\"username\":\"$U\",\"password\":\"Ekspert-Parol-1\"}" | J token)
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/users")" = 403 ] || fail
 curl -fsS -H "x-admin-token: $ES" "$B/api/admin/stats" >/dev/null || fail; echo "✓ ekspert hesabı: panel var, istifadəçi idarəsi yox"
+# SMS ayarı: yalnız admin, açar heç vaxt geri qaytarılmır, natamam forma rədd edilir
+[ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/settings/sms")" = 403 ] || fail
+SMSST=$(curl -fsS "${H[@]}" "$B/api/admin/settings/sms"); echo "$SMSST" | grep -q '"keySet"' || fail; echo "$SMSST" | grep -q '"key"' && fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/sms" -d '{"user":""}')" = 400 ] || fail; echo "✓ SMS ayarı: yalnız admin, açar gizli qalır"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE -H "x-admin-token: $ES" -H "Content-Type: application/json" "$B/api/admin/applications/$ID2" -d '{"reason":"test"}')" = 403 ] || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE "${H[@]}" "$B/api/admin/applications/$ID2" -d '{}')" = 400 ] || fail
 curl -fsS -X DELETE "${H[@]}" "$B/api/admin/applications/$ID2" -d '{"reason":"smoke test"}' >/dev/null || fail

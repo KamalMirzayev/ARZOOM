@@ -60,11 +60,11 @@ for i in $(seq 1 30); do
     w=$(get_env WEBSITE_ADDRESS || true); w=${w%% *}
     case "$w" in ""|http*) ;; *) w="https://$w" ;; esac
     [ -n "$w" ] && echo "Korporativ sayt: $w"
-    if [ -n "$(get_env SOFTLINE_KEY || true)" ] || [ -n "$(get_env SMS_URL || true)" ]; then
+    if docker compose exec -T app wget -qO- http://127.0.0.1:3000/api/health 2>/dev/null | grep -q '"sms":true'; then
       echo "SMS: qoşulub. Yoxlama: cd /opt/arzoom && docker compose exec app node sms-test.js 994XXXXXXXXX"
     else
       echo "DİQQƏT: SMS provayderi qoşulmayıb. Müştərilər SMS kodu ala bilməyəcək və müraciət göndərə bilməyəcək."
-      echo "Qoşmaq üçün: curl -fsSL https://raw.githubusercontent.com/KamalMirzayev/ARZOOM/main/deploy/install.sh | sudo SOFTLINE_USER='...' SOFTLINE_KEY='...' bash"
+      echo "Qoşmaq üçün: admin panel → İstifadəçilər → SMS provayderi bölməsinə Softline istifadəçi adı və açarını bir dəfə yazın."
     fi
     exit 0
   fi

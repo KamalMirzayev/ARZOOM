@@ -128,3 +128,5 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 -- Müraciət nömrəsi: ardıcıl, 1001-dən başlayır
 CREATE SEQUENCE IF NOT EXISTS application_no_seq START 1001;
+-- Əməkdaşın markaları: boşdursa bütün markalar, doludursa yalnız bu markaların müraciətləri və bildirişləri
+ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS brands TEXT[] NOT NULL DEFAULT '{}';

@@ -40,6 +40,8 @@ apply() { # $1 phone, $2 file
 # A sales manager with a phone gets the new-application SMS.
 SU="satis$RANDOM"
 curl -fsS -X POST "${H[@]}" "$B/api/admin/users" -d "{\"username\":\"$SU\",\"name\":\"Test Satış\",\"password\":\"Satis-Parol-12\",\"role\":\"sales\",\"phone\":\"50 111 22 33\"}" >/dev/null
+BU="byd$RANDOM"
+curl -fsS -X POST "${H[@]}" "$B/api/admin/users" -d "{\"username\":\"$BU\",\"name\":\"Test BYD\",\"password\":\"Satis-Parol-12\",\"role\":\"sales\",\"phone\":\"50 111 22 44\",\"brands\":[\"BYD\"]}" >/dev/null
 R=$(apply 994501112233 "$TMP/fake.pdf"); echo "$R" | grep -c "PDF və ya şəkil deyil" >/dev/null || fail; echo "✓ saxta fayl rədd edildi"
 R=$(apply 994501112234 "$TMP/arayis.pdf"); ID=$(echo "$R" | J id); TOK=$(echo "$R" | J token); echo "✓ müraciət $ID"
 R2=$(apply 994501112235 "$TMP/arayis.pdf"); ID2=$(echo "$R2" | J id); TOK2=$(echo "$R2" | J token)
@@ -102,6 +104,11 @@ curl -fsS -H "x-admin-token: $ES" "$B/api/admin/stats" >/dev/null || fail; echo 
 # Excel: admin yükləyir (ZIP/xlsx), ekspertin standart icazəsi yoxdur
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/export.xlsx" | head -c 2)" = "PK" ] || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/export.xlsx")" = 403 ] || fail; echo "✓ Excel-ə çıxarış: admin yükləyir, ekspert yox"
+# Marka: BYD satış mütəxəssisi Toyota müraciətini görmür və onun SMS-ini almır
+BS=$(curl -fsS -X POST "$B/api/admin/login" -H "Content-Type: application/json" -d "{\"username\":\"$BU\",\"password\":\"Satis-Parol-12\"}" | J token)
+curl -fsS -H "x-admin-token: $BS" "$B/api/admin/applications?status=" | grep -q "\"$ID\"" && fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $BS" "$B/api/admin/applications/$ID")" = 404 ] || fail
+curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q "Test BYD" && fail; echo "✓ marka üzrə bölgü: BYD mütəxəssisi Toyota müraciətini görmür, SMS almır"
 # SMS ayarı: yalnız admin, açar heç vaxt geri qaytarılmır, natamam forma rədd edilir
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/settings/sms")" = 403 ] || fail
 SMSST=$(curl -fsS "${H[@]}" "$B/api/admin/settings/sms"); echo "$SMSST" | grep -q '"keySet"' || fail; echo "$SMSST" | grep -q '"key"' && fail

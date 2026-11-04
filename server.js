@@ -120,7 +120,7 @@ async function announceAccepted(id) {
   const t = finalTerms(a.offer, a.offer.final.downPct);
   const terms = `ilkin ödəniş ${t.dp}% (${money(t.down)}), ilkin kredit məbləği ${money(t.credit)}, aylıq ${money(t.pay)}, ${t.months} ay`;
   const panel = SITE_URL ? ` Panel: ${SITE_URL}/admin` : "";
-  const staff = await pool.query("SELECT name, role, phone FROM staff_users WHERE active AND phone IS NOT NULL");
+  const staff = await pool.query("SELECT name, role, phone FROM staff_users WHERE active AND phone IS NOT NULL AND (role = 'admin' OR cardinality(brands) = 0 OR $1 = ANY(brands))", [a.brand]);
   await Promise.all([
     notify(id, a.phone, `Arzoom Avto: Müraciət № ${id}. Son təklifi təsdiqlədiniz: ${a.brand} ${a.model}, ${terms}. Müqavilə və avtomobilin təhvili üçün satış mütəxəssisi sizinlə əlaqə saxlayacaq.`),
     ...staff.rows.map(u => notify(id, u.phone, u.role === "sales"
@@ -134,7 +134,8 @@ async function announceNew(id) {
   const { rows } = await pool.query("SELECT brand, model, income_sources FROM applications WHERE id = $1", [id]);
   const a = rows[0]; if (!a) return;
   const panel = SITE_URL ? ` Panel: ${SITE_URL}/admin` : "";
-  const staff = await pool.query("SELECT name, phone FROM staff_users WHERE active AND phone IS NOT NULL AND role IN ('admin','expert','sales')");
+  const staff = await pool.query(
+    "SELECT name, phone FROM staff_users WHERE active AND phone IS NOT NULL AND role IN ('admin','expert','sales') AND (role = 'admin' OR cardinality(brands) = 0 OR $1 = ANY(brands))", [a.brand]);
   const text = `Arzoom Avto: Yeni müraciət № ${id}. ${a.brand} ${a.model}, gəlir: ${a.income_sources.map(s => INCOME_NAMES[s] || s).join(", ")}.${panel}`;
   await Promise.all(staff.rows.map(u => notify(id, u.phone, text, u.name)));
 }
@@ -362,17 +363,27 @@ const admin = (req, res, next) => adminFail(req, res, async () => {
     `UPDATE staff_sessions s SET last_seen = now() FROM staff_users u
      WHERE s.token_hash = $1 AND u.id = s.user_id AND u.active AND s.expires_at > now()
        AND s.last_seen > now() - make_interval(mins => $2::int)
-     RETURNING u.id, u.username, u.name, u.role, u.permissions`, [sha(t), STAFF_IDLE]);
+     RETURNING u.id, u.username, u.name, u.role, u.permissions, u.brands`, [sha(t), STAFF_IDLE]);
   if (!rows[0]) return bad(res, "Sessiya bitib, yenidən daxil ol.", 401);
   adminFail.forgive(req);
   req.perms = Perms.effective(rows[0]);
-  req.user = { id: rows[0].id, username: rows[0].username, name: rows[0].name, role: rows[0].role, permissions: req.perms };
+  // Brands: a staff member tied to brands (e.g. a BYD sales specialist) sees and is notified only about those brands. Admins see everything.
+  const brands = rows[0].role !== "admin" && rows[0].brands?.length ? rows[0].brands : null;
+  req.user = { id: rows[0].id, username: rows[0].username, name: rows[0].name, role: rows[0].role, permissions: req.perms, brands };
   req.staff = rows[0].name;
   next();
 });
+// Per-application routes: a brand-limited user gets 404 for another brand's application.
+const brandGate = async (req, res, next) => {
+  if (!req.user.brands) return next();
+  const r = await pool.query("SELECT 1 FROM applications WHERE id = $1 AND brand = ANY($2)", [req.params.id, req.user.brands]);
+  return r.rowCount ? next() : bad(res, "Müraciət tapılmadı.", 404);
+};
 const adminOnly = (req, res, next) => req.user.role === "admin" ? next() : bad(res, "Bu əməliyyat yalnız admin üçündür.", 403);
 const can = perm => (req, res, next) => req.perms.includes(perm) ? next() : bad(res, "Bu əməliyyat üçün icazən yoxdur.", 403);
 const ROLES = ["admin", "expert", "sales"];
+// Brands offered on the application form (public/index.html CATALOG). Staff can be tied to some of them.
+const BRANDS = ["Toyota", "Mitsubishi", "Mazda", "Ford", "Honda", "Subaru", "BYD"];
 // Optional staff mobile for notifications: empty clears it, otherwise 994XXXXXXXXX.
 function staffPhone(v) {
   if (v === undefined) return undefined;
@@ -445,9 +456,9 @@ app.post("/api/admin/settings/sms", admin, adminOnly, async (req, res) => {
 });
 
 app.get("/api/admin/users", admin, adminOnly, async (_req, res) => {
-  const { rows } = await pool.query("SELECT id, username, name, role, phone, permissions, active, created_at, last_login FROM staff_users ORDER BY created_at");
+  const { rows } = await pool.query("SELECT id, username, name, role, phone, permissions, brands, active, created_at, last_login FROM staff_users ORDER BY created_at");
   res.json({ users: rows.map(u => ({ ...u, custom: Array.isArray(u.permissions) && u.role !== "admin", permissions: Perms.effective(u) })),
-             catalog: Perms.PERMS, defaults: Perms.ROLE_DEFAULTS });
+             catalog: Perms.PERMS, defaults: Perms.ROLE_DEFAULTS, brands: BRANDS });
 });
 
 app.post("/api/admin/users", admin, adminOnly, async (req, res) => {
@@ -461,8 +472,8 @@ app.post("/api/admin/users", admin, adminOnly, async (req, res) => {
   const phone = staffPhone(b.phone ?? "");
   if (phone === null) return bad(res, "Mobil nömrə düzgün deyil. Məs. 50 123 45 67");
   const r = await pool.query(
-    "INSERT INTO staff_users (username, name, password_hash, role, phone) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (username) DO NOTHING RETURNING id",
-    [username, name, hashPassword(b.password), role, phone || null]);
+    "INSERT INTO staff_users (username, name, password_hash, role, phone, brands) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (username) DO NOTHING RETURNING id",
+    [username, name, hashPassword(b.password), role, phone || null, Array.isArray(b.brands) ? [...new Set(b.brands.filter(x => BRANDS.includes(x)))] : []]);
   if (!r.rowCount) return bad(res, "Bu istifadəçi adı artıq var.", 409);
   audit(req, req.user.username, "user.create", `${username} (${role})`);
   res.status(201).json({ id: r.rows[0].id });
@@ -479,16 +490,18 @@ app.post("/api/admin/users/:id", admin, adminOnly, async (req, res) => {
     `UPDATE staff_users SET
        active = COALESCE($2, active), role = COALESCE($3, role), password_hash = COALESCE($4, password_hash),
        phone = CASE WHEN $5::text IS NULL THEN phone ELSE NULLIF($5, '') END,
-       permissions = CASE WHEN $6 THEN $7::jsonb ELSE permissions END
+       permissions = CASE WHEN $6 THEN $7::jsonb ELSE permissions END,
+       brands = COALESCE($8::text[], brands)
      WHERE id = $1 RETURNING id`,
     [id, typeof b.active === "boolean" ? b.active : null, ROLES.includes(b.role) ? b.role : null,
      b.password != null ? hashPassword(b.password) : null, phone ?? null,
      // permissions: array sets a custom list, null goes back to the role's defaults
-     "permissions" in b, Perms.clean(b.permissions) ? JSON.stringify(Perms.clean(b.permissions)) : null]);
-  if ("permissions" in b) await pool.query("DELETE FROM staff_sessions WHERE user_id = $1 AND $1 <> $2", [id, req.user.id]).catch(() => {});
+     "permissions" in b, Perms.clean(b.permissions) ? JSON.stringify(Perms.clean(b.permissions)) : null,
+     Array.isArray(b.brands) ? [...new Set(b.brands.filter(x => BRANDS.includes(x)))] : null]);
+  if ("permissions" in b || "brands" in b) await pool.query("DELETE FROM staff_sessions WHERE user_id = $1 AND $1 <> $2", [id, req.user.id]).catch(() => {});
   if (!r.rowCount) return bad(res, "İstifadəçi tapılmadı.", 404);
   if (b.active === false || b.password != null || b.role != null) await pool.query("DELETE FROM staff_sessions WHERE user_id = $1 AND $1 <> $2", [id, req.user.id]);
-  const changed = ["active", "role", "phone", "permissions"].filter(k => k in b).concat(b.password != null ? ["password"] : []);
+  const changed = ["active", "role", "phone", "permissions", "brands"].filter(k => k in b).concat(b.password != null ? ["password"] : []);
   audit(req, req.user.username, "user.update", `#${id}: ${changed.join(", ")}`);
   res.json({ ok: true });
 });
@@ -507,8 +520,9 @@ app.get("/api/admin/applications", admin, async (req, res) => {
      FROM applications
      WHERE ($1 = '' OR status = $1)
        AND ($2 = '' OR id ILIKE '%' || $2 || '%' OR fin ILIKE '%' || $2 || '%' OR phone LIKE '%' || $2 || '%' OR upper(model) LIKE '%' || $2 || '%')
-     ORDER BY created_at DESC LIMIT 500`, [st, q]);
-  const counts = await pool.query("SELECT status, count(*)::int AS n FROM applications GROUP BY status");
+       AND ($3::text[] IS NULL OR brand = ANY($3))
+     ORDER BY created_at DESC LIMIT 500`, [st, q, req.user.brands]);
+  const counts = await pool.query("SELECT status, count(*)::int AS n FROM applications WHERE ($1::text[] IS NULL OR brand = ANY($1)) GROUP BY status", [req.user.brands]);
   res.json({ items: rows, counts: Object.fromEntries(counts.rows.map(r => [r.status, r.n])) });
 });
 
@@ -525,7 +539,8 @@ app.get("/api/admin/export.xlsx", admin, async (req, res) => {
      FROM applications
      WHERE ($1 = '' OR status = $1)
        AND ($2 = '' OR id ILIKE '%' || $2 || '%' OR fin ILIKE '%' || $2 || '%' OR phone LIKE '%' || $2 || '%' OR upper(model) LIKE '%' || $2 || '%')
-     ORDER BY created_at DESC`, [st, q]);
+       AND ($3::text[] IS NULL OR brand = ANY($3))
+     ORDER BY created_at DESC`, [st, q, req.user.brands]);
   const cols = [["Müraciət №", 14], ["Daxil olub", 17], ["Status", 18], ["FİN", 10], ["Şəxsiyyət vəsiqəsi", 16], ["Doğum tarixi", 12],
     ["Telefon", 15], ["Gəlir mənbələri", 28], ["VÖEN", 12], ["Marka", 14], ["Model", 18], ["Zamin", 8], ["Bal", 7], ["Risk dərəcəsi", 10],
     ["Avtomobilin qiyməti", 14], ["İlkin ödəniş %", 10], ["İlkin ödəniş", 13], ["İlkin kredit məbləği", 15], ["Müddət (ay)", 10],
@@ -547,7 +562,7 @@ app.get("/api/admin/export.xlsx", admin, async (req, res) => {
   res.send(Xlsx.build("Müraciətlər", cols, data));
 });
 
-app.get("/api/admin/stats", admin, async (_req, res) => {
+app.get("/api/admin/stats", admin, async (req, res) => {
   const { rows } = await pool.query(`
     SELECT count(*) FILTER (WHERE created_at >= date_trunc('day', now()))::int AS today,
            count(*) FILTER (WHERE status = 'review')::int AS waiting,
@@ -556,11 +571,11 @@ app.get("/api/admin/stats", admin, async (_req, res) => {
            count(*) FILTER (WHERE created_at >= now() - interval '30 days' AND status IN ('offer','accepted','declined','rejected'))::int AS decided30,
            count(*) FILTER (WHERE status = 'accepted')::int AS accepted,
            round(avg((assessment->'result'->>'score')::int))::int AS avg_score
-    FROM applications`);
+    FROM applications WHERE ($1::text[] IS NULL OR brand = ANY($1))`, [req.user.brands]);
   res.json(rows[0]);
 });
 
-app.get("/api/admin/applications/:id", admin, async (req, res) => {
+app.get("/api/admin/applications/:id", admin, brandGate, async (req, res) => {
   const { rows } = await pool.query("SELECT * FROM applications WHERE id = $1", [req.params.id]);
   if (!rows[0]) return bad(res, "Müraciət tapılmadı.", 404);
   const files = await pool.query("SELECT * FROM application_files WHERE application_id = $1 ORDER BY id", [req.params.id]);
@@ -570,7 +585,7 @@ app.get("/api/admin/applications/:id", admin, async (req, res) => {
 });
 
 // Saves the analyst's inputs; the score is always recomputed on the server.
-app.put("/api/admin/applications/:id/assessment", admin, can("apps.assess"), async (req, res) => {
+app.put("/api/admin/applications/:id/assessment", admin, brandGate, can("apps.assess"), async (req, res) => {
   const b = req.body || {};
   const inputs = {
     incomeMonthly: num(b.incomeMonthly, 0, 1e6) ?? 0, debtMonthly: num(b.debtMonthly, 0, 1e6) ?? 0,
@@ -593,7 +608,7 @@ app.put("/api/admin/applications/:id/assessment", admin, can("apps.assess"), asy
 });
 
 // Staff send the offer back; the page then shows it with the payment schedule.
-app.post("/api/admin/applications/:id/offer", admin, can("apps.offer"), async (req, res) => {
+app.post("/api/admin/applications/:id/offer", admin, brandGate, can("apps.offer"), async (req, res) => {
   const b = req.body || {};
   const offer = {
     price: num(b.price, 1000, 1e7), downPct: num(b.downPct ?? 20, 0, 90), months: num(b.months ?? 36, 6, 84),
@@ -611,7 +626,7 @@ app.post("/api/admin/applications/:id/offer", admin, can("apps.offer"), async (r
   res.json({ ok: true, offer });
 });
 
-app.post("/api/admin/applications/:id/reject", admin, can("apps.reject"), async (req, res) => {
+app.post("/api/admin/applications/:id/reject", admin, brandGate, can("apps.reject"), async (req, res) => {
   const reason = String(req.body?.reason || "").trim().slice(0, 500);
   const code = String(req.body?.code || "");
   if (!REJECT_REASONS[code]) return bad(res, "Müştəriyə göstəriləcək səbəbi seç.");
@@ -626,7 +641,7 @@ app.post("/api/admin/applications/:id/reject", admin, can("apps.reject"), async 
   res.json({ ok: true });
 });
 
-app.post("/api/admin/applications/:id/notes", admin, can("apps.notes"), async (req, res) => {
+app.post("/api/admin/applications/:id/notes", admin, brandGate, can("apps.notes"), async (req, res) => {
   const text = String(req.body?.text || "").trim().slice(0, 2000);
   if (!text) return bad(res, "Qeyd boşdur.");
   const r = await pool.query("SELECT 1 FROM applications WHERE id = $1", [req.params.id]);
@@ -636,7 +651,7 @@ app.post("/api/admin/applications/:id/notes", admin, can("apps.notes"), async (r
 });
 
 // Only admins delete. Files on disk go too; the deletion itself stays in deletion_log.
-app.delete("/api/admin/applications/:id", admin, can("apps.delete"), async (req, res) => {
+app.delete("/api/admin/applications/:id", admin, brandGate, can("apps.delete"), async (req, res) => {
   const reason = String(req.body?.reason || "").trim().slice(0, 300);
   if (reason.length < 3) return bad(res, "Silmə səbəbini yaz.");
   const client = await pool.connect();
@@ -683,7 +698,7 @@ async function applyBureau(id, xml, actor) {
 }
 const xmlFrom = req => typeof req.body === "string" ? req.body : String(req.body?.xml || "");
 
-app.post("/api/admin/applications/:id/bureau", admin, can("apps.assess"), xmlBody, async (req, res) => {
+app.post("/api/admin/applications/:id/bureau", admin, brandGate, can("apps.assess"), xmlBody, async (req, res) => {
   let out;
   try { out = await applyBureau(req.params.id, xmlFrom(req), `${req.staff} · AKB`); }
   catch (e) { return bad(res, e.message); }
@@ -746,7 +761,9 @@ app.get("/api/admin/analytics", admin, can("analytics.view"), async (req, res) =
 
 app.get("/api/admin/files/:stored", admin, can("docs.view"), async (req, res) => {
   const f = path.basename(req.params.stored);
-  const { rows } = await pool.query("SELECT application_id, original_name, mime FROM application_files WHERE stored_name = $1", [f]);
+  const { rows } = await pool.query(
+    `SELECT f.application_id, f.original_name, f.mime FROM application_files f JOIN applications a ON a.id = f.application_id
+     WHERE f.stored_name = $1 AND ($2::text[] IS NULL OR a.brand = ANY($2))`, [f, req.user.brands]);
   if (!rows[0]) return bad(res, "Fayl tapılmadı.", 404);
   // Only types checked on upload are shown in the browser; anything else is a download.
   const safe = /^(application\/pdf|image\/(png|jpeg|webp|heic))$/.test(rows[0].mime || "");

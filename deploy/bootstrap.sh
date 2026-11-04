@@ -12,7 +12,6 @@ if [ ! -f "$APP_DIR/.env" ]; then
   cat > "$APP_DIR/.env" <<ENV
 POSTGRES_PASSWORD=$(openssl rand -hex 24)
 ADMIN_TOKEN=$(openssl rand -hex 24)
-DEMO_SMS=true
 SITE_ADDRESS=localhost
 ENV
   chmod 600 "$APP_DIR/.env"

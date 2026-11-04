@@ -20,9 +20,9 @@ const PORT = +process.env.PORT || 3000;
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
 // Until an SMS provider is connected (SMS_URL) the code is returned to the page so the flow can be tested.
-const DEMO_SMS = !SMS_ON && process.env.DEMO_SMS !== "false";
-// Until SMS works every code is DEMO_OTP (123456 by default); with a provider codes are random.
-const newCode = () => DEMO_SMS ? (process.env.DEMO_OTP || "123456") : String(crypto.randomInt(100000, 1000000));
+// Codes are always random and only ever leave the server by SMS: there is no test or demo code.
+const newCode = () => String(crypto.randomInt(100000, 1000000));
+const NO_SMS = "SMS xidməti hazırda əlçatan deyil. Bir az sonra yenidən cəhd et və ya *5665 nömrəsinə zəng et.";
 const SITE_URL = process.env.SITE_ADDRESS && process.env.SITE_ADDRESS !== "localhost" ? `https://${process.env.SITE_ADDRESS}` : "";
 const INCOME = ["work", "informal", "biz", "pension", "social"];
 const INCOME_NAMES = { work: "rəsmi iş", informal: "qeyri-rəsmi iş", biz: "sahibkar", pension: "pensiya", social: "sosial yardım" };
@@ -92,7 +92,7 @@ const audit = (req, username, action, target = null) =>
 // Customer notifications must never break the staff action that triggered them.
 async function notify(id, phone, text, to = "Müştəri") {
   // Without a provider the message is only recorded, so staff can see what would have gone out.
-  if (!SMS_ON) return logEvent(pool, id, "Sistem", "sms", { to, text, demo: true }).catch(() => {});
+  if (!SMS_ON) return logEvent(pool, id, "Sistem", "sms", { to, text, error: "SMS provayderi qoşulmayıb" }).catch(() => {});
   try { await sendSms(phone, text); await logEvent(pool, id, "Sistem", "sms", { to, text }); }
   catch (e) { console.error(e.message); await logEvent(pool, id, "Sistem", "sms", { to, text, error: e.message }).catch(() => {}); }
 }
@@ -139,7 +139,7 @@ async function announceNew(id) {
 
 /* ---------- health ---------- */
 app.get("/api/health", async (_req, res) => {
-  try { await pool.query("SELECT 1"); res.json({ ok: true, demoSms: DEMO_SMS }); }
+  try { await pool.query("SELECT 1"); res.json({ ok: true, sms: SMS_ON }); }
   catch (e) { res.status(503).json({ ok: false }); }
 });
 
@@ -162,6 +162,7 @@ const DUMMY_HASH = hashPassword(crypto.randomBytes(16).toString("hex"));
 app.post("/api/otp", otpLimit, phoneOtpLimit, async (req, res) => {
   const phone = normPhone(req.body.phone);
   if (!/^994\d{9}$/.test(phone)) return bad(res, "Mobil nömrə düzgün deyil.");
+  if (!SMS_ON) return bad(res, NO_SMS, 503);
   const prev = await pool.query("SELECT 1 FROM otp_codes WHERE phone = $1 AND expires_at > now() + interval '4 minutes'", [phone]);
   if (prev.rowCount) return bad(res, "Kod artıq göndərilib. Yenisini 1 dəqiqədən sonra istəyə bilərsən.", 429);
   const code = newCode();
@@ -170,11 +171,9 @@ app.post("/api/otp", otpLimit, phoneOtpLimit, async (req, res) => {
      ON CONFLICT (phone) DO UPDATE SET code_hash = EXCLUDED.code_hash, expires_at = EXCLUDED.expires_at, attempts = 0`,
     [phone, otpHash(phone, code)]
   );
-  if (SMS_ON) {
-    try { await sendSms(phone, `Arzoom Avto: təsdiq kodunuz ${code}. Kod 5 dəqiqə etibarlıdır.`); }
-    catch (e) { console.error(e.message); await pool.query("DELETE FROM otp_codes WHERE phone = $1", [phone]); return bad(res, "SMS göndərilmədi. Bir az sonra yenidən cəhd et.", 502); }
-  }
-  res.json({ sent: true, ...(DEMO_SMS ? { demoCode: code } : {}) });
+  try { await sendSms(phone, `Arzoom Avto: təsdiq kodunuz ${code}. Kod 5 dəqiqə etibarlıdır.`); }
+  catch (e) { console.error(e.message); await pool.query("DELETE FROM otp_codes WHERE phone = $1", [phone]); return bad(res, "SMS göndərilmədi. Bir az sonra yenidən cəhd et.", 502); }
+  res.json({ sent: true });
 });
 
 async function checkOtp(phone, code) {
@@ -284,6 +283,7 @@ const findApp = async (id, fin) => (await pool.query(
 app.post("/api/lookup/otp", otpLimit, finLimit, async (req, res) => {
   const a = await findApp(req.body?.id, req.body?.fin);
   if (!a) return bad(res, "Bu nömrə və FİN ilə müraciət tapılmadı.", 404);
+  if (!SMS_ON) return bad(res, NO_SMS, 503);
   const prev = await pool.query("SELECT 1 FROM otp_codes WHERE phone = $1 AND expires_at > now() + interval '4 minutes'", [a.phone]);
   if (prev.rowCount) return bad(res, "Kod artıq göndərilib. Yenisini 1 dəqiqədən sonra istəyə bilərsən.", 429);
   const code = newCode();
@@ -291,11 +291,9 @@ app.post("/api/lookup/otp", otpLimit, finLimit, async (req, res) => {
     `INSERT INTO otp_codes (phone, code_hash, expires_at, attempts) VALUES ($1,$2, now() + interval '5 minutes', 0)
      ON CONFLICT (phone) DO UPDATE SET code_hash = EXCLUDED.code_hash, expires_at = EXCLUDED.expires_at, attempts = 0`,
     [a.phone, otpHash(a.phone, code)]);
-  if (SMS_ON) {
-    try { await sendSms(a.phone, `Arzoom Avto: Müraciət № ${a.id}. Giriş kodu ${code}. Kodu heç kimə deməyin.`); }
-    catch (e) { console.error(e.message); await pool.query("DELETE FROM otp_codes WHERE phone = $1", [a.phone]); return bad(res, "SMS göndərilmədi. Bir az sonra yenidən cəhd et.", 502); }
-  }
-  res.json({ sent: true, phone: maskPhone(a.phone), ...(DEMO_SMS ? { demoCode: code } : {}) });
+  try { await sendSms(a.phone, `Arzoom Avto: Müraciət № ${a.id}. Giriş kodu ${code}. Kodu heç kimə deməyin.`); }
+  catch (e) { console.error(e.message); await pool.query("DELETE FROM otp_codes WHERE phone = $1", [a.phone]); return bad(res, "SMS göndərilmədi. Bir az sonra yenidən cəhd et.", 502); }
+  res.json({ sent: true, phone: maskPhone(a.phone) });
 });
 
 app.post("/api/lookup/verify", verifyLimit, finLimit, async (req, res) => {
@@ -724,6 +722,6 @@ async function start() {
     await pool.query("INSERT INTO staff_users (username, name, password_hash, role) VALUES ('admin', 'Administrator', $1, 'admin')", [hashPassword(ADMIN_TOKEN)]);
     console.log("İlk admin hesabı yaradıldı: istifadəçi adı admin, parol .env-dəki ADMIN_TOKEN.");
   }
-  app.listen(PORT, () => console.log(`Arzoom lizinq: http://localhost:${PORT} (SMS provayderi: ${SMS_ON ? "qoşulub" : "yoxdur"}, demo SMS: ${DEMO_SMS})`));
+  app.listen(PORT, () => console.log(`Arzoom lizinq: http://localhost:${PORT} (SMS provayderi: ${SMS_ON ? "qoşulub" : "YOXDUR, müştərilər kod ala bilməz"})`));
 }
 start().catch(e => { console.error(e); process.exit(1); });

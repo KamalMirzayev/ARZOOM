@@ -33,6 +33,8 @@ command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: acti
 [ -n "${SOFTLINE_USER:-}" ] && set_env SOFTLINE_USER "$SOFTLINE_USER"
 [ -n "${SOFTLINE_KEY:-}" ] && set_env SOFTLINE_KEY "$SOFTLINE_KEY" && echo "SMS açarı yeniləndi."
 [ -n "${SOFTLINE_SENDER:-}" ] && set_env SOFTLINE_SENDER "$SOFTLINE_SENDER"
+# The old test-code settings are gone from the app; drop them from .env too.
+sed -i '/^DEMO_SMS=/d; /^DEMO_OTP=/d' .env
 # Secret for SMS code hashes; created once so codes survive a restart.
 [ -n "$(get_env OTP_SECRET || true)" ] || set_env OTP_SECRET "$(openssl rand -hex 32)"
 # Backups and uploads hold customer data: only root may read them on the host.
@@ -61,7 +63,7 @@ for i in $(seq 1 30); do
     if [ -n "$(get_env SOFTLINE_KEY || true)" ] || [ -n "$(get_env SMS_URL || true)" ]; then
       echo "SMS: qoşulub. Yoxlama: cd /opt/arzoom && docker compose exec app node sms-test.js 994XXXXXXXXX"
     else
-      echo "DİQQƏT: SMS provayderi qoşulmayıb, saytda sınaq kodu 123456 göstərilir."
+      echo "DİQQƏT: SMS provayderi qoşulmayıb. Müştərilər SMS kodu ala bilməyəcək və müraciət göndərə bilməyəcək."
       echo "Qoşmaq üçün: curl -fsSL https://raw.githubusercontent.com/KamalMirzayev/ARZOOM/main/deploy/install.sh | sudo SOFTLINE_USER='...' SOFTLINE_KEY='...' bash"
     fi
     exit 0

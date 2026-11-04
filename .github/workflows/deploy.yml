@@ -33,6 +33,7 @@ jobs:
           DATABASE_URL: postgres://arzoom:test@localhost:5432/arzoom
           ADMIN_TOKEN: ci-admin-token-0123456789
           PORT: 3000
+          OTP_SECRET: ci-otp-secret
         run: |
           node server.js & sleep 4
           bash scripts/smoke.sh

@@ -8,7 +8,8 @@ const multer = require("multer");
 const { Pool, types } = require("pg");
 // DATE columns stay plain YYYY-MM-DD strings, with no time zone shift.
 types.setTypeParser(1082, v => v);
-const { sendSms, configured: SMS_ON } = require("./lib/sms");
+const Sms = require("./lib/sms");
+const { sendSms } = Sms;
 const Scoring = require("./lib/scoring");
 const Akb = require("./lib/akb");
 const Perms = require("./lib/permissions");
@@ -92,7 +93,7 @@ const audit = (req, username, action, target = null) =>
 // Customer notifications must never break the staff action that triggered them.
 async function notify(id, phone, text, to = "Müştəri") {
   // Without a provider the message is only recorded, so staff can see what would have gone out.
-  if (!SMS_ON) return logEvent(pool, id, "Sistem", "sms", { to, text, error: "SMS provayderi qoşulmayıb" }).catch(() => {});
+  if (!Sms.configured()) return logEvent(pool, id, "Sistem", "sms", { to, text, error: "SMS provayderi qoşulmayıb" }).catch(() => {});
   try { await sendSms(phone, text); await logEvent(pool, id, "Sistem", "sms", { to, text }); }
   catch (e) { console.error(e.message); await logEvent(pool, id, "Sistem", "sms", { to, text, error: e.message }).catch(() => {}); }
 }
@@ -139,7 +140,7 @@ async function announceNew(id) {
 
 /* ---------- health ---------- */
 app.get("/api/health", async (_req, res) => {
-  try { await pool.query("SELECT 1"); res.json({ ok: true, sms: SMS_ON }); }
+  try { await pool.query("SELECT 1"); res.json({ ok: true, sms: Sms.configured() }); }
   catch (e) { res.status(503).json({ ok: false }); }
 });
 
@@ -162,7 +163,7 @@ const DUMMY_HASH = hashPassword(crypto.randomBytes(16).toString("hex"));
 app.post("/api/otp", otpLimit, phoneOtpLimit, async (req, res) => {
   const phone = normPhone(req.body.phone);
   if (!/^994\d{9}$/.test(phone)) return bad(res, "Mobil nömrə düzgün deyil.");
-  if (!SMS_ON) return bad(res, NO_SMS, 503);
+  if (!Sms.configured()) return bad(res, NO_SMS, 503);
   const prev = await pool.query("SELECT 1 FROM otp_codes WHERE phone = $1 AND expires_at > now() + interval '4 minutes'", [phone]);
   if (prev.rowCount) return bad(res, "Kod artıq göndərilib. Yenisini 1 dəqiqədən sonra istəyə bilərsən.", 429);
   const code = newCode();
@@ -283,7 +284,7 @@ const findApp = async (id, fin) => (await pool.query(
 app.post("/api/lookup/otp", otpLimit, finLimit, async (req, res) => {
   const a = await findApp(req.body?.id, req.body?.fin);
   if (!a) return bad(res, "Bu nömrə və FİN ilə müraciət tapılmadı.", 404);
-  if (!SMS_ON) return bad(res, NO_SMS, 503);
+  if (!Sms.configured()) return bad(res, NO_SMS, 503);
   const prev = await pool.query("SELECT 1 FROM otp_codes WHERE phone = $1 AND expires_at > now() + interval '4 minutes'", [a.phone]);
   if (prev.rowCount) return bad(res, "Kod artıq göndərilib. Yenisini 1 dəqiqədən sonra istəyə bilərsən.", 429);
   const code = newCode();
@@ -411,6 +412,31 @@ app.post("/api/admin/me/password", admin, async (req, res) => {
   // Other devices are signed out; this one keeps its session.
   await pool.query("DELETE FROM staff_sessions WHERE user_id = $1 AND token_hash <> $2", [req.user.id, sha(req.get("x-admin-token"))]);
   res.json({ ok: true });
+});
+
+/* ---------- SMS provider settings (admin only) ---------- */
+// Softline credentials are typed once in the panel and kept in the settings table. The key never goes back to the browser.
+const SL_FIELDS = { user: "softline_user", key: "softline_key", sender: "softline_sender" };
+async function loadSmsSettings() {
+  const { rows } = await pool.query("SELECT key, value FROM settings WHERE key = ANY($1)", [Object.values(SL_FIELDS)]);
+  const v = Object.fromEntries(rows.map(r => [r.key, r.value]));
+  Sms.setSoftline({ user: v.softline_user, key: v.softline_key, sender: v.softline_sender });
+}
+const smsState = () => ({ connected: Sms.configured(), provider: Sms.provider(), ...Sms.softlineInfo() });
+app.get("/api/admin/settings/sms", admin, adminOnly, (_req, res) => res.json(smsState()));
+app.post("/api/admin/settings/sms", admin, adminOnly, async (req, res) => {
+  const b = req.body || {};
+  const user = String(b.user || "").trim(), key = String(b.key || "").trim(), sender = String(b.sender || "").trim();
+  if (!/^[\w.@-]{2,64}$/.test(user)) return bad(res, "Softline istifadəçi adını yaz.");
+  if (!key && !Sms.softlineInfo().keySet) return bad(res, "Softline açarını yaz.");
+  if (key && (key.length < 4 || key.length > 200)) return bad(res, "Açar düzgün deyil.");
+  if (sender && !/^[\w .-]{2,11}$/.test(sender)) return bad(res, "Göndərən adı 2–11 latın simvolu olmalıdır.");
+  const vals = { user, key, sender };
+  for (const [f, k] of Object.entries(SL_FIELDS)) if (vals[f])
+    await pool.query("INSERT INTO settings (key, value, updated_by) VALUES ($1,$2,$3) ON CONFLICT (key) DO UPDATE SET value = $2, updated_by = $3, updated_at = now()", [k, vals[f], req.user.username]);
+  Sms.setSoftline(vals);
+  audit(req, req.user.username, "settings.sms", key ? "açar yeniləndi" : "açar dəyişmədi");
+  res.json(smsState());
 });
 
 app.get("/api/admin/users", admin, adminOnly, async (_req, res) => {
@@ -716,12 +742,13 @@ async function start() {
   // Security log is kept for one year.
   await pool.query("DELETE FROM audit_log WHERE at < now() - interval '1 year'");
   if (!process.env.OTP_SECRET) console.warn("OTP_SECRET .env-də yoxdur: hər yenidən başlamada göndərilmiş SMS kodları etibarsız olur.");
+  await loadSmsSettings();
   // First start: the "admin" account gets ADMIN_TOKEN from .env as its password; change it after signing in.
   const users = await pool.query("SELECT count(*)::int AS n FROM staff_users");
   if (!users.rows[0].n && ADMIN_TOKEN) {
     await pool.query("INSERT INTO staff_users (username, name, password_hash, role) VALUES ('admin', 'Administrator', $1, 'admin')", [hashPassword(ADMIN_TOKEN)]);
     console.log("İlk admin hesabı yaradıldı: istifadəçi adı admin, parol .env-dəki ADMIN_TOKEN.");
   }
-  app.listen(PORT, () => console.log(`Arzoom lizinq: http://localhost:${PORT} (SMS provayderi: ${SMS_ON ? "qoşulub" : "YOXDUR, müştərilər kod ala bilməz"})`));
+  app.listen(PORT, () => console.log(`Arzoom lizinq: http://localhost:${PORT} (SMS provayderi: ${Sms.configured() ? "qoşulub" : "YOXDUR, müştərilər kod ala bilməz"})`));
 }
 start().catch(e => { console.error(e); process.exit(1); });

@@ -621,13 +621,31 @@ async function renderUsers(){
       </section>
     </div>
   </div>
+  <form class="panel" id="smsBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("shield","SMS provayderi (Softline)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <section class="panel" id="auditBox" style="margin-top:16px">${ph("shield","Təhlükəsizlik jurnalı")}<p class="muted" style="margin:0">Yüklənir…</p></section>`;
+  renderSms();
   try{const {items}=await api("/audit");
     $("#auditBox").innerHTML=ph("shield","Təhlükəsizlik jurnalı")+(items.length?`<div style="overflow-x:auto"><table class="dtable"><thead><tr><th>Vaxt</th><th>İstifadəçi</th><th>Əməliyyat</th><th>Obyekt</th><th>IP</th></tr></thead>
       <tbody>${items.map(r=>`<tr${r.action==="login.fail"?' class="closed"':""}><td>${dt(r.at)}</td><td class="mono">${esc(r.username||"—")}</td><td>${esc(AUDIT[r.action]||r.action)}</td><td>${esc(r.target||"")}</td><td class="mono">${esc(r.ip||"")}</td></tr>`).join("")}</tbody></table></div>`
       :`<p class="muted" style="margin:0">Hələ qeyd yoxdur.</p>`)}catch(e){$("#auditBox").hidden=true}
 }
-const AUDIT={"login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
+// Softline credentials: typed once, saved on the server. The key is never sent back, only whether it is set.
+async function renderSms(st){
+  const box=$("#smsBox");if(!box)return;
+  try{st=st||await api("/settings/sms")}catch(e){box.hidden=true;return}
+  box.innerHTML=ph("shield","SMS provayderi (Softline)")+`
+    <p style="margin:0">${st.connected?`<span class="st sm s-accepted">Qoşulub</span>`:`<span class="st sm s-rejected">Qoşulmayıb</span> <span class="muted">Müştərilər SMS kodu ala bilmir.</span>`}</p>
+    <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+      <label class="f">İstifadəçi adı<input id="slUser" value="${esc(st.user||"")}" autocapitalize="off" spellcheck="false" required></label>
+      <label class="f">Açar (parol)<input id="slKey" type="password" autocomplete="new-password" placeholder="${st.keySet?"Saxlanılıb, dəyişmək üçün yenisini yaz":"Softline açarı"}" ${st.keySet?"":"required"}></label>
+      <label class="f">Göndərən adı<input id="slSender" value="${esc(st.sender||"")}" maxlength="11" placeholder="Arzoomavto"></label>
+    </div>
+    <div class="pbar"><small class="muted">Bir dəfə yazılır, serverdə saxlanılır. Açar ekranda bir daha göstərilmir.</small><span class="sp"></span><button class="btn sm" type="submit">Saxla</button></div>`;
+}
+document.addEventListener("submit",async e=>{if(e.target.id!=="smsBox")return;e.preventDefault();
+  try{const st=await api("/settings/sms",{method:"POST",body:JSON.stringify({user:$("#slUser").value,key:$("#slKey").value,sender:$("#slSender").value})});
+    toast(st.connected?"SMS provayderi qoşuldu":"Saxlanıldı");renderSms(st)}catch(err){toast(err.message)}});
+const AUDIT={"settings.sms":"SMS ayarını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
   "user.update":"İstifadəçini dəyişdi","file.view":"Sənədə baxdı","app.delete":"Müraciəti sildi"};
 $("#usersBtn").onclick=renderUsers;
 document.addEventListener("submit",async e=>{

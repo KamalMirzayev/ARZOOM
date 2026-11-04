@@ -246,9 +246,12 @@ app.post("/api/applications", submitLimit, upload.any(), async (req, res) => {
   try {
     await client.query("BEGIN");
     let id;
-    for (let i = 0; i < 5 && !id; i++) {
-      // Sequential number from 1001: short and easy to remember. Lookup still needs FİN and an SMS code.
-      const cand = String((await client.query("SELECT nextval('application_no_seq') AS n")).rows[0].n);
+    // The number is built from the customer's own data so they can remember it and nobody else can guess it:
+    // last 4 characters of FİN + day and month of birth, e.g. C12D-1705. A repeat application gets -2, -3...
+    const dob = birthDate(b.birthDate);
+    const base = `${fin.slice(-4)}-${dob.slice(8, 10)}${dob.slice(5, 7)}`;
+    for (let i = 0; i < 50 && !id; i++) {
+      const cand = i ? `${base}-${i + 1}` : base;
       const r = await client.query(
         `INSERT INTO applications (id, fin, id_series, id_number, phone, income_sources, voen, brand, model, consent_text, consent_at, client_ip, birth_date, guarantor)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now(), $11, $12, $13) ON CONFLICT (id) DO NOTHING RETURNING id`,

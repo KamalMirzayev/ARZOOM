@@ -1,6 +1,6 @@
 -- Arzoom Avto lizinq müraciətləri
 CREATE TABLE IF NOT EXISTS applications (
-  id            TEXT PRIMARY KEY,                 -- ardıcıl nömrə 1001, 1002... (köhnələr: 6 rəqəm və ya AA-2026-123456)
+  id            TEXT PRIMARY KEY,                 -- FİN-in son 4 simvolu + doğum günü və ayı, məs. C12D-1705 (köhnələr: rəqəm və ya AA-2026-123456)
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   fin           CHAR(7)     NOT NULL,
   id_series     TEXT        NOT NULL CHECK (id_series IN ('AZE','AA','AB')),

@@ -78,6 +78,7 @@ docker compose up -d --build
 
 - İlk girişdə: istifadəçi adı `admin`, parol `.env`-dəki `ADMIN_TOKEN`. Daxil olandan sonra "Parolu dəyiş" ilə dəyiş.
 - Rollar: **Kredit eksperti** müraciətləri qiymətləndirir, təklif və imtina göndərir; **Admin** bundan əlavə "İstifadəçilər" bölməsində hesab yaradır, söndürür, parol sıfırlayır.
+- Yeni müraciət bildirişi: müraciət daxil olan kimi mobil nömrəsi yazılmış bütün aktiv **Kredit eksperti** və **Satış mütəxəssisi** hesablarına SMS gedir (müraciət nömrəsi, avtomobil, gəlir mənbəyi, panel linki; FİN və müştəri nömrəsi SMS-ə yazılmır). Panel açıqdırsa, yeni müraciət gələndə bildiriş çıxır, tabın başlığında say görünür, brauzer icazə veribsə masaüstü bildirişi də gəlir.
 - Parollar scrypt ilə saxlanılır, sessiya 12 saatdır, 15 dəqiqədə 10 uğursuz girişdən sonra IP bloklanır.
 - Admin parolu unudulsa: `cd /opt/arzoom && sudo docker compose exec app node reset-password.js admin 'YeniParol123'`
 

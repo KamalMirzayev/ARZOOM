@@ -58,6 +58,7 @@ A=$(curl -fsS -X PUT "${H[@]}" "$B/api/admin/applications/$ID/assessment" \
   -d '{"incomeMonthly":3000,"debtMonthly":200,"activeLoans":1,"maxOverdue":"0","tenureMonths":30,"docsOk":true,"price":45000,"downPct":20,"months":36,"rate":17}')
 [ "$(echo "$A" | J result.verdict)" = approve ] || fail; echo "✓ skor: $(echo "$A" | J result.score) $(echo "$A" | J result.grade)"
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/offer" -d '{"price":45000,"downPct":20,"months":36,"rate":17,"commissionPct":1.5}' >/dev/null
+sleep 1; curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q "üzrə müştəriyə təklif göndərildi" || fail; echo "✓ təklif SMS-i satış mütəxəssisinə də gedir"
 [ "$(curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID" | J status)" = offer ] || fail; echo "✓ müştəri təklifi görür"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/applications/$ID/decision" -H "Content-Type: application/json" -d '{"decision":"accepted"}')" = 401 ] || fail; echo "✓ açarsız qərar 401"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/applications/$ID/decision" -H "x-app-token: $TOK" -H "Content-Type: application/json" -d '{"decision":"accepted","downPct":10}')" = 400 ] || fail; echo "✓ ilkin ödəniş azaldıla bilmir"
@@ -78,6 +79,15 @@ echo "$AK" | J assessment.result.grade | grep -qE '^[ABCD]$' || fail; echo "✓ 
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "x-admin-token: $S" -H "Content-Type: text/xml" -d '<foo/>' "$B/api/admin/applications/$ID/bureau")" = 400 ] || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Content-Type: text/xml" -d '<foo/>' "$B/api/integrations/akb")" != 200 ] || fail; echo "✓ yanlış XML və açarsız inteqrasiya rədd edilir"
 
+# Əlavə məlumat: ekspert istəyir, müştəri kabinetdən mətn və sənədlə cavab verir, müraciət yenidən baxılır
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID2/request-info" -d '{"text":"x"}')" = 400 ] || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID2/request-info" -d '{"text":"Son 6 ayın əmək haqqı arayışı"}' >/dev/null || fail
+[ "$(curl -fsS -H "x-app-token: $TOK2" "$B/api/applications/$ID2" | J status)" = info ] || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "x-app-token: $TOK2" "$B/api/applications/$ID2/info")" = 400 ] || fail
+curl -fsS -X POST -H "x-app-token: $TOK2" "$B/api/applications/$ID2/info" -F "text=Arayış əlavə edildi" -F "file_extra=@$TMP/arayis.pdf;type=application/pdf" >/dev/null || fail
+AI=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID2")
+[ "$(echo "$AI" | J status)" = review ] && echo "$AI" | grep -q '"income_source":"extra"' && echo "$AI" | grep -q "əlavə məlumat lazımdır" || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "x-app-token: $TOK2" "$B/api/applications/$ID2/info" -F "text=yenə")" = 409 ] || fail; echo "✓ əlavə məlumat: sorğu, müştəri cavabı və sənəd, yenidən baxış"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID2/reject" -d '{"reason":"DTI 70%"}')" = 400 ] || fail; echo "✓ müştəri səbəbi seçilmədən rədd olmur"
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID2/reject" -d '{"reason":"DTI 70%","code":"debt"}' >/dev/null
 R2=$(curl -fsS -H "x-app-token: $TOK2" "$B/api/applications/$ID2")

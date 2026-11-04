@@ -47,7 +47,7 @@ ALTER TABLE applications ADD COLUMN IF NOT EXISTS decided_by    TEXT;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS updated_at    TIMESTAMPTZ NOT NULL DEFAULT now();
 ALTER TABLE applications DROP CONSTRAINT IF EXISTS applications_status_check;
 ALTER TABLE applications ADD CONSTRAINT applications_status_check
-  CHECK (status IN ('review','offer','rejected','accepted','declined','cancelled'));
+  CHECK (status IN ('review','info','offer','rejected','accepted','declined','cancelled'));
 CREATE INDEX IF NOT EXISTS applications_status_idx ON applications (status);
 
 CREATE TABLE IF NOT EXISTS application_events (
@@ -130,3 +130,5 @@ CREATE TABLE IF NOT EXISTS settings (
 CREATE SEQUENCE IF NOT EXISTS application_no_seq START 1001;
 -- Əməkdaşın markaları: boşdursa bütün markalar, doludursa yalnız bu markaların müraciətləri və bildirişləri
 ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS brands TEXT[] NOT NULL DEFAULT '{}';
+-- Təklifdən əvvəl müştəridən əlavə sənəd və ya məlumat istənilə bilər: status 'info', sorğu və cavab info_request-də
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS info_request JSONB;

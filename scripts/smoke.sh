@@ -25,6 +25,9 @@ apply() { # $1 phone, $2 file
     -F incomeSources=work,biz -F voen=1234567890 -F brand=Toyota -F model=Camry -F consent=true -F consentText=ok \
     -F guarantor=yes -F otp="$code" -F "file_work=@$2;type=application/pdf"
 }
+# A sales manager with a phone gets the new-application SMS.
+SU="satis$RANDOM"
+curl -fsS -X POST "${H[@]}" "$B/api/admin/users" -d "{\"username\":\"$SU\",\"name\":\"Test Satış\",\"password\":\"Satis-Parol-12\",\"role\":\"sales\",\"phone\":\"50 111 22 33\"}" >/dev/null
 R=$(apply 994501112233 "$TMP/fake.pdf"); echo "$R" | grep -c "PDF və ya şəkil deyil" >/dev/null || fail; echo "✓ saxta fayl rədd edildi"
 R=$(apply 994501112234 "$TMP/arayis.pdf"); ID=$(echo "$R" | J id); TOK=$(echo "$R" | J token); echo "✓ müraciət $ID"
 R2=$(apply 994501112235 "$TMP/arayis.pdf"); ID2=$(echo "$R2" | J id); TOK2=$(echo "$R2" | J token)
@@ -34,6 +37,7 @@ curl -fsS "${H[@]}" "$B/api/admin/applications?status=review" | grep -c "$ID" >/
 STORED=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J 'files[0].stored_name')
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J birth_date)" = 1990-05-17 ] || fail; echo "✓ doğum tarixi saxlanılır"
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J guarantor)" = true ] || fail; echo "✓ zamin cavabı saxlanılır"
+sleep 1; curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q "Yeni müraciət № $ID" || fail; echo "✓ yeni müraciət SMS-i menecerə və risk ekspertinə"
 curl -fsS "${H[@]}" "$B/api/admin/files/$STORED" -o "$TMP/dl" && head -c 5 "$TMP/dl" | grep -q "%PDF" || fail; echo "✓ sənəd açılır"
 
 A=$(curl -fsS -X PUT "${H[@]}" "$B/api/admin/applications/$ID/assessment" \
@@ -43,8 +47,6 @@ curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/offer" -d '{"price":4
 [ "$(curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID" | J status)" = offer ] || fail; echo "✓ müştəri təklifi görür"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/applications/$ID/decision" -H "Content-Type: application/json" -d '{"decision":"accepted"}')" = 401 ] || fail; echo "✓ açarsız qərar 401"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/applications/$ID/decision" -H "x-app-token: $TOK" -H "Content-Type: application/json" -d '{"decision":"accepted","downPct":10}')" = 400 ] || fail; echo "✓ ilkin ödəniş azaldıla bilmir"
-SU="satis$RANDOM"
-curl -fsS -X POST "${H[@]}" "$B/api/admin/users" -d "{\"username\":\"$SU\",\"name\":\"Test Satış\",\"password\":\"Satis-Parol-12\",\"role\":\"sales\",\"phone\":\"50 111 22 33\"}" >/dev/null
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/users" -d '{"username":"badphone","name":"X","password":"Satis-Parol-12","phone":"123"}')" = 400 ] || fail
 curl -fsS -X POST "$B/api/applications/$ID/decision" -H "x-app-token: $TOK" -H "Content-Type: application/json" -d '{"decision":"accepted","downPct":30}' >/dev/null
 [ "$(curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID" | J offer.final.downPct)" = 30 ] || fail; echo "✓ ilkin ödəniş 30%-ə artırıldı"

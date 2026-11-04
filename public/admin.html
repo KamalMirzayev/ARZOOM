@@ -657,9 +657,19 @@ document.addEventListener("click",async e=>{
 });
 
 /* ---------- list ---------- */
+// New applications while the panel is open: toast, a count in the tab title and a desktop notification.
+let seenTotal=null,unseen=0;
+const sumCounts=c=>Object.values(c).reduce((a,b)=>a+b,0);
+function newArrivals(c){const t=sumCounts(c);
+  if(seenTotal!=null&&t>seenTotal){const n=t-seenTotal;unseen+=n;
+    const msg=n>1?`${n} yeni müraciət daxil oldu`:"Yeni müraciət daxil oldu";toast(msg);
+    try{if(window.Notification&&Notification.permission==="granted"&&document.hidden)new Notification("Arzoom Avto",{body:msg,icon:"/icon-192.png",tag:"arzoom-new"})}catch(e){}}
+  seenTotal=t;document.title=(unseen?`(${unseen}) `:"")+"Arzoom Qiymətləndirmə"}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden){unseen=0;document.title="Arzoom Qiymətləndirmə"}});
+document.addEventListener("click",()=>{try{if(window.Notification&&Notification.permission==="default")Notification.requestPermission()}catch(e){}},{once:true});
 async function loadList(){
   const j=await api(`/applications?status=${status}&q=${encodeURIComponent(query)}`);
-  items=j.items;counts=j.counts;renderList();
+  items=j.items;counts=j.counts;newArrivals(counts);renderList();
 }
 function renderList(){
   const total=Object.values(counts).reduce((a,b)=>a+b,0);

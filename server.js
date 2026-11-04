@@ -247,7 +247,8 @@ app.post("/api/applications", submitLimit, upload.any(), async (req, res) => {
     await client.query("BEGIN");
     let id;
     for (let i = 0; i < 5 && !id; i++) {
-      const cand = String(crypto.randomInt(100000, 1000000)); // short 6-digit number, easy to dictate
+      // Sequential number from 1001: short and easy to remember. Lookup still needs FİN and an SMS code.
+      const cand = String((await client.query("SELECT nextval('application_no_seq') AS n")).rows[0].n);
       const r = await client.query(
         `INSERT INTO applications (id, fin, id_series, id_number, phone, income_sources, voen, brand, model, consent_text, consent_at, client_ip, birth_date, guarantor)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now(), $11, $12, $13) ON CONFLICT (id) DO NOTHING RETURNING id`,

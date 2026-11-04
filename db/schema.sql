@@ -132,3 +132,7 @@ CREATE SEQUENCE IF NOT EXISTS application_no_seq START 1001;
 ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS brands TEXT[] NOT NULL DEFAULT '{}';
 -- Təklifdən əvvəl müştəridən əlavə sənəd və ya məlumat istənilə bilər: status 'info', sorğu və cavab info_request-də
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS info_request JSONB;
+-- Partnyor linkindən gələn müraciət: ?partner=groupmotors&ref=111938 (Bitrix-dəki müştəri nömrəsi)
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS partner TEXT;
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS partner_ref TEXT;
+CREATE INDEX IF NOT EXISTS applications_partner_ref_idx ON applications (partner_ref);

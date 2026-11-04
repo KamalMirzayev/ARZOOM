@@ -663,6 +663,13 @@ try{apps=JSON.parse(localStorage.getItem("arzoom-apps4")||"[]")}catch(e){apps=[]
 const saveApps=()=>{try{localStorage.setItem("arzoom-apps4",JSON.stringify(apps))}catch(e){}};
 /* ---------- server mode: the page talks to the API when it is served by it ---------- */
 let API=false, sending=false;
+// Partner link, e.g. Bitrix: ?partner=groupmotors&ref=111938 (also when the link arrives HTML-escaped as &amp;ref=).
+// Kept in this browser until the application is sent, so the partner's customer number reaches our database.
+let PARTNER=null;
+try{PARTNER=JSON.parse(localStorage.getItem("arzoom-partner")||"null")}catch(e){}
+(()=>{const u=new URLSearchParams(location.search),ok=v=>/^[A-Za-z0-9_.-]{1,64}$/.test(v||"");
+  const partner=u.get("partner"),ref=u.get("ref")||u.get("amp;ref");
+  if(ok(partner)||ok(ref)){PARTNER={partner:ok(partner)?partner:"",ref:ok(ref)?ref:""};try{localStorage.setItem("arzoom-partner",JSON.stringify(PARTNER))}catch(e){}}})();
 const FILES={};
 fetch("/api/health").then(r=>r.ok?r.json():null).then(j=>{if(j&&j.ok){API=true;
   if(!$("#view-mine").hidden)syncApps()}}).catch(()=>{});
@@ -673,10 +680,12 @@ async function submitApp(){
   fd.append("fin",$("#aFin").value.trim().toUpperCase());fd.append("idSeries",$("#aIdSer").value);fd.append("idNumber",$("#aIdNo").value.trim());fd.append("birthDate",dobIso());
   fd.append("phone",phoneFull());fd.append("incomeSources",INC.filter(s=>inc[s.k]?.on).map(s=>s.k).join(","));fd.append("voen",voen());fd.append("guarantor",guarantor||"");
   fd.append("brand",brand);fd.append("model",model);fd.append("consent","true");fd.append("consentText",$(".consent span").textContent.trim());fd.append("otp",otpVal());
+  if(PARTNER){fd.append("partner",PARTNER.partner||"");fd.append("partnerRef",PARTNER.ref||"")}
   INC.forEach(s=>{if(inc[s.k]?.on)(FILES[s.k]||[]).forEach(f=>fd.append("file_"+s.k,f))});
   try{
     const r=await fetch("/api/applications",{method:"POST",body:fd});const j=await r.json();
     if(!r.ok){err("otp",true,j.error||"Müraciət göndərilmədi.");return}
+    PARTNER=null;try{localStorage.removeItem("arzoom-partner")}catch(e){}
     submitLocal(j.id,j.token);
   }catch(e){err("otp",true,"Bağlantı xətası. Yenidən cəhd et.")}
   finally{sending=false;$("#nextBtn").disabled=false;$("#nextBtn").textContent=step===4?"Təsdiqlə və göndər":"Davam et"}

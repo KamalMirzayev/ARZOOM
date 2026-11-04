@@ -25,6 +25,8 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
 const newCode = () => String(crypto.randomInt(100000, 1000000));
 const NO_SMS = "SMS xidməti hazırda əlçatan deyil. Bir az sonra yenidən cəhd et və ya *5665 nömrəsinə zəng et.";
 const SITE_URL = process.env.SITE_ADDRESS && process.env.SITE_ADDRESS !== "localhost" ? `https://${process.env.SITE_ADDRESS}` : "";
+// Partner link (e.g. Bitrix): ?partner=groupmotors&ref=111938. Only short codes are kept; anything else is dropped.
+const partnerCode = v => (/^[A-Za-z0-9_.-]{1,64}$/.test(String(v || "").trim()) ? String(v).trim() : null);
 const INCOME = ["work", "informal", "biz", "pension", "social"];
 const INCOME_NAMES = { work: "rəsmi iş", informal: "qeyri-rəsmi gəlirlər", biz: "sahibkar", pension: "pensiya", social: "sosial yardım" };
 // Sources that cannot be accepted without a document: informal income needs a debit-card statement, contract, lease or similar proof.
@@ -254,10 +256,11 @@ app.post("/api/applications", submitLimit, upload.any(), async (req, res) => {
     for (let i = 0; i < 50 && !id; i++) {
       const cand = i ? `${base}-${i + 1}` : base;
       const r = await client.query(
-        `INSERT INTO applications (id, fin, id_series, id_number, phone, income_sources, voen, brand, model, consent_text, consent_at, client_ip, birth_date, guarantor)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now(), $11, $12, $13) ON CONFLICT (id) DO NOTHING RETURNING id`,
+        `INSERT INTO applications (id, fin, id_series, id_number, phone, income_sources, voen, brand, model, consent_text, consent_at, client_ip, birth_date, guarantor, partner, partner_ref)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now(), $11, $12, $13, $14, $15) ON CONFLICT (id) DO NOTHING RETURNING id`,
         [cand, fin, b.idSeries, b.idNumber, phone, sources, sources.includes("biz") ? b.voen : null,
-         String(b.brand).slice(0, 60), String(b.model).slice(0, 80), String(b.consentText || "").slice(0, 2000), req.ip, birthDate(b.birthDate), b.guarantor === "yes"]
+         String(b.brand).slice(0, 60), String(b.model).slice(0, 80), String(b.consentText || "").slice(0, 2000), req.ip, birthDate(b.birthDate), b.guarantor === "yes",
+         partnerCode(b.partner), partnerCode(b.partnerRef)]
       );
       id = r.rows[0]?.id;
     }
@@ -550,11 +553,11 @@ app.get("/api/admin/applications", admin, async (req, res) => {
   const q = String(req.query.q || "").trim().toUpperCase().slice(0, 64);
   const st = String(req.query.status || "");
   const { rows } = await pool.query(
-    `SELECT id, created_at, updated_at, fin, phone, brand, model, income_sources, status,
+    `SELECT id, created_at, updated_at, fin, phone, partner, partner_ref, brand, model, income_sources, status,
             assessment->'result'->>'grade' AS grade, (assessment->'result'->>'score')::int AS score
      FROM applications
      WHERE ($1 = '' OR status = $1)
-       AND ($2 = '' OR id ILIKE '%' || $2 || '%' OR fin ILIKE '%' || $2 || '%' OR phone LIKE '%' || $2 || '%' OR upper(model) LIKE '%' || $2 || '%')
+       AND ($2 = '' OR id ILIKE '%' || $2 || '%' OR fin ILIKE '%' || $2 || '%' OR phone LIKE '%' || $2 || '%' OR upper(model) LIKE '%' || $2 || '%' OR upper(partner_ref) = $2)
        AND ($3::text[] IS NULL OR brand = ANY($3))
      ORDER BY created_at DESC LIMIT 500`, [st, q, req.user.brands]);
   const counts = await pool.query("SELECT status, count(*)::int AS n FROM applications WHERE ($1::text[] IS NULL OR brand = ANY($1)) GROUP BY status", [req.user.brands]);
@@ -569,22 +572,22 @@ app.get("/api/admin/export.xlsx", admin, async (req, res) => {
   const q = String(req.query.q || "").trim().toUpperCase().slice(0, 64);
   const st = String(req.query.status || "");
   const { rows } = await pool.query(
-    `SELECT id, created_at, updated_at, status, fin, id_series, id_number, birth_date::text AS birth_date, phone, income_sources, voen, brand, model, guarantor,
+    `SELECT id, created_at, updated_at, status, fin, id_series, id_number, birth_date::text AS birth_date, phone, partner, partner_ref, income_sources, voen, brand, model, guarantor,
             assessment->'result'->>'grade' AS grade, (assessment->'result'->>'score')::int AS score, offer, reject_public, decided_by
      FROM applications
      WHERE ($1 = '' OR status = $1)
-       AND ($2 = '' OR id ILIKE '%' || $2 || '%' OR fin ILIKE '%' || $2 || '%' OR phone LIKE '%' || $2 || '%' OR upper(model) LIKE '%' || $2 || '%')
+       AND ($2 = '' OR id ILIKE '%' || $2 || '%' OR fin ILIKE '%' || $2 || '%' OR phone LIKE '%' || $2 || '%' OR upper(model) LIKE '%' || $2 || '%' OR upper(partner_ref) = $2)
        AND ($3::text[] IS NULL OR brand = ANY($3))
      ORDER BY created_at DESC`, [st, q, req.user.brands]);
   const cols = [["Müraciət №", 14], ["Daxil olub", 17], ["Status", 18], ["FİN", 10], ["Şəxsiyyət vəsiqəsi", 16], ["Doğum tarixi", 12],
-    ["Telefon", 15], ["Gəlir mənbələri", 28], ["VÖEN", 12], ["Marka", 14], ["Model", 18], ["Zamin", 8], ["Bal", 7], ["Risk dərəcəsi", 10],
+    ["Telefon", 15], ["Partnyor", 14], ["Partnyor ref №", 14], ["Gəlir mənbələri", 28], ["VÖEN", 12], ["Marka", 14], ["Model", 18], ["Zamin", 8], ["Bal", 7], ["Risk dərəcəsi", 10],
     ["Avtomobilin qiyməti", 14], ["İlkin ödəniş %", 10], ["İlkin ödəniş", 13], ["İlkin kredit məbləği", 15], ["Müddət (ay)", 10],
     ["İllik faiz %", 10], ["Aylıq ödəniş", 13], ["Rədd səbəbi", 30], ["Qərar verən", 14], ["Son dəyişiklik", 17]].map(([title, width]) => ({ title, width }));
   const r2 = x => Math.round(x * 100) / 100;
   const data = rows.map(a => {
     const o = a.offer, t = o?.price ? finalTerms(o, o.final?.downPct ?? o.downPct) : null;
     return [a.id, a.created_at, EXPORT_STATUS[a.status] || a.status, a.fin, `${a.id_series} ${a.id_number}`,
-      a.birth_date ? a.birth_date.split("-").reverse().join(".") : "", "+" + a.phone,
+      a.birth_date ? a.birth_date.split("-").reverse().join(".") : "", "+" + a.phone, a.partner || "", a.partner_ref || "",
       (a.income_sources || []).map(s => INCOME_NAMES[s] || s).join(", "), a.voen || "", a.brand, a.model,
       a.guarantor == null ? "" : a.guarantor ? "Bəli" : "Xeyr", a.score ?? "", a.grade || "",
       t ? o.price : "", t ? t.dp : "", t ? r2(t.down) : "", t ? r2(t.credit) : "", t ? t.months : "", t ? o.rate : "", t ? r2(t.pay) : "",

@@ -124,6 +124,7 @@ aside{border-right:1px solid var(--line);display:flex;flex-direction:column;min-
 .lh h3{font-size:17px}
 .lh span{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
 .lh #listCount{margin-left:auto;margin-right:8px}
+.ubrands{display:grid;gap:6px;margin-top:10px}.bchips{display:flex;flex-wrap:wrap;gap:6px 14px}
 .search{position:relative}
 .search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--muted);pointer-events:none}
 .search input{padding-left:34px;border-radius:11px;background:var(--bg)}
@@ -586,7 +587,7 @@ $("#pwBtn").onclick=()=>{back();$("#detail").innerHTML=`<span class="eyebrow">He
   </form>`};
 async function renderUsers(){
   back();let data;try{data=await api("/users")}catch(e){toast(e.message);return}
-  const {users,catalog,defaults}=data;
+  const {users,catalog,defaults,brands:BRANDS=[]}=data;
   const initialsOf=n=>n.split(/\s+/).map(w=>w[0]).join("").slice(0,2).toUpperCase();
   $("#detail").innerHTML=`<div class="welcome"><div><span class="eyebrow">Admin</span><h2>İstifadəçilər və icazələr</h2></div></div>
   <div class="ugrid">
@@ -601,6 +602,8 @@ async function renderUsers(){
       ${adm?"":`<div class="pbar"><small class="muted">${u.custom?"Fərdi icazələr":"Rolun standart icazələri"}</small><span class="sp"></span>
         ${u.custom?`<button class="btn ghost sm" type="button" data-preset="${u.id}">Rol standartına qaytar</button>`:""}
         <button class="btn sm" type="button" data-psave="${u.id}">İcazələri saxla</button></div>`}
+      ${adm?"":`<div class="ubrands"><small class="muted">Markalar: ${u.brands?.length?"yalnız seçilənlər":"bütün markalar"}</small>
+        <div class="bchips">${BRANDS.map(b=>`<label class="pchk"><input type="checkbox" data-ubrand="${u.id}" value="${esc(b)}" ${u.brands?.includes(b)?"checked":""}><span>${esc(b)}</span></label>`).join("")}</div></div>`}
       <div class="uact">
         <button class="btn ghost sm" type="button" data-uphone="${u.id}" data-cur="${esc(u.phone||"")}">Mobil nömrə</button>
         ${self?"":`<button class="btn ghost sm" type="button" data-upw="${u.id}">Parolu sıfırla</button>
@@ -613,6 +616,7 @@ async function renderUsers(){
         <label class="f">Müvəqqəti parol: ən azı 10 simvol, hərf və rəqəm<input id="uPass" required minlength="10" autocomplete="new-password"></label>
         <label class="f">Rol<select id="uRole"><option value="expert">Kredit eksperti</option><option value="sales">Satış mütəxəssisi</option><option value="admin">Admin</option></select></label>
         <label class="f">Mobil nömrə, SMS bildirişi üçün<input id="uPhone" inputmode="tel" placeholder="Məs. 50 123 45 67"></label>
+        <div class="f">Markalar <small class="muted">(heç biri seçilməsə, bütün markalar)</small><div class="bchips" id="uBrands">${BRANDS.map(b=>`<label class="pchk"><input type="checkbox" value="${esc(b)}"><span>${esc(b)}</span></label>`).join("")}</div></div>
         <button class="btn" type="submit">Yarat</button>
       </form>
       <section class="panel">${ph("shield","Rolların standart icazələri")}
@@ -647,6 +651,10 @@ async function renderSms(st){
 document.addEventListener("submit",async e=>{if(e.target.id!=="smsBox")return;e.preventDefault();
   try{const st=await api("/settings/sms",{method:"POST",body:JSON.stringify({user:$("#slUser").value,key:$("#slKey").value,sender:$("#slSender").value})});
     toast(st.connected?"SMS provayderi qoşuldu":"Saxlanıldı");renderSms(st)}catch(err){toast(err.message)}});
+// Brand ticks save at once; an empty set means all brands.
+document.addEventListener("change",async e=>{const c=e.target.closest("[data-ubrand]");if(!c)return;const id=c.dataset.ubrand;
+  const brands=[...document.querySelectorAll(`[data-ubrand="${id}"]:checked`)].map(i=>i.value);
+  try{await api("/users/"+id,{method:"POST",body:JSON.stringify({brands})});toast(brands.length?"Markalar: "+brands.join(", "):"Bütün markalar")}catch(err){toast(err.message)}renderUsers()});
 const AUDIT={"apps.export":"Excel-ə çıxardı","settings.sms":"SMS ayarını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
   "user.update":"İstifadəçini dəyişdi","file.view":"Sənədə baxdı","app.delete":"Müraciəti sildi"};
 $("#usersBtn").onclick=renderUsers;
@@ -664,7 +672,7 @@ document.addEventListener("submit",async e=>{
     if($("#pwNew").value!==$("#pwNew2").value){toast("Yeni parollar eyni deyil.");return}
     try{await api("/me/password",{method:"POST",body:JSON.stringify({current:$("#pwCur").value,next:$("#pwNew").value})});toast("Parol dəyişdirildi");renderHome()}catch(err){toast(err.message)}}
   if(e.target.id==="uForm"){e.preventDefault();
-    try{await api("/users",{method:"POST",body:JSON.stringify({name:$("#uName").value,username:$("#uUser").value,password:$("#uPass").value,role:$("#uRole").value,phone:$("#uPhone").value})});toast("İstifadəçi yaradıldı");renderUsers()}catch(err){toast(err.message)}}
+    try{await api("/users",{method:"POST",body:JSON.stringify({name:$("#uName").value,username:$("#uUser").value,password:$("#uPass").value,role:$("#uRole").value,phone:$("#uPhone").value,brands:[...document.querySelectorAll("#uBrands input:checked")].map(i=>i.value)})});toast("İstifadəçi yaradıldı");renderUsers()}catch(err){toast(err.message)}}
 });
 document.addEventListener("change",async e=>{
   const s=e.target.closest("select[data-urole]");if(!s)return;

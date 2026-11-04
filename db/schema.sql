@@ -1,6 +1,6 @@
 -- Arzoom Avto lizinq müraciətləri
 CREATE TABLE IF NOT EXISTS applications (
-  id            TEXT PRIMARY KEY,                 -- 6-digit number (older rows: AA-2026-123456)
+  id            TEXT PRIMARY KEY,                 -- ardıcıl nömrə 1001, 1002... (köhnələr: 6 rəqəm və ya AA-2026-123456)
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   fin           CHAR(7)     NOT NULL,
   id_series     TEXT        NOT NULL CHECK (id_series IN ('AZE','AA','AB')),
@@ -126,3 +126,5 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_by  TEXT,
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Müraciət nömrəsi: ardıcıl, 1001-dən başlayır
+CREATE SEQUENCE IF NOT EXISTS application_no_seq START 1001;

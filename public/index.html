@@ -409,7 +409,7 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-si
       <div><span class="eyebrow">Müraciətimi tap</span><h3>Müraciət nömrəsi ilə daxil ol</h3>
         <p class="hint" style="margin:6px 0 0">Başqa cihazdan müraciət etmisənsə, nömrəni və FİN kodu yaz. Müraciətdəki mobil nömrəyə SMS kodu göndərəcəyik.</p></div>
       <div class="find-row" id="findA">
-        <input class="inp" id="fId" placeholder="Məs. 1024" aria-label="Müraciət nömrəsi" autocomplete="off" lang="en">
+        <input class="inp" id="fId" placeholder="Məs. C12D-1705" aria-label="Müraciət nömrəsi" autocomplete="off" lang="en">
         <input class="inp" id="fFin" placeholder="Məs. 5ABC7KD" aria-label="FİN kod" maxlength="7" autocomplete="off" lang="en">
         <button type="submit" class="btn" id="fSend">SMS kodu al</button>
       </div>
@@ -692,7 +692,7 @@ async function syncApps(){
 }
 function submitLocal(serverId,token){
   const m=curModel();
-  apps.unshift({id:serverId||String(1001+Math.floor(Math.random()*9000)),at:new Date().toISOString(),fin:$("#aFin").value.toUpperCase(),idc:$("#aIdSer").value+" "+$("#aIdNo").value,phone:phoneFull(),
+  apps.unshift({id:serverId||($("#aFin").value.toUpperCase().slice(-4)+"-"+dobIso().slice(8,10)+dobIso().slice(5,7)),at:new Date().toISOString(),fin:$("#aFin").value.toUpperCase(),idc:$("#aIdSer").value+" "+$("#aIdNo").value,phone:phoneFull(),
     brand,model,body:m[1],price:m[3],src:incNames(),voen:voen(),docs:docCount(),state:"review",token});
   saveApps();step=0;$("#cConsent").checked=false;clearInterval(otpT);show("mine");
 }
@@ -797,7 +797,7 @@ $("#find").addEventListener("submit",async e=>{
   e.preventDefault();
   const id=$("#fId").value.trim().toUpperCase(),fin=$("#fFin").value.trim().toUpperCase();
   if(findStage===0){
-    if(!/^(\d{4,7}|AA-\d{4}-\d{4,6})$/.test(id))return findMsg("Müraciət nömrəsini yazın, məs. 1024.");
+    if(!/^([0-9A-Z]{4}-\d{4}(-\d{1,2})?|\d{4,7}|AA-\d{4}-\d{4,6})$/.test(id))return findMsg("Müraciət nömrəsi: FİN-in son 4 simvolu və doğum günü-ayı, məs. C12D-1705.");
     if(!/^[0-9A-Z]{7}$/.test(fin))return findMsg("FİN kod 7 simvoldan ibarətdir.");
     $("#fSend").disabled=true;
     try{

@@ -277,6 +277,7 @@ app.post("/api/applications", submitLimit, upload.any(), async (req, res) => {
     await client.query("COMMIT");
     res.status(201).json({ id, status: "review", token });
     announceNew(id).catch(e => console.error(e.message));
+    sendResult(id);
     notify(id, phone, `Arzoom Avto: Müraciətiniz № ${id} qəbul edildi və yoxlanılır. Qərar barədə SMS göndərəcəyik. Statusa baxmaq:${cabinet() || " saytda, müraciət nömrəsi və FİN kodu ilə."}`);
   } catch (e) {
     await client.query("ROLLBACK"); cleanup(); console.error(e);
@@ -493,6 +494,65 @@ app.post("/api/admin/settings/sms", admin, adminOnly, async (req, res) => {
   res.json(smsState());
 });
 
+/* ---------- partner webhook (e.g. Bitrix / Group Motors): the final credit result goes back with the partner's ref number ---------- */
+// The address and token are typed once in the panel (settings table). The address carries the token too, so neither goes back to the browser.
+const WH = { url: "", token: "", last: null };
+async function loadWebhookSettings() {
+  const { rows } = await pool.query("SELECT key, value FROM settings WHERE key IN ('partner_webhook_url','partner_webhook_token')");
+  const v = Object.fromEntries(rows.map(r => [r.key, r.value]));
+  WH.url = v.partner_webhook_url || ""; WH.token = v.partner_webhook_token || "";
+}
+const whState = () => ({ connected: !!WH.url, host: WH.url ? new URL(WH.url).host : "", tokenSet: !!WH.token, last: WH.last });
+// Three events go to the partner, keyed by its ref number (external_id). No FİN or other personal data is sent.
+//   submitted: external_id, application_id, date
+//   approved:  the same plus terms (credit amount, down payment, months, monthly payment, interest rate)
+//   rejected:  external_id, application_id, date
+const WH_EVENT = { review: "submitted", offer: "approved", rejected: "rejected" };
+async function postResult(id, attempt = 1) {
+  if (!WH.url) return;
+  const { rows } = await pool.query("SELECT id, partner_ref, status, offer, created_at, updated_at FROM applications WHERE id = $1", [id]);
+  const a = rows[0];
+  const event = a && WH_EVENT[a.status];
+  if (!a || !a.partner_ref || !event) return;
+  const r2 = x => Math.round(x * 100) / 100;
+  const body = { event, external_id: a.partner_ref, application_id: a.id, date: new Date(event === "submitted" ? a.created_at : a.updated_at).toISOString() };
+  if (event === "approved") {
+    const o = a.offer, t = finalTerms(o, o.downPct);
+    body.terms = { amount: r2(t.credit), car_price: o.price, down_payment: r2(t.down), down_payment_pct: t.dp, months: t.months,
+                   monthly_payment: r2(t.pay), interest_rate: o.rate };
+  }
+  let error = null;
+  try {
+    const res = await fetch(WH.url, { method: "POST", signal: AbortSignal.timeout(10000),
+      headers: { "Content-Type": "application/json", ...(WH.token ? { "X-Api-Key": WH.token } : {}) }, body: JSON.stringify(body) });
+    if (!res.ok) error = `HTTP ${res.status}`;
+  } catch (e) { error = e.name === "TimeoutError" ? "cavab gəlmədi (10 san.)" : "qoşulmaq olmadı"; }
+  WH.last = { ok: !error, at: new Date().toISOString(), id, error };
+  await logEvent(pool, id, "Sistem", "webhook", { result: event, ref: a.partner_ref, ...(error ? { error } : {}) }).catch(() => {});
+  if (error) { console.error(`Partnyor webhook xətası (${id}): ${error}`); if (attempt < 2) setTimeout(() => postResult(id, attempt + 1).catch(() => {}), 60000); }
+}
+const sendResult = id => postResult(id).catch(e => console.error(e.message));
+app.get("/api/admin/settings/webhook", admin, adminOnly, (_req, res) => res.json(whState()));
+app.post("/api/admin/settings/webhook", admin, adminOnly, async (req, res) => {
+  const url = String(req.body?.url || "").trim(), token = String(req.body?.token || "").trim();
+  if (req.body?.clear) {
+    await pool.query("DELETE FROM settings WHERE key IN ('partner_webhook_url','partner_webhook_token')");
+    WH.url = ""; WH.token = ""; WH.last = null;
+    audit(req, req.user.username, "settings.webhook", "söndürüldü");
+    return res.json(whState());
+  }
+  if (!url && !WH.url) return bad(res, "Webhook ünvanını yaz.");
+  if (url) { let u; try { u = new URL(url); } catch { return bad(res, "Ünvan düzgün deyil."); }
+    const local = u.protocol === "http:" && ["127.0.0.1", "localhost"].includes(u.hostname); // only for tests on the server itself
+    if ((u.protocol !== "https:" && !local) || url.length > 500) return bad(res, "Ünvan https:// ilə başlamalıdır."); }
+  if (token && (token.length < 8 || token.length > 200)) return bad(res, "Token düzgün deyil.");
+  for (const [k, v] of [["partner_webhook_url", url], ["partner_webhook_token", token]]) if (v)
+    await pool.query("INSERT INTO settings (key, value, updated_by) VALUES ($1,$2,$3) ON CONFLICT (key) DO UPDATE SET value = $2, updated_by = $3, updated_at = now()", [k, v, req.user.username]);
+  if (url) WH.url = url; if (token) WH.token = token;
+  audit(req, req.user.username, "settings.webhook", url ? "ünvan yeniləndi" : "token yeniləndi");
+  res.json(whState());
+});
+
 app.get("/api/admin/users", admin, adminOnly, async (_req, res) => {
   const { rows } = await pool.query("SELECT id, username, name, role, phone, permissions, brands, active, created_at, last_login FROM staff_users ORDER BY created_at");
   res.json({ users: rows.map(u => ({ ...u, custom: Array.isArray(u.permissions) && u.role !== "admin", permissions: Perms.effective(u) })),
@@ -659,6 +719,7 @@ app.post("/api/admin/applications/:id/offer", admin, brandGate, can("apps.offer"
      WHERE id = $1 AND status IN ('review','info','offer','rejected') RETURNING id, phone, brand, model`, [req.params.id, offer, req.staff]);
   if (!r.rowCount) return bad(res, "Bu müraciətə təklif göndərmək olmur.", 409);
   await logEvent(pool, req.params.id, req.staff, "offer", offer);
+  sendResult(req.params.id);
   const pay = Scoring.pmt(offer.price * (1 - offer.downPct / 100), offer.rate, offer.months);
   notify(req.params.id, r.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id} təsdiqləndi. Təklif: ilkin ödəniş ${offer.downPct}%, ilkin kredit məbləği ${money(offer.price * (1 - offer.downPct / 100))}, aylıq ${money(pay)}, ${offer.months} ay. Kabinetdə qrafikə baxıb təsdiqləyin.${cabinet()}`);
   // The offer also goes to the sales specialists of this brand (or those without a brand), so they can call the customer.
@@ -695,6 +756,7 @@ app.post("/api/admin/applications/:id/reject", admin, brandGate, can("apps.rejec
      WHERE id = $1 AND status IN ('review','info','offer') RETURNING id, phone`, [req.params.id, reason, req.staff, pub]);
   if (!r.rowCount) return bad(res, "Bu müraciəti rədd etmək olmur.", 409);
   await logEvent(pool, req.params.id, req.staff, "rejected", { reason, code });
+  sendResult(req.params.id);
   notify(req.params.id, r.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id} təsdiqlənmədi. Səbəb: ${pub} Sualınız varsa, *5665 nömrəsinə zəng edin.`);
   res.json({ ok: true });
 });
@@ -858,6 +920,7 @@ async function start() {
   await pool.query("DELETE FROM audit_log WHERE at < now() - interval '1 year'");
   if (!process.env.OTP_SECRET) console.warn("OTP_SECRET .env-də yoxdur: hər yenidən başlamada göndərilmiş SMS kodları etibarsız olur.");
   await loadSmsSettings();
+  await loadWebhookSettings();
   // First start: the "admin" account gets ADMIN_TOKEN from .env as its password; change it after signing in.
   const users = await pool.query("SELECT count(*)::int AS n FROM staff_users");
   if (!users.rows[0].n && ADMIN_TOKEN) {

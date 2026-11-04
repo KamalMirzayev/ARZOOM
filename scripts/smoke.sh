@@ -58,7 +58,17 @@ curl -fsS "${H[@]}" "$B/api/admin/files/$STORED" -o "$TMP/dl" && head -c 5 "$TMP
 A=$(curl -fsS -X PUT "${H[@]}" "$B/api/admin/applications/$ID/assessment" \
   -d '{"incomeMonthly":3000,"debtMonthly":200,"activeLoans":1,"maxOverdue":"0","tenureMonths":30,"docsOk":true,"price":45000,"downPct":20,"months":36,"rate":17}')
 [ "$(echo "$A" | J result.verdict)" = approve ] || fail; echo "✓ skor: $(echo "$A" | J result.score) $(echo "$A" | J result.grade)"
+# Partner webhook: the final result goes to the partner with its ref number and X-Api-Key; the address and token never come back.
+WHF="$TMP/webhook.txt"
+node -e 'require("http").createServer((q,r)=>{let b="";q.on("data",c=>b+=c);q.on("end",()=>{require("fs").appendFileSync(process.argv[1],q.headers["x-api-key"]+" "+b+"\n");r.end("ok")})}).listen(13999)' "$WHF" &
+WHPID=$!; sleep 1
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/webhook" -d '{"url":"http://example.com/x"}')" = 400 ] || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/webhook" -d '{"url":"http://127.0.0.1:13999/hook/secret-path-123","token":"wh-token-12345"}' | grep -q '"connected":true' || fail
+curl -fsS "${H[@]}" "$B/api/admin/settings/webhook" | grep -q "secret-path-123\|wh-token-12345" && fail
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/offer" -d '{"price":45000,"downPct":20,"months":36,"rate":17,"commissionPct":1.5}' >/dev/null
+sleep 1; grep -q '^wh-token-12345 {"event":"approved","external_id":"111938","application_id":"'"$ID"'"' "$WHF" && grep -q '"amount":36000' "$WHF" || fail
+grep -qi '"fin"\|5ABC12D' "$WHF" && fail
+echo "✓ partnyor webhook: təsdiq ref nömrəsi və X-Api-Key ilə göndərilir, FİN getmir, ünvan gizlidir"
 sleep 1; curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q "üzrə müştəriyə təklif göndərildi" || fail; echo "✓ təklif SMS-i satış mütəxəssisinə də gedir"
 [ "$(curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID" | J status)" = offer ] || fail; echo "✓ müştəri təklifi görür"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/applications/$ID/decision" -H "Content-Type: application/json" -d '{"decision":"accepted"}')" = 401 ] || fail; echo "✓ açarsız qərar 401"
@@ -91,6 +101,9 @@ AI=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID2")
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "x-app-token: $TOK2" "$B/api/applications/$ID2/info" -F "text=yenə")" = 409 ] || fail; echo "✓ əlavə məlumat: sorğu, müştəri cavabı və sənəd, yenidən baxış"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID2/reject" -d '{"reason":"DTI 70%"}')" = 400 ] || fail; echo "✓ müştəri səbəbi seçilmədən rədd olmur"
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID2/reject" -d '{"reason":"DTI 70%","code":"debt"}' >/dev/null
+sleep 1; grep -q '^wh-token-12345 {"event":"rejected","external_id":"111938","application_id":"'"$ID2"'","date":"[^"]*"}$' "$WHF" || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/webhook" -d '{"clear":true}' | grep -q '"connected":false' || fail
+kill $WHPID 2>/dev/null; echo "✓ partnyor webhook: rədd bildirişi göndərilir"
 R2=$(curl -fsS -H "x-app-token: $TOK2" "$B/api/applications/$ID2")
 [ "$(echo "$R2" | J status)" = rejected ] && echo "$R2" | J reject_public | grep -q "borc yükünüz" || fail; echo "✓ rədd axını, müştəri səbəbi görür"
 sleep 1; curl -fsS "${H[@]}" "$B/api/admin/applications/$ID2" | grep -q "təsdiqlənmədi. Səbəb: Mövcud kredit" || fail; echo "✓ rədd SMS-ində səbəb var"

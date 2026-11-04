@@ -123,6 +123,7 @@ aside{border-right:1px solid var(--line);display:flex;flex-direction:column;min-
 .lh{display:flex;align-items:baseline;justify-content:space-between}
 .lh h3{font-size:17px}
 .lh span{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.lh #listCount{margin-left:auto;margin-right:8px}
 .search{position:relative}
 .search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--muted);pointer-events:none}
 .search input{padding-left:34px;border-radius:11px;background:var(--bg)}
@@ -487,7 +488,7 @@ details.inq summary{cursor:pointer;font-weight:600;font-size:13px;margin-top:14p
   <div class="shell" id="shell">
     <aside>
       <div class="tools">
-        <div class="lh"><h3 id="listTitle">Müraciətlər</h3><span id="listCount"></span></div>
+        <div class="lh"><h3 id="listTitle">Müraciətlər</h3><span id="listCount"></span><button type="button" class="btn ghost sm" id="exportBtn" hidden title="Siyahıdakı müraciətləri Excel faylı kimi yüklə">Excel</button></div>
         <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Nömrə, FİN, telefon, model" aria-label="Axtar"></label>
         <div id="chips"></div>
       </div>
@@ -569,7 +570,7 @@ $("#logout").onclick=()=>logout();
 async function start(){me=await api("/me");staff=me.name;await loadList();enter()}
 function enter(){$("#login").hidden=true;$("#app").hidden=false;
   $("#who").innerHTML=`<b>${esc(me.name)}</b><span>${ROLES[me.role]}</span>`;$("#av").textContent=me.name.split(/\s+/).map(w=>w[0]).join("").slice(0,2).toUpperCase();
-  $("#usersBtn").hidden=me.role!=="admin";$("#analyticsBtn").hidden=!has("analytics.view");
+  $("#usersBtn").hidden=me.role!=="admin";$("#exportBtn").hidden=!has("apps.export");$("#analyticsBtn").hidden=!has("analytics.view");
   if(!cur)renderHome()}
 
 /* ---------- account: password and staff users ---------- */
@@ -645,9 +646,18 @@ async function renderSms(st){
 document.addEventListener("submit",async e=>{if(e.target.id!=="smsBox")return;e.preventDefault();
   try{const st=await api("/settings/sms",{method:"POST",body:JSON.stringify({user:$("#slUser").value,key:$("#slKey").value,sender:$("#slSender").value})});
     toast(st.connected?"SMS provayderi qoşuldu":"Saxlanıldı");renderSms(st)}catch(err){toast(err.message)}});
-const AUDIT={"settings.sms":"SMS ayarını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
+const AUDIT={"apps.export":"Excel-ə çıxardı","settings.sms":"SMS ayarını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
   "user.update":"İstifadəçini dəyişdi","file.view":"Sənədə baxdı","app.delete":"Müraciəti sildi"};
 $("#usersBtn").onclick=renderUsers;
+// Excel: downloads what the list shows now (status filter and search), all rows, not only the first 500.
+$("#exportBtn").onclick=async()=>{const b=$("#exportBtn");b.disabled=true;
+  try{const r=await fetch(`/api/admin/export.xlsx?status=${status}&q=${encodeURIComponent(query)}`,{headers:{"x-admin-token":token}});
+    if(r.status===401){logout(true);return}
+    if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||"Fayl hazırlanmadı.")}
+    const url=URL.createObjectURL(await r.blob()),a=document.createElement("a");
+    a.href=url;a.download=(r.headers.get("Content-Disposition")||"").match(/filename="([^"]+)"/)?.[1]||"arzoom-muracietler.xlsx";
+    document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);toast("Excel faylı yükləndi")}
+  catch(e){toast(e.message)}finally{b.disabled=false}};
 document.addEventListener("submit",async e=>{
   if(e.target.id==="pwForm"){e.preventDefault();
     if($("#pwNew").value!==$("#pwNew2").value){toast("Yeni parollar eyni deyil.");return}

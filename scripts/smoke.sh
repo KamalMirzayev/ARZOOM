@@ -145,10 +145,10 @@ for d in "$(date -d '-17 years' +%F)" 1990-02-30 17.05.1990; do
 done
 echo "✓ marka/model və vəsiqə seriyası, doğum tarixi yoxlanılır"
 INF=(-F fin=5ABC12D -F idSeries=AZE -F idNumber=12345678 -F birthDate=1990-05-17 -F phone=994501112299 -F incomeSources=informal -F brand=Toyota -F model=Camry -F consent=true -F guarantor=no -F otp=000000)
-curl -sS -X POST "$B/api/applications" "${INF[@]}" | grep -q "debet kart çıxarışı məcburidir" || fail
+curl -sS -X POST "$B/api/applications" "${INF[@]}" | grep -q "Qeyri-rəsmi gəlirlər üçün sənəd məcburidir" || fail
 # With the statement attached the request passes the document check and stops at the missing guarantor answer.
 curl -sS -X POST "$B/api/applications" "${INF[@]/guarantor=no/guarantor=}" -F "file_informal=@$TMP/arayis.pdf;type=application/pdf" | grep -q "Zamin sualına" || fail
-echo "✓ qeyri-rəsmi iş yeri: debet kart çıxarışı məcburidir, zamin sualı cavablanmalıdır"
+echo "✓ qeyri-rəsmi gəlirlər: sənəd məcburidir, zamin sualı cavablanmalıdır"
 curl -sSI "$B/admin" | grep -i "^content-security-policy" | grep -q "script-src 'self' 'sha256-" || fail
 curl -sSI "$B/admin" | grep -i "^content-security-policy" | grep -vq "script-src[^;]*unsafe-inline" || fail; echo "✓ CSP: inline skript yalnız hash ilə"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/users" -d '{"username":"weakpw","name":"X","password":"aaaaaaaaaaaa"}')" = 400 ] || fail

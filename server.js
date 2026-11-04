@@ -26,9 +26,9 @@ const newCode = () => String(crypto.randomInt(100000, 1000000));
 const NO_SMS = "SMS xidməti hazırda əlçatan deyil. Bir az sonra yenidən cəhd et və ya *5665 nömrəsinə zəng et.";
 const SITE_URL = process.env.SITE_ADDRESS && process.env.SITE_ADDRESS !== "localhost" ? `https://${process.env.SITE_ADDRESS}` : "";
 const INCOME = ["work", "informal", "biz", "pension", "social"];
-const INCOME_NAMES = { work: "rəsmi iş", informal: "qeyri-rəsmi iş", biz: "sahibkar", pension: "pensiya", social: "sosial yardım" };
-// Sources that cannot be accepted without a document: informal work is only provable by a debit-card statement.
-const DOC_REQUIRED = { informal: "Qeyri-rəsmi iş yeri üçün debet kart çıxarışı məcburidir." };
+const INCOME_NAMES = { work: "rəsmi iş", informal: "qeyri-rəsmi gəlirlər", biz: "sahibkar", pension: "pensiya", social: "sosial yardım" };
+// Sources that cannot be accepted without a document: informal income needs a debit-card statement, contract, lease or similar proof.
+const DOC_REQUIRED = { informal: "Qeyri-rəsmi gəlirlər üçün sənəd məcburidir: debet kart çıxarışı, müqavilə, icarə müqaviləsi və ya digər." };
 // Date of birth as YYYY-MM-DD: a real calendar date, 18 to 80 years ago.
 function birthDate(v) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v || "")); if (!m) return null;

@@ -636,6 +636,7 @@ async function renderSms(st){
   try{st=st||await api("/settings/sms")}catch(e){box.hidden=true;return}
   box.innerHTML=ph("shield","SMS provayderi (Softline)")+`
     <p style="margin:0">${st.connected?`<span class="st sm s-accepted">Qoşulub</span>`:`<span class="st sm s-rejected">Qoşulmayıb</span> <span class="muted">Müştərilər SMS kodu ala bilmir.</span>`}</p>
+    ${st.last?`<p style="margin:0;font-size:13px">${st.last.ok?`<span class="muted">Son SMS uğurla göndərildi: ${dt(st.last.at)}</span>`:`<b style="color:var(--bad)">Son göndəriş alınmadı (${dt(st.last.at)}):</b> ${esc(st.last.error)}`}</p>`:""}
     <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
       <label class="f">İstifadəçi adı<input id="slUser" value="${esc(st.user||"")}" autocapitalize="off" spellcheck="false" required></label>
       <label class="f">Açar (parol)<input id="slKey" type="password" autocomplete="new-password" placeholder="${st.keySet?"Saxlanılıb, dəyişmək üçün yenisini yaz":"Softline açarı"}" ${st.keySet?"":"required"}></label>

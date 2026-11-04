@@ -35,7 +35,7 @@ apply() { # $1 phone, $2 file
   local code; code=$(printf "%06d" $((RANDOM * RANDOM % 1000000))); seed "$1" "$code"
   curl -sS -X POST "$B/api/applications" -F fin=5ABC12D -F idSeries=AZE -F idNumber=12345678 -F birthDate=1990-05-17 -F phone="$1" \
     -F incomeSources=work,biz -F voen=1234567890 -F brand=Toyota -F model=Camry -F consent=true -F consentText=ok \
-    -F guarantor=yes -F otp="$code" -F "file_work=@$2;type=application/pdf"
+    -F guarantor=yes -F otp="$code" -F partner=groupmotors -F partnerRef=111938 -F "file_work=@$2;type=application/pdf"
 }
 # A sales manager with a phone gets the new-application SMS.
 SU="satis$RANDOM"
@@ -51,6 +51,7 @@ curl -fsS "${H[@]}" "$B/api/admin/applications?status=review" | grep -c "$ID" >/
 STORED=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J 'files[0].stored_name')
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J birth_date)" = 1990-05-17 ] || fail; echo "✓ doğum tarixi saxlanılır"
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J guarantor)" = true ] || fail; echo "✓ zamin cavabı saxlanılır"
+[ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J partner_ref)" = 111938 ] && curl -fsS "${H[@]}" "$B/api/admin/applications?q=111938" | grep -q "$ID" || fail; echo "✓ partnyor ref nömrəsi saxlanılır və axtarılır"
 sleep 1; curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q "Yeni müraciət № $ID" || fail; echo "✓ yeni müraciət SMS-i menecerə və risk ekspertinə"
 curl -fsS "${H[@]}" "$B/api/admin/files/$STORED" -o "$TMP/dl" && head -c 5 "$TMP/dl" | grep -q "%PDF" || fail; echo "✓ sənəd açılır"
 

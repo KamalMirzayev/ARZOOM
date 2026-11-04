@@ -930,6 +930,7 @@ function renderDetail(){
         <dt>Şəxsiyyət vəsiqəsi</dt><dd class="mono">${esc(a.id_series)} ${esc(a.id_number)}</dd>
         ${a.birth_date?`<dt>Doğum tarixi</dt><dd>${esc(fmtDob(a.birth_date))}</dd>`:""}
         <dt>Mobil</dt><dd><a href="tel:+${esc(a.phone)}">+${esc(a.phone)}</a></dd>
+        ${a.partner_ref||a.partner?`<dt>Partnyor</dt><dd><span class="mono">${esc(a.partner||"—")}</span> · ref № <b class="mono">${esc(a.partner_ref||"—")}</b></dd>`:""}
         <dt>Gəlir mənbəyi</dt><dd>${a.income_sources.map(s=>INCOME[s]).join(", ")}</dd>
         ${a.guarantor!=null?`<dt>Zamin</dt><dd>${a.guarantor?"Təmin edə bilər":"Təmin edə bilməz"}</dd>`:""}
         ${a.voen?`<dt>VÖEN</dt><dd class="mono">${esc(a.voen)}</dd>`:""}

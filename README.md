@@ -113,9 +113,8 @@ Softline (gw.soft-line.az) hazır qoşulur. Admin panel → **İstifadəçilər*
 Alternativ: açarı serverin `.env` faylına yazmaq (panelə yazılan dəyər üstündür):
 ```bash
 curl -fsSL https://raw.githubusercontent.com/KamalMirzayev/ARZOOM/main/deploy/install.sh | sudo SOFTLINE_USER='...' SOFTLINE_KEY='...' bash
-cd /opt/arzoom && docker compose exec app node sms-test.js 994XXXXXXXXX   # yoxlama SMS-i
 ```
-`SOFTLINE_SENDER` verilməsə, göndərən adı `Arzoomavto` olur. Sınaq kodu yoxdur: kod yalnız SMS ilə gedir, provayder qoşulmayıbsa müştəri müraciət göndərə bilmir.
+`SOFTLINE_SENDER` verilməsə, göndərən adı `Arzoomavto` olur. Kod yalnız real SMS ilə gedir, provayder qoşulmayıbsa müştəri müraciət göndərə bilmir.
 
 Başqa provayder üçün `/opt/arzoom/.env` faylına provayderin ünvanını yaz, `{phone}` və `{text}` avtomatik doldurulur:
 ```bash

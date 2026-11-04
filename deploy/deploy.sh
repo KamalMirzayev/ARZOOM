@@ -61,7 +61,7 @@ for i in $(seq 1 30); do
     case "$w" in ""|http*) ;; *) w="https://$w" ;; esac
     [ -n "$w" ] && echo "Korporativ sayt: $w"
     if docker compose exec -T app wget -qO- http://127.0.0.1:3000/api/health 2>/dev/null | grep -q '"sms":true'; then
-      echo "SMS: qoşulub. Yoxlama: cd /opt/arzoom && docker compose exec app node sms-test.js 994XXXXXXXXX"
+      echo "SMS: qoşulub."
     else
       echo "DİQQƏT: SMS provayderi qoşulmayıb. Müştərilər SMS kodu ala bilməyəcək və müraciət göndərə bilməyəcək."
       echo "Qoşmaq üçün: admin panel → İstifadəçilər → SMS provayderi bölməsinə Softline istifadəçi adı və açarını bir dəfə yazın."

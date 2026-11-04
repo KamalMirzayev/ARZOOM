@@ -21,7 +21,6 @@ const { hashPassword, checkPassword, weakPassword } = require("./lib/passwords")
 const PORT = +process.env.PORT || 3000;
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
-// Until an SMS provider is connected (SMS_URL) the code is returned to the page so the flow can be tested.
 // Codes are always random and only ever leave the server by SMS: there is no test or demo code.
 const newCode = () => String(crypto.randomInt(100000, 1000000));
 const NO_SMS = "SMS xidməti hazırda əlçatan deyil. Bir az sonra yenidən cəhd et və ya *5665 nömrəsinə zəng et.";

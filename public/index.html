@@ -550,12 +550,18 @@ const STOCKED=new Set();
 const normModel=s=>s.toLowerCase().replace(/0(\d)/g,"$1").replace(/[^a-z0-9]/g,"");
 function applyStock(brands){
   for(const [b,list] of Object.entries(brands||{})){
-    if(!CATALOG[b]||!list.length)continue;
+    if(!list.length)continue;
+    if(!CATALOG[b])CATALOG[b]=[];
     const old=Object.fromEntries(CATALOG[b].map(m=>[normModel(m[0]),m]));
-    CATALOG[b]=list.map(g=>{const o=old[normModel(g.model)];return [g.model,o?o[1]:/shark|hilux|ranger|pickup/i.test(g.model)?"pickup":"suv",g.pt||(g.trims.some(t=>t.pt)||!o?"":o[2]),g.from,g.trims]});
+    CATALOG[b]=list.map(g=>{const o=old[normModel(g.model)];return [g.model,o?o[1]:/shark|hilux|tacoma|tundra|ranger|pickup|l200|triton/i.test(g.model)?"pickup":/sedan|camry|corolla(?! cross)|seal(?!ion)|mazda3|mazda6|accord|civic|han\b|qin/i.test(g.model)?"sedan":"suv",g.pt||(g.trims.some(t=>t.pt)||!o?"":o[2]),g.from,g.trims.length?g.trims:null]});
     STOCKED.add(b);
   }
-  if(STOCKED.size){if(model&&!curModel()){model=null;trim=null}renderBrands();renderModels();renderSide()}
+  // With stock from the partner, the customer chooses only from what is in its base.
+  if(STOCKED.size){
+    for(const b of Object.keys(CATALOG))if(!STOCKED.has(b))delete CATALOG[b];
+    if(!CATALOG[brand]){brand=Object.keys(CATALOG)[0];model=null;trim=null;filter="all"}
+    if(model&&!curModel()){model=null;trim=null}
+    renderBrands();renderModels();renderSide()}
 }
 const curTrim=()=>{const m=curModel();return m&&m[4]&&trim?m[4].find(t=>t.name===trim):null};
 const INC=[
@@ -607,17 +613,17 @@ function renderInc(){
 
 /* ---------- brands & models ---------- */
 function renderBrands(){
-  $("#brands").innerHTML=Object.keys(CATALOG).map(b=>`<button type="button" class="brandtile" data-brand="${b}" aria-pressed="${b===brand}"><span class="wm" lang="en">${b}</span><small>${CATALOG[b].length} model · ${ORIGIN[b]}</small></button>`).join("");
+  $("#brands").innerHTML=Object.keys(CATALOG).map(b=>`<button type="button" class="brandtile" data-brand="${b}" aria-pressed="${b===brand}"><span class="wm" lang="en">${b}</span><small>${CATALOG[b].length} model${ORIGIN[b]?" · "+ORIGIN[b]:""}</small></button>`).join("");
   $("#mFilter").innerHTML=FILTERS.filter(([k])=>k==="all"||CATALOG[brand].some(m=>k==="e"?m[2]:m[1]===k)).map(([k,t])=>`<button type="button" data-filter="${k}" aria-pressed="${k===filter}">${t}</button>`).join("");
 }
 function renderModels(){
   const list=CATALOG[brand].filter(m=>(filter==="all"||(filter==="e"?m[2]:m[1]===filter))&&m[0].toLowerCase().includes(q.toLowerCase()));
   $("#models").innerHTML=list.length?list.map(m=>`<button type="button" class="model" data-model="${esc(m[0])}" aria-pressed="${m[0]===model}">
-    <svg viewBox="0 0 122 46" aria-hidden="true">${carSvg(m[1])}</svg><b>${esc(m[0])}${m[2]?`<span class="tag">${PT[m[2]]}</span>`:""}</b><small>${BODYNAME[m[1]]}</small>${m[4]?`<span class="mprice">${grp(m[3])} ₼-dan</span>`:""}</button>`).join("")
+    <svg viewBox="0 0 122 46" aria-hidden="true">${carSvg(m[1])}</svg><b>${esc(m[0])}${m[2]?`<span class="tag">${PT[m[2]]}</span>`:""}</b><small>${BODYNAME[m[1]]}</small>${STOCKED.has(brand)&&m[3]?`<span class="mprice">${grp(m[3])} ₼-dan</span>`:""}</button>`).join("")
     :`<div class="empty-models">“${esc(q)}” üzrə model tapılmadı.</div>`;
   const m=curModel(),box=$("#trims");
   box.hidden=!(m&&m[4]);
-  box.innerHTML=m&&m[4]?`<span class="fl">${esc(m[0])}: komplektasiya</span>`+m[4].map(t=>`<button type="button" class="trim" data-trim="${esc(t.name)}" aria-pressed="${t.name===trim}"><span>${esc(t.name)}</span><b>${azn(t.price)}</b></button>`).join(""):"";
+  box.innerHTML=m&&m[4]?`<span class="fl">${esc(m[0])}: komplektasiya</span>`+m[4].map(t=>`<button type="button" class="trim" data-trim="${esc(t.name)}" aria-pressed="${t.name===trim}"><span>${esc(t.name)}</span><b>${t.price?azn(t.price):""}</b></button>`).join(""):"";
 }
 
 /* ---------- side card ---------- */
@@ -626,7 +632,7 @@ function renderSide(){
   $("#sCarArt").innerHTML=heroCar(m?m[1]:"sedan");
   $("#sBrand").textContent=m?`${brand} · ${BODYNAME[m[1]]}${m[2]?" · "+PT[m[2]][0].toLocaleUpperCase("az")+PT[m[2]].slice(1):""}`:(step>=2?brand:"Avtomobil");
   const t=curTrim();
-  $("#sCar").textContent=m?(t?`${t.name} · ${azn(t.price)}`:m[4]?`${model} · ${grp(m[3])} ₼-dan`:model):(step>=2?"Model seçin":"Hələ seçilməyib");
+  $("#sCar").textContent=m?(t?(t.price?`${t.name} · ${azn(t.price)}`:t.name):STOCKED.has(brand)&&m[3]?`${model} · ${grp(m[3])} ₼-dan`:model):(step>=2?"Model seçin":"Hələ seçilməyib");
   $("#sStep").textContent=`Addım ${step+1} / 5 · ${STEPS[step]}`;$("#sBar").style.width=((step+1)/5*100)+"%";
   const rows=[["FİN kod",$("#aFin").value.toUpperCase()||"—"],["Şəxsiyyət vəsiqəsi",$("#aIdNo").value?$("#aIdSer").value+" "+$("#aIdNo").value:"—"],["Doğum tarixi",dobText()||"—"],["Mobil nömrə",$("#aPhone").value?phoneFull():"—"]];
   if(step>=1)rows.push(["Gəlir mənbəyi",incNames()]);
@@ -733,7 +739,7 @@ async function syncApps(){
 function submitLocal(serverId,token){
   const m=curModel();
   apps.unshift({id:serverId||($("#aFin").value.toUpperCase().slice(-4)+"-"+dobIso().slice(8,10)+dobIso().slice(5,7)),at:new Date().toISOString(),fin:$("#aFin").value.toUpperCase(),idc:$("#aIdSer").value+" "+$("#aIdNo").value,phone:phoneFull(),
-    brand,model:trim||model,body:m[1],price:curTrim()?.price||m[3],src:incNames(),voen:voen(),docs:docCount(),state:"review",token});
+    brand,model:trim||model,body:m[1],price:curTrim()?.price||m[3]||0,src:incNames(),voen:voen(),docs:docCount(),state:"review",token});
   saveApps();step=0;$("#cConsent").checked=false;clearInterval(otpT);show("mine");
 }
 const DP_MAX=70;

@@ -68,7 +68,8 @@ curl -fsS "${H[@]}" "$B/api/admin/settings/webhook" | grep -q "secret-path-123\|
 # Partner stock: price lists from the same partner become models with trims and prices; FAQ chunks are ignored.
 ST=$(curl -fsS "$B/api/stock")
 echo "$ST" | grep -q '"name":"Seal 6 DM-i 128km Active (2026)","year":2026,"price":38300' && ! echo "$ST" | grep -q "Zəmanət" || fail
-curl -fsS "${H[@]}" "$B/api/admin/settings/webhook" | grep -q '"count":16' || fail; echo "✓ partnyor stoku: modellər, komplektasiyalar və qiymətlər"
+echo "$ST" | grep -q '"name":"Land Cruiser LC300 3.3 DSL 10AT AX 5 seater (AB)","year":null,"price":189900' && echo "$ST" | grep -q '"name":"Land Cruiser LC300 3.3 DSL 10AT VX 5 seater (EJ)","year":null,"price":null' || fail
+curl -fsS "${H[@]}" "$B/api/admin/settings/webhook" | grep -q '"count":20' || fail; echo "✓ partnyor stoku: qiymət siyahısı və texniki göstəricilərdən bütün modellər, komplektasiyalar və qiymətlər"
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/offer" -d '{"price":45000,"downPct":20,"months":36,"rate":17,"commissionPct":1.5}' >/dev/null
 sleep 1; grep -q '^wh-token-12345 {"event":"approved","external_id":"111938","application_id":"'"$ID"'"' "$WHF" && grep -q '"amount":36000' "$WHF" || fail
 grep -qi '"fin"\|5ABC12D' "$WHF" && fail

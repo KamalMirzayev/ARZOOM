@@ -540,10 +540,23 @@ const STOCK = { brands: {}, at: null, error: null };
 async function loadStock() {
   if (!WH.url || !WH.token) { STOCK.brands = {}; STOCK.at = null; STOCK.error = null; return; }
   try {
-    const r = await fetch(`${new URL(WH.url).origin}/credit/kb/${encodeURIComponent(WH.token)}`, { signal: AbortSignal.timeout(15000) });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const j = await r.json();
-    STOCK.brands = Stock.parse(j.chunks, BRANDS); STOCK.at = new Date().toISOString(); STOCK.error = null;
+    // The partner returns at most `limit` chunks (default 200, capped by them), so ask brand by brand:
+    // one call to find which brands it has, then each brand with a high limit.
+    const base = `${new URL(WH.url).origin}/credit/kb/${encodeURIComponent(WH.token)}`;
+    const get = async q => {
+      const r = await fetch(`${base}?${new URLSearchParams(q)}`, { signal: AbortSignal.timeout(15000) });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const j = await r.json();
+      return Array.isArray(j.chunks) ? j.chunks : [];
+    };
+    const first = await get({ limit: 1000 });
+    const slugs = new Set([...BRANDS.map(b => b.toLowerCase()), ...first.map(c => String(c.brand || "").toLowerCase())]);
+    slugs.delete(""); slugs.delete("common");
+    const byId = new Map(first.map(c => [c.id, c]));
+    for (const slug of slugs)
+      for (const c of await get({ brand: slug, limit: 5000 }))
+        if (String(c.brand || "").toLowerCase() === slug) byId.set(c.id, c);
+    STOCK.brands = Stock.parse([...byId.values()], BRANDS); STOCK.at = new Date().toISOString(); STOCK.error = null;
   } catch (e) { STOCK.error = e.name === "TimeoutError" ? "cavab gəlmədi" : e.message; console.error(`Stok yüklənmədi: ${STOCK.error}`); }
 }
 app.get("/api/stock", (_req, res) => res.json({ at: STOCK.at, brands: STOCK.brands }));

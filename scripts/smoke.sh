@@ -60,7 +60,7 @@ A=$(curl -fsS -X PUT "${H[@]}" "$B/api/admin/applications/$ID/assessment" \
 [ "$(echo "$A" | J result.verdict)" = approve ] || fail; echo "✓ skor: $(echo "$A" | J result.score) $(echo "$A" | J result.grade)"
 # Partner webhook: the final result goes to the partner with its ref number and X-Api-Key; the address and token never come back.
 WHF="$TMP/webhook.txt"
-node -e 'const fs=require("fs");require("http").createServer((q,r)=>{if(q.method==="GET"&&q.url==="/credit/kb/wh-token-12345")return r.end(fs.readFileSync(process.argv[2]));let b="";q.on("data",c=>b+=c);q.on("end",()=>{fs.appendFileSync(process.argv[1],q.headers["x-api-key"]+" "+b+"\n");r.end("ok")})}).listen(13999)' "$WHF" "$(pwd)/test/stock-sample.json" &
+node -e 'const fs=require("fs");require("http").createServer((q,r)=>{const u=new URL(q.url,"http://x");if(q.method==="GET"&&u.pathname==="/credit/kb/wh-token-12345"){const c=JSON.parse(fs.readFileSync(process.argv[2])).chunks,b=u.searchParams.get("brand");return r.end(JSON.stringify({chunks:b?c.filter(x=>x.brand===b):c.slice(0,2)}))}let b="";q.on("data",c=>b+=c);q.on("end",()=>{fs.appendFileSync(process.argv[1],q.headers["x-api-key"]+" "+b+"\n");r.end("ok")})}).listen(13999)' "$WHF" "$(pwd)/test/stock-sample.json" &
 WHPID=$!; sleep 1
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/webhook" -d '{"url":"http://example.com/x"}')" = 400 ] || fail
 curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/webhook" -d '{"url":"http://127.0.0.1:13999/hook/secret-path-123","token":"wh-token-12345"}' | grep -q '"connected":true' || fail

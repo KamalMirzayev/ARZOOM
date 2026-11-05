@@ -423,7 +423,8 @@ const adminOnly = (req, res, next) => req.user.role === "admin" ? next() : bad(r
 const can = perm => (req, res, next) => req.perms.includes(perm) ? next() : bad(res, "Bu əməliyyat üçün icazən yoxdur.", 403);
 const ROLES = ["admin", "expert", "sales"];
 // Brands offered on the application form (public/index.html CATALOG). Staff can be tied to some of them.
-const BRANDS = ["Toyota", "Mitsubishi", "Mazda", "Ford", "Honda", "Subaru", "BYD"];
+// Brands on sale; Ford, Honda and Subaru are service only.
+const BRANDS = ["Toyota", "Mitsubishi", "Mazda", "BYD"];
 // Optional staff mobile for notifications: empty clears it, otherwise 994XXXXXXXXX.
 function staffPhone(v) {
   if (v === undefined) return undefined;

@@ -10,6 +10,7 @@ const { Pool, types } = require("pg");
 types.setTypeParser(1082, v => v);
 const Sms = require("./lib/sms");
 const Xlsx = require("./lib/xlsx");
+const Stock = require("./lib/stock");
 const { sendSms } = Sms;
 const Scoring = require("./lib/scoring");
 const Akb = require("./lib/akb");
@@ -256,11 +257,11 @@ app.post("/api/applications", submitLimit, upload.any(), async (req, res) => {
     for (let i = 0; i < 50 && !id; i++) {
       const cand = i ? `${base}-${i + 1}` : base;
       const r = await client.query(
-        `INSERT INTO applications (id, fin, id_series, id_number, phone, income_sources, voen, brand, model, consent_text, consent_at, client_ip, birth_date, guarantor, partner, partner_ref)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now(), $11, $12, $13, $14, $15) ON CONFLICT (id) DO NOTHING RETURNING id`,
+        `INSERT INTO applications (id, fin, id_series, id_number, phone, income_sources, voen, brand, model, consent_text, consent_at, client_ip, birth_date, guarantor, partner, partner_ref, car_price)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now(), $11, $12, $13, $14, $15, $16) ON CONFLICT (id) DO NOTHING RETURNING id`,
         [cand, fin, b.idSeries, b.idNumber, phone, sources, sources.includes("biz") ? b.voen : null,
          String(b.brand).slice(0, 60), String(b.model).slice(0, 80), String(b.consentText || "").slice(0, 2000), req.ip, birthDate(b.birthDate), b.guarantor === "yes",
-         partnerCode(b.partner), partnerCode(b.partnerRef)]
+         partnerCode(b.partner), partnerCode(b.partnerRef), Stock.priceOf(STOCK.brands, String(b.brand), String(b.model))]
       );
       id = r.rows[0]?.id;
     }
@@ -502,7 +503,8 @@ async function loadWebhookSettings() {
   const v = Object.fromEntries(rows.map(r => [r.key, r.value]));
   WH.url = v.partner_webhook_url || ""; WH.token = v.partner_webhook_token || "";
 }
-const whState = () => ({ connected: !!WH.url, host: WH.url ? new URL(WH.url).host : "", tokenSet: !!WH.token, last: WH.last });
+const whState = () => ({ connected: !!WH.url, host: WH.url ? new URL(WH.url).host : "", tokenSet: !!WH.token, last: WH.last,
+  stock: { at: STOCK.at, error: STOCK.error, count: Object.values(STOCK.brands).reduce((n, l) => n + l.reduce((k, g) => k + g.trims.length, 0), 0) } });
 // Three events go to the partner, keyed by its ref number (external_id). No FİN or other personal data is sent.
 //   submitted: external_id, application_id, date
 //   approved:  the same plus terms (credit amount, down payment, months, monthly payment, interest rate)
@@ -532,12 +534,26 @@ async function postResult(id, attempt = 1) {
   if (error) { console.error(`Partnyor webhook xətası (${id}): ${error}`); if (attempt < 2) setTimeout(() => postResult(id, attempt + 1).catch(() => {}), 60000); }
 }
 const sendResult = id => postResult(id).catch(e => console.error(e.message));
+// Stock and prices come from the same partner, with the same token: GET {origin}/credit/kb/{token}, refreshed every 15 minutes.
+// The last good list is kept if the partner is unreachable.
+const STOCK = { brands: {}, at: null, error: null };
+async function loadStock() {
+  if (!WH.url || !WH.token) { STOCK.brands = {}; STOCK.at = null; STOCK.error = null; return; }
+  try {
+    const r = await fetch(`${new URL(WH.url).origin}/credit/kb/${encodeURIComponent(WH.token)}`, { signal: AbortSignal.timeout(15000) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const j = await r.json();
+    STOCK.brands = Stock.parse(j.chunks, BRANDS); STOCK.at = new Date().toISOString(); STOCK.error = null;
+  } catch (e) { STOCK.error = e.name === "TimeoutError" ? "cavab gəlmədi" : e.message; console.error(`Stok yüklənmədi: ${STOCK.error}`); }
+}
+app.get("/api/stock", (_req, res) => res.json({ at: STOCK.at, brands: STOCK.brands }));
+
 app.get("/api/admin/settings/webhook", admin, adminOnly, (_req, res) => res.json(whState()));
 app.post("/api/admin/settings/webhook", admin, adminOnly, async (req, res) => {
   const url = String(req.body?.url || "").trim(), token = String(req.body?.token || "").trim();
   if (req.body?.clear) {
     await pool.query("DELETE FROM settings WHERE key IN ('partner_webhook_url','partner_webhook_token')");
-    WH.url = ""; WH.token = ""; WH.last = null;
+    WH.url = ""; WH.token = ""; WH.last = null; loadStock();
     audit(req, req.user.username, "settings.webhook", "söndürüldü");
     return res.json(whState());
   }
@@ -549,6 +565,7 @@ app.post("/api/admin/settings/webhook", admin, adminOnly, async (req, res) => {
   for (const [k, v] of [["partner_webhook_url", url], ["partner_webhook_token", token]]) if (v)
     await pool.query("INSERT INTO settings (key, value, updated_by) VALUES ($1,$2,$3) ON CONFLICT (key) DO UPDATE SET value = $2, updated_by = $3, updated_at = now()", [k, v, req.user.username]);
   if (url) WH.url = url; if (token) WH.token = token;
+  await loadStock();
   audit(req, req.user.username, "settings.webhook", url ? "ünvan yeniləndi" : "token yeniləndi");
   res.json(whState());
 });
@@ -921,6 +938,7 @@ async function start() {
   if (!process.env.OTP_SECRET) console.warn("OTP_SECRET .env-də yoxdur: hər yenidən başlamada göndərilmiş SMS kodları etibarsız olur.");
   await loadSmsSettings();
   await loadWebhookSettings();
+  loadStock(); setInterval(loadStock, 15 * 60 * 1000).unref();
   // First start: the "admin" account gets ADMIN_TOKEN from .env as its password; change it after signing in.
   const users = await pool.query("SELECT count(*)::int AS n FROM staff_users");
   if (!users.rows[0].n && ADMIN_TOKEN) {

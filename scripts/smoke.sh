@@ -60,11 +60,15 @@ A=$(curl -fsS -X PUT "${H[@]}" "$B/api/admin/applications/$ID/assessment" \
 [ "$(echo "$A" | J result.verdict)" = approve ] || fail; echo "✓ skor: $(echo "$A" | J result.score) $(echo "$A" | J result.grade)"
 # Partner webhook: the final result goes to the partner with its ref number and X-Api-Key; the address and token never come back.
 WHF="$TMP/webhook.txt"
-node -e 'require("http").createServer((q,r)=>{let b="";q.on("data",c=>b+=c);q.on("end",()=>{require("fs").appendFileSync(process.argv[1],q.headers["x-api-key"]+" "+b+"\n");r.end("ok")})}).listen(13999)' "$WHF" &
+node -e 'const fs=require("fs");require("http").createServer((q,r)=>{if(q.method==="GET"&&q.url==="/credit/kb/wh-token-12345")return r.end(fs.readFileSync(process.argv[2]));let b="";q.on("data",c=>b+=c);q.on("end",()=>{fs.appendFileSync(process.argv[1],q.headers["x-api-key"]+" "+b+"\n");r.end("ok")})}).listen(13999)' "$WHF" "$(pwd)/test/stock-sample.json" &
 WHPID=$!; sleep 1
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/webhook" -d '{"url":"http://example.com/x"}')" = 400 ] || fail
 curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/webhook" -d '{"url":"http://127.0.0.1:13999/hook/secret-path-123","token":"wh-token-12345"}' | grep -q '"connected":true' || fail
 curl -fsS "${H[@]}" "$B/api/admin/settings/webhook" | grep -q "secret-path-123\|wh-token-12345" && fail
+# Partner stock: price lists from the same partner become models with trims and prices; FAQ chunks are ignored.
+ST=$(curl -fsS "$B/api/stock")
+echo "$ST" | grep -q '"name":"Seal 6 DM-i 128km Active (2026)","year":2026,"price":38300' && ! echo "$ST" | grep -q "Zəmanət" || fail
+curl -fsS "${H[@]}" "$B/api/admin/settings/webhook" | grep -q '"count":16' || fail; echo "✓ partnyor stoku: modellər, komplektasiyalar və qiymətlər"
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/offer" -d '{"price":45000,"downPct":20,"months":36,"rate":17,"commissionPct":1.5}' >/dev/null
 sleep 1; grep -q '^wh-token-12345 {"event":"approved","external_id":"111938","application_id":"'"$ID"'"' "$WHF" && grep -q '"amount":36000' "$WHF" || fail
 grep -qi '"fin"\|5ABC12D' "$WHF" && fail

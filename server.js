@@ -121,10 +121,12 @@ async function announceAccepted(id) {
   const a = rows[0]; if (!a?.offer?.final) return;
   const t = finalTerms(a.offer, a.offer.final.downPct);
   const terms = `ilkin ödəniş ${t.dp}% (${money(t.down)}), ilkin kredit məbləği ${money(t.credit)}, aylıq ${money(t.pay)}, ${t.months} ay`;
+  // Installment sale: the customer's text has no credit amount, interest or commission, only what they pay.
+  const own = `ilkin ödəniş ${t.dp}% (${money(t.down)}), aylıq ${money(t.pay)}, ${t.months} ay`;
   const panel = SITE_URL ? ` Panel: ${SITE_URL}/admin` : "";
   const staff = await pool.query("SELECT name, role, phone FROM staff_users WHERE active AND phone IS NOT NULL AND (role = 'admin' OR cardinality(brands) = 0 OR $1 = ANY(brands))", [a.brand]);
   await Promise.all([
-    notify(id, a.phone, `Arzoom Avto: Müraciət № ${id}. Son təklifi təsdiqlədiniz: ${a.brand} ${a.model}, ${terms}. Müqavilə və avtomobilin təhvili üçün satış mütəxəssisi sizinlə əlaqə saxlayacaq.`),
+    notify(id, a.phone, `Arzoom Avto: Müraciət № ${id}. Son təklifi təsdiqlədiniz: ${a.brand} ${a.model}, ${own}. Müqavilə və avtomobilin təhvili üçün satış mütəxəssisi sizinlə əlaqə saxlayacaq.`),
     ...staff.rows.map(u => notify(id, u.phone, u.role === "sales"
       ? `Arzoom Avto: Müraciət № ${id} satışa ötürüldü. Müştəri son təklifi təsdiqlədi: ${a.brand} ${a.model}, ${terms}. Müştəri ilə əlaqə saxlayın.${panel}`
       : `Arzoom Avto: Müraciət № ${id} anderraytinq üçün. Müştəri son təklifi təsdiqlədi: ${a.brand} ${a.model}, ${terms}.${panel}`, u.name))
@@ -210,7 +212,7 @@ async function tokenApp(req) {
 const num = (v, lo, hi) => { const x = +v; return Number.isFinite(x) && x >= lo && x <= hi ? x : null; };
 const maskPhone = p => `+${p.slice(0, 3)} ${p.slice(3, 5)} *** ** ${p.slice(-2)}`;
 const CUSTOMER_FIELDS = `a.id, a.created_at, a.updated_at, a.fin, a.id_series, a.id_number, a.phone, a.income_sources, a.voen,
-  a.brand, a.model, a.status, a.offer, a.reject_public, a.info_request, (SELECT count(*)::int FROM application_files f WHERE f.application_id = a.id) AS files`;
+  a.brand, a.model, a.status, a.offer - 'commissionPct' AS offer, a.reject_public, a.info_request, (SELECT count(*)::int FROM application_files f WHERE f.application_id = a.id) AS files`;
 
 /* ---------- applications ---------- */
 const upload = multer({
@@ -752,7 +754,7 @@ app.post("/api/admin/applications/:id/offer", admin, brandGate, can("apps.offer"
   await logEvent(pool, req.params.id, req.staff, "offer", offer);
   sendResult(req.params.id);
   const pay = Scoring.pmt(offer.price * (1 - offer.downPct / 100), offer.rate, offer.months);
-  notify(req.params.id, r.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id} təsdiqləndi. Təklif: ilkin ödəniş ${offer.downPct}%, ilkin kredit məbləği ${money(offer.price * (1 - offer.downPct / 100))}, aylıq ${money(pay)}, ${offer.months} ay. Kabinetdə qrafikə baxıb təsdiqləyin.${cabinet()}`);
+  notify(req.params.id, r.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id} təsdiqləndi. Təklif: ilkin ödəniş ${offer.downPct}% (${money(offer.price * offer.downPct / 100)}), aylıq ${money(pay)}, ${offer.months} ay. Kabinetdə qrafikə baxıb təsdiqləyin.${cabinet()}`);
   // The offer also goes to the sales specialists of this brand (or those without a brand), so they can call the customer.
   const { brand, model } = r.rows[0], credit = money(offer.price * (1 - offer.downPct / 100));
   const sales = await pool.query(

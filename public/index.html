@@ -718,7 +718,7 @@ async function submitApp(){
   finally{sending=false;$("#nextBtn").disabled=false;$("#nextBtn").textContent=step===4?"Təsdiqlə və göndər":"Davam et"}
 }
 function offerFromServer(o){const F=o.price*(1-o.downPct/100),r=o.rate/100/12;
-  return {price:o.price,downPct:o.downPct,down:Math.round(o.price*o.downPct/100),F,rate:o.rate,n:o.months,pmt:F*r/(1-Math.pow(1+r,-o.months)),commPct:o.commissionPct,comm:Math.round(F*o.commissionPct/100),at:o.at,final:o.final||null}}
+  return {price:o.price,downPct:o.downPct,down:Math.round(o.price*o.downPct/100),F,rate:o.rate,n:o.months,pmt:F*r/(1-Math.pow(1+r,-o.months)),at:o.at,final:o.final||null}}
 async function syncApps(){
   if(!API||!apps.length)return;
   await Promise.all(apps.map(async a=>{if(!a.token)return;try{const r=await fetch(`/api/applications/${encodeURIComponent(a.id)}`,{headers:{"x-app-token":a.token}});if(r.status===401){a.gone=true;return}if(!r.ok)return;const j=await r.json();
@@ -742,19 +742,19 @@ const DP_MAX=70;
 function offerAt(o,dp){
   dp=Math.max(o.downPct??20,Math.min(DP_MAX,dp));
   const down=Math.round(o.price*dp/100),F=o.price-down,r=o.rate/100/12;
-  return {...o,downPct:dp,down,F,pmt:r?F*r/(1-Math.pow(1+r,-o.n)):F/o.n,comm:Math.round(F*(o.commPct??1.5)/100)};
+  return {...o,downPct:dp,down,F,pmt:r?F*r/(1-Math.pow(1+r,-o.n)):F/o.n};
 }
 const chosenDp=a=>a.offer.final?.downPct??a.dp??a.offer.downPct??20;
 function figsHtml(a){
   const o=offerAt(a.offer,chosenDp(a)),base=offerAt(a.offer,a.offer.downPct??20),save=base.pmt-o.pmt;
   return `<div style="margin-top:14px" class="muted">Aylıq ödəniş</div>
     <div class="big">${grp(o.pmt)}<small>₼ / ay</small></div>
-    <div class="muted" style="margin-top:6px">${o.n} ay · illik ${o.rate}%</div>
+    <div class="muted" style="margin-top:6px">${o.n} ay</div>
     ${save>=1?`<span class="save">İlkin təklifdən ${grp(save)} ₼ az</span>`:""}
-    <div class="kv">${kvHtml([["Avtomobilin qiyməti",azn(o.price)],[`İlkin ödəniş, ${o.downPct}%`,azn(o.down)],["İlkin kredit məbləği",azn(o.F)],["Birdəfəlik komissiya",azn(o.comm)],["Ümumi faiz xərci",azn(o.pmt*o.n-o.F)]])}</div>`;
+    <div class="kv">${kvHtml([["Avtomobilin qiyməti",azn(o.price)],[`İlkin ödəniş, ${o.downPct}%`,azn(o.down)],[`Aylıq ödənişlər cəmi, ${o.n} ay`,azn(o.pmt*o.n)]])}</div>`;
 }
-const schedHtml=o=>schedRows(o).map(r=>`<tr><td>${r[0]}</td><td>${m2(r[1])}</td><td>${m2(r[2])}</td><td>${m2(r[3])}</td><td>${m2(r[4])}</td></tr>`).join("");
-function schedRows(o){let bal=o.F;const r=o.rate/100/12,rows=[];for(let t=1;t<=o.n;t++){const i=bal*r,pr=o.pmt-i;bal-=pr;rows.push([t,o.pmt,pr,i,Math.max(0,bal)])}return rows}
+// Installment sale: the customer sees each payment and what is left to pay, never a principal/interest split.
+const schedHtml=o=>{let h="";for(let t=1;t<=o.n;t++)h+=`<tr><td>${t}</td><td>${m2(o.pmt)}</td><td>${m2(o.pmt*(o.n-t))}</td></tr>`;return h};
 function offerHtml(a){
   const o=a.offer,due=new Date(o.at);due.setDate(due.getDate()+5);
   const dd=String(due.getDate()).padStart(2,"0")+"."+String(due.getMonth()+1).padStart(2,"0")+"."+due.getFullYear();
@@ -766,12 +766,12 @@ function offerHtml(a){
       <div class="dp-head"><span class="muted">İlkin ödənişi artır</span><b id="dpv-${a.id}">${dp}% · ${azn(cur.down)}</b></div>
       <input type="range" min="${min}" max="${DP_MAX}" step="1" value="${dp}" data-dp="${a.id}" aria-label="İlkin ödəniş faizi">
       <div class="dp-scale"><span>${min}%</span><span>${DP_MAX}%</span></div>
-      <span class="muted" style="font-size:12.5px">İlkin ödəniş artdıqca aylıq ödəniş və ümumi faiz xərci azalır. Qrafik dərhal yenilənir.</span>
+      <span class="muted" style="font-size:12.5px">İlkin ödəniş artdıqca aylıq ödəniş azalır. Qrafik dərhal yenilənir.</span>
     </div>
     <div class="btns" style="margin-top:16px"><button type="button" class="btn" data-accept="${a.id}">Son təklifi təsdiqlə</button><button type="button" class="btn ghost" data-decline="${a.id}">İmtina et</button></div>`:""}
   </div>
   <details ${live?"open":""}><summary>Ödəniş qrafiki, ${o.n} ay</summary>
-    <div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Ay</th><th>Ödəniş</th><th>Əsas borc</th><th>Faiz</th><th>Qalıq borc</th></tr></thead><tbody id="os-${a.id}">${schedHtml(cur)}</tbody></table></div></details>`;
+    <div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Ay</th><th>Ödəniş</th><th>Qalıq</th></tr></thead><tbody id="os-${a.id}">${schedHtml(cur)}</tbody></table></div></details>`;
 }
 // The expert asked for more documents or information before the offer: the customer answers here.
 function infoHtml(a){

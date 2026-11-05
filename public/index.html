@@ -556,10 +556,8 @@ function applyStock(brands){
     CATALOG[b]=list.map(g=>{const o=old[normModel(g.model)];return [g.model,o?o[1]:/shark|hilux|tacoma|tundra|ranger|pickup|l200|triton/i.test(g.model)?"pickup":/sedan|camry|corolla(?! cross)|seal(?!ion)|mazda3|mazda6|accord|civic|han\b|qin/i.test(g.model)?"sedan":"suv",g.pt||(g.trims.some(t=>t.pt)||!o?"":o[2]),g.from,g.trims.length?g.trims:null]});
     STOCKED.add(b);
   }
-  // With stock from the partner, the customer chooses only from what is in its base.
+  // Brands in the partner base show its models and prices; the other brands keep the full catalogue, without prices.
   if(STOCKED.size){
-    for(const b of Object.keys(CATALOG))if(!STOCKED.has(b))delete CATALOG[b];
-    if(!CATALOG[brand]){brand=Object.keys(CATALOG)[0];model=null;trim=null;filter="all"}
     if(model&&!curModel()){model=null;trim=null}
     renderBrands();renderModels();renderSide()}
 }

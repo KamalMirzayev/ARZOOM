@@ -77,6 +77,7 @@ grep -qi '"fin"\|5ABC12D' "$WHF" && fail
 echo "✓ partnyor webhook: təsdiq ref nömrəsi və X-Api-Key ilə göndərilir, FİN getmir, ünvan gizlidir"
 sleep 1; curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q "üzrə müştəriyə təklif göndərildi" || fail; echo "✓ təklif SMS-i satış mütəxəssisinə də gedir"
 [ "$(curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID" | J status)" = offer ] || fail; echo "✓ müştəri təklifi görür"
+curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID" | grep -q commissionPct && fail; echo "✓ müştəriyə komissiya göndərilmir"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/applications/$ID/decision" -H "Content-Type: application/json" -d '{"decision":"accepted"}')" = 401 ] || fail; echo "✓ açarsız qərar 401"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/applications/$ID/decision" -H "x-app-token: $TOK" -H "Content-Type: application/json" -d '{"decision":"accepted","downPct":10}')" = 400 ] || fail; echo "✓ ilkin ödəniş azaldıla bilmir"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/users" -d '{"username":"badphone","name":"X","password":"Satis-Parol-12","phone":"123"}')" = 400 ] || fail

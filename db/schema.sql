@@ -136,3 +136,5 @@ ALTER TABLE applications ADD COLUMN IF NOT EXISTS info_request JSONB;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS partner TEXT;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS partner_ref TEXT;
 CREATE INDEX IF NOT EXISTS applications_partner_ref_idx ON applications (partner_ref);
+-- Partnyor stokundan seçilmiş komplektasiyanın qiyməti (müraciət anındakı)
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS car_price NUMERIC(12,2);

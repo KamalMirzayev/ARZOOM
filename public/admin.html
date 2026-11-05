@@ -665,6 +665,7 @@ async function renderWh(st){
   try{st=st||await api("/settings/webhook")}catch(e){box.hidden=true;return}
   box.innerHTML=ph("send","Partnyor webhook (Bitrix)")+`
     <p style="margin:0">${st.connected?`<span class="st sm s-accepted">Qoşulub</span> <span class="muted mono">${esc(st.host)}</span>`:`<span class="st sm s-rejected">Qoşulmayıb</span> <span class="muted">Nəticələr partnyora göndərilmir.</span>`}</p>
+    ${st.connected?`<p style="margin:0;font-size:13px">${st.stock?.error?`<b style="color:var(--bad)">Stok yüklənmədi:</b> ${esc(st.stock.error)}`:st.stock?.at?`<span class="muted">Stok: ${st.stock.count} komplektasiya, yeniləndi ${dt(st.stock.at)}</span>`:`<span class="muted">Stok hələ yüklənməyib.</span>`}</p>`:""}
     ${st.last?`<p style="margin:0;font-size:13px">${st.last.ok?`<span class="muted">Son nəticə uğurla göndərildi: № ${esc(st.last.id)}, ${dt(st.last.at)}</span>`:`<b style="color:var(--bad)">Son göndəriş alınmadı (№ ${esc(st.last.id)}, ${dt(st.last.at)}):</b> ${esc(st.last.error)}`}</p>`:""}
     <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">
       <label class="f">Webhook ünvanı<input id="whUrl" type="password" autocomplete="new-password" spellcheck="false" placeholder="${st.connected?"Saxlanılıb, dəyişmək üçün yenisini yaz":"https://…"}" ${st.connected?"":"required"}></label>
@@ -929,7 +930,7 @@ function renderDetail(){
   <button type="button" class="btn ghost sm back" id="back" style="margin-bottom:12px">← Siyahı</button>
   <section class="panel hero">
     <div class="top">
-      <div><span class="eyebrow">Müraciət nömrəsi</span><h2 class="appno">№ ${a.id} <button type="button" class="btn ghost sm" data-copy="${a.id}">Kopyala</button></h2><div class="car2">${esc(a.brand)} ${esc(a.model)}</div>
+      <div><span class="eyebrow">Müraciət nömrəsi</span><h2 class="appno">№ ${a.id} <button type="button" class="btn ghost sm" data-copy="${a.id}">Kopyala</button></h2><div class="car2">${esc(a.brand)} ${esc(a.model)}${a.car_price!=null?` · <b>${azn(+a.car_price)}</b>`:""}</div>
         <div class="sub">Daxil olub ${dt(a.created_at)}${a.decided_by?` · Qərar: ${esc(a.decided_by)}`:""}</div></div>
       <span class="st s-${a.status}">${STATUS[a.status]}</span>
     </div>
@@ -981,7 +982,7 @@ function renderDetail(){
             <label class="chk wide"><input type="checkbox" name="docsOk" ${val(a,"docsOk",false)?"checked":""}> Sənədlər yoxlanılıb və uyğundur</label>
           </div></fieldset>
           <fieldset><legend><i>3</i>Satış şərtləri</legend><div class="form">
-            <label class="f">Avtomobilin qiyməti, ₼<input name="price" type="number" min="0" step="100" placeholder="Məs. 45 000" value="${val(a,"price","")}"></label>
+            <label class="f">Avtomobilin qiyməti, ₼<input name="price" type="number" min="0" step="100" placeholder="Məs. 45 000" value="${val(a,"price",a.car_price!=null?+a.car_price:"")}"></label>
             <label class="f">İlkin ödəniş, %<input name="downPct" type="number" min="0" max="90" value="${val(a,"downPct",20)}"></label>
             <label class="f">Kredit məbləği, ₼<output class="inp calc" id="creditAmt" aria-live="polite">—</output></label>
             <label class="f">Müddət<select name="months">${[12,24,36,48,60].map(m=>`<option value="${m}" ${+val(a,"months",36)===m?"selected":""}>${m} ay</option>`).join("")}</select></label>

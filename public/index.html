@@ -150,6 +150,12 @@ label.btn input{position:absolute;width:1px;height:1px;opacity:0}
 .model[aria-pressed="true"] svg{color:var(--gold)}
 .model b{font-size:14px;line-height:1.25}
 .model small{font-size:11.5px;color:var(--muted)}
+.model .mprice{font-size:12.5px;font-weight:700;color:var(--gold);margin-top:2px}
+.trims{display:grid;gap:6px;margin-top:14px}
+.trims .fl{font-size:13px;color:var(--muted);margin-bottom:2px}
+.trim{display:flex;justify-content:space-between;gap:12px;align-items:center;border:1px solid var(--line);border-radius:10px;background:var(--raised);padding:10px 14px;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.trim b{white-space:nowrap}
+.trim[aria-pressed="true"]{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset;background:var(--gold-soft)}
 .tag{display:inline-block;font-family:var(--f-mono);font-size:10.5px;border-radius:4px;padding:0 5px;margin-left:4px;vertical-align:1px;background:var(--ok-soft);color:var(--ok)}
 .empty-models{grid-column:1/-1;color:var(--muted);padding:20px;text-align:center;border:1px dashed var(--line-2);border-radius:11px}
 
@@ -354,6 +360,7 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-si
             <div class="chips" id="mFilter"></div>
           </div>
           <div class="models" id="models"></div>
+          <div class="trims" id="trims" hidden></div>
           <span class="err-msg" data-err="model" hidden>Modeli seç.</span>
         </div>
 
@@ -536,7 +543,21 @@ const PT={H:"hibrid",P:"plug-in",E:"elektrik"};
 
 /* ---------- state ---------- */
 const STEPS=["Şəxsiyyət","Gəlir","Avtomobil","Yoxlama","SMS təsdiq"];
-let step=0, otpT=null, brand="Toyota", model=null, filter="all", q="";
+let step=0, otpT=null, brand="Toyota", model=null, trim=null, filter="all", q="";
+// Partner stock: brands that have it show only the models on sale, with prices, and the customer picks a trim.
+// A stock model is [model, body, powertrain, lowest price, trims[{name, year, price}]].
+const STOCKED=new Set();
+const normModel=s=>s.toLowerCase().replace(/0(\d)/g,"$1").replace(/[^a-z0-9]/g,"");
+function applyStock(brands){
+  for(const [b,list] of Object.entries(brands||{})){
+    if(!CATALOG[b]||!list.length)continue;
+    const old=Object.fromEntries(CATALOG[b].map(m=>[normModel(m[0]),m]));
+    CATALOG[b]=list.map(g=>{const o=old[normModel(g.model)];return [g.model,o?o[1]:/shark|hilux|ranger|pickup/i.test(g.model)?"pickup":"suv",g.pt||(g.trims.some(t=>t.pt)||!o?"":o[2]),g.from,g.trims]});
+    STOCKED.add(b);
+  }
+  if(STOCKED.size){if(model&&!curModel()){model=null;trim=null}renderBrands();renderModels();renderSide()}
+}
+const curTrim=()=>{const m=curModel();return m&&m[4]&&trim?m[4].find(t=>t.name===trim):null};
 const INC=[
   {k:"work",t:"Rəsmi iş yeri",h:"Əmək müqaviləsi ilə işləyirəm",d:"Əmək haqqı arayışı və ya bank çıxarışı"},
   {k:"informal",t:"Qeyri-rəsmi gəlirlər",h:"(debet kartdan çıxarış, müqavilələr, icarə müqaviləsi, təsərrüfat və digər)",d:"Gəliri təsdiq edən sənəd, məs. debet kartdan son 12 ayın çıxarışı",req:true},
@@ -566,7 +587,7 @@ const adult=iso=>{if(!iso)return false;const t=new Date(),b=new Date(iso+"T00:00
 ["#aDobD","#aDobM","#aDobY"].forEach(s=>$(s).addEventListener("change",()=>{if(adult(dobIso())){err("aDob",false);["#aDobD","#aDobM","#aDobY"].forEach(x=>$(x).classList.remove("err"))}renderSide()}));
 const phoneFull=()=>`+994 ${$("#aOp").value.slice(1)} ${$("#aPhone").value}`;
 const curModel=()=>model&&CATALOG[brand].find(m=>m[0]===model);
-const appCar=()=>model?`${brand} ${model}`:"—";
+const appCar=()=>model?`${brand} ${trim||model}`:"—";
 
 /* ---------- income ---------- */
 function renderInc(){
@@ -592,8 +613,11 @@ function renderBrands(){
 function renderModels(){
   const list=CATALOG[brand].filter(m=>(filter==="all"||(filter==="e"?m[2]:m[1]===filter))&&m[0].toLowerCase().includes(q.toLowerCase()));
   $("#models").innerHTML=list.length?list.map(m=>`<button type="button" class="model" data-model="${esc(m[0])}" aria-pressed="${m[0]===model}">
-    <svg viewBox="0 0 122 46" aria-hidden="true">${carSvg(m[1])}</svg><b>${esc(m[0])}${m[2]?`<span class="tag">${PT[m[2]]}</span>`:""}</b><small>${BODYNAME[m[1]]}</small></button>`).join("")
+    <svg viewBox="0 0 122 46" aria-hidden="true">${carSvg(m[1])}</svg><b>${esc(m[0])}${m[2]?`<span class="tag">${PT[m[2]]}</span>`:""}</b><small>${BODYNAME[m[1]]}</small>${m[4]?`<span class="mprice">${grp(m[3])} ₼-dan</span>`:""}</button>`).join("")
     :`<div class="empty-models">“${esc(q)}” üzrə model tapılmadı.</div>`;
+  const m=curModel(),box=$("#trims");
+  box.hidden=!(m&&m[4]);
+  box.innerHTML=m&&m[4]?`<span class="fl">${esc(m[0])}: komplektasiya</span>`+m[4].map(t=>`<button type="button" class="trim" data-trim="${esc(t.name)}" aria-pressed="${t.name===trim}"><span>${esc(t.name)}</span><b>${azn(t.price)}</b></button>`).join(""):"";
 }
 
 /* ---------- side card ---------- */
@@ -601,7 +625,8 @@ function renderSide(){
   const m=curModel();
   $("#sCarArt").innerHTML=heroCar(m?m[1]:"sedan");
   $("#sBrand").textContent=m?`${brand} · ${BODYNAME[m[1]]}${m[2]?" · "+PT[m[2]][0].toLocaleUpperCase("az")+PT[m[2]].slice(1):""}`:(step>=2?brand:"Avtomobil");
-  $("#sCar").textContent=m?model:(step>=2?"Model seçin":"Hələ seçilməyib");
+  const t=curTrim();
+  $("#sCar").textContent=m?(t?`${t.name} · ${azn(t.price)}`:m[4]?`${model} · ${grp(m[3])} ₼-dan`:model):(step>=2?"Model seçin":"Hələ seçilməyib");
   $("#sStep").textContent=`Addım ${step+1} / 5 · ${STEPS[step]}`;$("#sBar").style.width=((step+1)/5*100)+"%";
   const rows=[["FİN kod",$("#aFin").value.toUpperCase()||"—"],["Şəxsiyyət vəsiqəsi",$("#aIdNo").value?$("#aIdSer").value+" "+$("#aIdNo").value:"—"],["Doğum tarixi",dobText()||"—"],["Mobil nömrə",$("#aPhone").value?phoneFull():"—"]];
   if(step>=1)rows.push(["Gəlir mənbəyi",incNames()]);
@@ -650,7 +675,7 @@ function validate(){
   if(step===1){bad|=err("inc",!Object.values(inc).some(x=>x.on));
     if(inc.biz?.on) bad|=err("aVoen",!/^\d{10}$/.test(inc.biz.voen||""));
     INC.forEach(s=>{if(s.req&&inc[s.k]?.on)bad|=err("doc-"+s.k,!(inc[s.k].files||[]).length)})}
-  if(step===2) bad|=err("model",!model);
+  if(step===2) bad|=err("model",!model||!!(curModel()?.[4]&&!trim),model?"Komplektasiyanı seç.":"Modeli seç.");
   if(step===0) bad|=err("cConsent",!$("#cConsent").checked);
   if(step===4){const b=otpVal().length!==6;err("otp",b);$$("#otp input").forEach(i=>i.classList.toggle("err",b));bad|=b}
   if(bad){const f=$("#appForm .inp.err");f&&f.focus()}
@@ -671,6 +696,7 @@ try{PARTNER=JSON.parse(localStorage.getItem("arzoom-partner")||"null")}catch(e){
   const partner=u.get("partner"),ref=u.get("ref")||u.get("amp;ref");
   if(ok(partner)||ok(ref)){PARTNER={partner:ok(partner)?partner:"",ref:ok(ref)?ref:""};try{localStorage.setItem("arzoom-partner",JSON.stringify(PARTNER))}catch(e){}}})();
 const FILES={};
+fetch("/api/stock").then(r=>r.ok?r.json():null).then(j=>{if(j)applyStock(j.brands)}).catch(()=>{});
 fetch("/api/health").then(r=>r.ok?r.json():null).then(j=>{if(j&&j.ok){API=true;
   if(!$("#view-mine").hidden)syncApps()}}).catch(()=>{});
 async function submitApp(){
@@ -679,7 +705,7 @@ async function submitApp(){
   const fd=new FormData();
   fd.append("fin",$("#aFin").value.trim().toUpperCase());fd.append("idSeries",$("#aIdSer").value);fd.append("idNumber",$("#aIdNo").value.trim());fd.append("birthDate",dobIso());
   fd.append("phone",phoneFull());fd.append("incomeSources",INC.filter(s=>inc[s.k]?.on).map(s=>s.k).join(","));fd.append("voen",voen());fd.append("guarantor",guarantor||"");
-  fd.append("brand",brand);fd.append("model",model);fd.append("consent","true");fd.append("consentText",$(".consent span").textContent.trim());fd.append("otp",otpVal());
+  fd.append("brand",brand);fd.append("model",trim||model);fd.append("consent","true");fd.append("consentText",$(".consent span").textContent.trim());fd.append("otp",otpVal());
   if(PARTNER){fd.append("partner",PARTNER.partner||"");fd.append("partnerRef",PARTNER.ref||"")}
   INC.forEach(s=>{if(inc[s.k]?.on)(FILES[s.k]||[]).forEach(f=>fd.append("file_"+s.k,f))});
   try{
@@ -707,7 +733,7 @@ async function syncApps(){
 function submitLocal(serverId,token){
   const m=curModel();
   apps.unshift({id:serverId||($("#aFin").value.toUpperCase().slice(-4)+"-"+dobIso().slice(8,10)+dobIso().slice(5,7)),at:new Date().toISOString(),fin:$("#aFin").value.toUpperCase(),idc:$("#aIdSer").value+" "+$("#aIdNo").value,phone:phoneFull(),
-    brand,model,body:m[1],price:m[3],src:incNames(),voen:voen(),docs:docCount(),state:"review",token});
+    brand,model:trim||model,body:m[1],price:curTrim()?.price||m[3],src:incNames(),voen:voen(),docs:docCount(),state:"review",token});
   saveApps();step=0;$("#cConsent").checked=false;clearInterval(otpT);show("mine");
 }
 const DP_MAX=70;
@@ -856,9 +882,10 @@ document.addEventListener("click",e=>{
   const A=id=>apps.find(a=>a.id===id);
   if(b.dataset.view)show(b.dataset.view);
   if(b.dataset.rm){const [k,i]=b.dataset.rm.split(":");inc[k].files.splice(+i,1);(FILES[k]||[]).splice(+i,1);renderInc()}
-  if(b.dataset.brand){if(brand!==b.dataset.brand){brand=b.dataset.brand;model=null;filter="all";q="";$("#mSearch").value=""}renderBrands();renderModels();renderSide()}
+  if(b.dataset.brand){if(brand!==b.dataset.brand){brand=b.dataset.brand;model=null;trim=null;filter="all";q="";$("#mSearch").value=""}renderBrands();renderModels();renderSide()}
   if(b.dataset.filter){filter=b.dataset.filter;renderBrands();renderModels()}
-  if(b.dataset.model){model=b.dataset.model;err("model",false);renderModels();renderSide()}
+  if(b.dataset.model){if(model!==b.dataset.model)trim=null;model=b.dataset.model;const m=curModel();if(m?.[4]?.length===1)trim=m[4][0].name;err("model",false);renderModels();renderSide()}
+  if(b.dataset.trim){trim=b.dataset.trim;err("model",false);renderModels();renderSide()}
   const decide=async(id,d)=>{const a=A(id),dp=chosenDp(a);
     if(API){try{const r=await fetch(`/api/applications/${encodeURIComponent(a.id)}/decision`,{method:"POST",headers:{"Content-Type":"application/json","x-app-token":a.token||""},body:JSON.stringify({decision:d,downPct:dp})});
       if(!r.ok){const j=await r.json().catch(()=>({}));b.textContent=j.error||"Xəta baş verdi";return}}catch(e){b.textContent="Bağlantı xətası";return}}

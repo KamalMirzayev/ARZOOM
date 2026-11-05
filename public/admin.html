@@ -139,13 +139,13 @@ aside{border-right:1px solid var(--line);display:flex;flex-direction:column;min-
 .s-info{background:rgba(94,200,216,.16);color:#2A9BAD}
 .tile.s-info{background:rgba(94,200,216,.16);color:#2A9BAD}.tile.s-offer{background:var(--blue-soft);color:var(--blue)}.tile.s-accepted{background:var(--ok-soft);color:var(--ok)}
 .tile.s-rejected,.tile.s-declined{background:var(--bad-soft);color:var(--bad)}.tile.s-cancelled{background:var(--line);color:var(--muted)}
-.item .no{font-family:var(--f-mono);font-weight:600;font-size:13px;white-space:nowrap;letter-spacing:-.01em}
+.item .no{font-family:var(--f-mono);font-weight:600;font-size:13px;white-space:nowrap;letter-spacing:-.01em;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .item .car{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .item .car em{font-style:normal;font-family:var(--f-mono);font-size:11.5px}
 .item .ago{font-size:11.5px;color:var(--muted);white-space:nowrap}
 .item .id{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .item .tags{display:flex;gap:8px;justify-content:flex-end;align-items:center}
-.item .st{justify-self:end}
+.item .st{justify-self:end;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .empty{padding:48px 20px;text-align:center;color:var(--muted)}
 .empty svg{width:34px;height:34px;opacity:.5;display:block;margin:0 auto 10px}
 main{padding:26px clamp(18px,2.4vw,34px) 40px;min-width:0;max-width:1240px}
@@ -519,6 +519,8 @@ const fmtDob=s=>{const [y,m,d]=String(s).slice(0,10).split("-").map(Number),t=ne
 const dt=s=>{const d=new Date(s);return d.toLocaleDateString("az-AZ",{day:"2-digit",month:"2-digit",year:"numeric"})+" "+d.toLocaleTimeString("az-AZ",{hour:"2-digit",minute:"2-digit"})};
 // Keys match REJECT_REASONS in server.js, which holds the full text the customer gets.
 const REJECT_CODES={credit:"Kredit tarixçəsi uyğun deyil",income:"Gəlir aylıq ödəniş üçün kifayət etmir",debt:"Borc yükü yüksəkdir",docs:"Sənədlər natamam və ya yoxlanılmadı",terms:"Lizinq şərtlərinə uyğun deyil"};
+// Short labels for the narrow list rows; the full label is the tooltip and is used everywhere else.
+const STATUS_SHORT={info:"Məlumat gözlənir",declined:"İmtina etdi"};
 const STATUS={review:"Baxılır",info:"Əlavə məlumat gözlənilir",offer:"Təklif göndərilib",rejected:"Rədd edilib",accepted:"Satışa ötürülüb",declined:"Müştəri imtina etdi",cancelled:"Ləğv edilib"};
 const INCOME={extra:"Əlavə sənədlər (müştəri cavabı)",work:"Rəsmi iş yeri",informal:"Qeyri-rəsmi gəlirlər",biz:"Sahibkar",pension:"Pensiya",social:"Sosial yardım"};
 const EVENTS={webhook:"Partnyora bildiriş göndərildi",info_request:"Müştəridən əlavə məlumat istənildi",info_reply:"Müştəri əlavə məlumat göndərdi",bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",rejected:"Müraciət rədd edildi",note:"Qeyd",
@@ -744,7 +746,7 @@ function renderList(){
   $("#analyticsBtn").setAttribute("aria-pressed",String(!cur&&$("#detail").dataset.page==="analytics"));
   $("#list").innerHTML=items.length?items.map(a=>`<button type="button" class="item" data-id="${a.id}" aria-current="${cur&&cur.id===a.id}">
       <span class="tile s-${a.status}">${esc(initials(a))}</span>
-      <span class="no">№ ${a.id}</span><span class="st sm s-${a.status}">${STATUS[a.status]}</span>
+      <span class="no">№ ${a.id}</span><span class="st sm s-${a.status}" title="${STATUS[a.status]}">${STATUS_SHORT[a.status]||STATUS[a.status]}</span>
       <span class="car">${esc(a.brand)} ${esc(a.model)} <em>· ${esc(a.fin)}</em></span>
       <span class="tags">${a.grade?`<span class="grade g-${a.grade}">${a.score} · ${a.grade}</span>`:""}<span class="ago">${ago(a.created_at)}</span></span></button>`).join(""):`<div class="empty">${IC.inbox}Bu filtrdə müraciət yoxdur.</div>`;
 }

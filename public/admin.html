@@ -260,7 +260,7 @@ ul.r li.stop{color:#FFB4AC;font-weight:700} ul.r li.stop::before{background:#F08
 .tl .body{padding-top:5px;min-width:0}
 .tl .body p{margin:2px 0 0;color:var(--muted);font-size:13px;word-break:break-word}
 .tl small{color:var(--muted);display:block;font-size:11.5px;margin-top:2px}
-.noteform{display:flex;gap:8px;margin-top:6px}
+.noteform{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}.noteform input{flex:1;min-width:160px}
 .danger-zone{border-color:color-mix(in srgb,var(--red) 40%,var(--line))}
 .danger-zone .ph .ico{background:var(--red-soft);color:var(--red)}
 
@@ -523,6 +523,7 @@ const REJECT_CODES={credit:"Kredit tarixçəsi uyğun deyil",income:"Gəlir ayl�
 const STATUS_SHORT={info:"Məlumat gözlənir",declined:"İmtina etdi"};
 const STATUS={review:"Baxılır",info:"Əlavə məlumat gözlənilir",offer:"Təklif göndərilib",rejected:"Rədd edilib",accepted:"Satışa ötürülüb",declined:"Müştəri imtina etdi",cancelled:"Ləğv edilib"};
 const INCOME={extra:"Əlavə sənədlər (müştəri cavabı)",work:"Rəsmi iş yeri",informal:"Qeyri-rəsmi gəlirlər",biz:"Sahibkar",pension:"Pensiya",social:"Sosial yardım"};
+const CALL_RESULTS={agreed:"Razılaşdı",thinking:"Düşünür",callback:"Yenidən zəng ediləcək",docs:"Sənəd gətirəcək",verified:"Məlumatlar təsdiqləndi",mismatch:"Uyğunsuzluq aşkarlandı",no_answer:"Cavab vermədi",not_interested:"Maraqlanmır",wrong_number:"Nömrə səhvdir"};
 const EVENTS={partner_ref:"Partnyor ref nömrəsi əlavə edildi",webhook:"Partnyora bildiriş göndərildi",info_request:"Müştəridən əlavə məlumat istənildi",info_reply:"Müştəri əlavə məlumat göndərdi",bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",rejected:"Müraciət rədd edildi",note:"Qeyd",
   accepted:"Müştəri son təklifi təsdiqlədi: anderraytinqə və satışa ötürüldü",declined:"Müştəri təklifdən imtina etdi",cancelled:"Müştəri müraciəti ləğv etdi",sms:"SMS"};
 const FILTERS=[["","Hamısı"],["review","Baxılır"],["info","Məlumat"],["offer","Təklif"],["accepted","Satış"],["rejected","Rədd"],["declined","İmtina"],["cancelled","Ləğv"]];
@@ -1018,7 +1019,7 @@ function renderDetail(){
     </section>`:""}
     <section class="panel span2">${ph("clock","Tarixçə və qeydlər")}
       <ol class="tl">${a.events.map(evHtml).join("")||`<li class="muted" style="display:block">Hələ hadisə yoxdur.</li>`}</ol>
-      <form id="nForm" class="noteform"><input id="note" placeholder="Qeyd əlavə et, məs. müştəriyə zəng edildi"><button class="btn ghost" type="submit">Əlavə et</button></form>
+      <form id="nForm" class="noteform"><select id="noteChannel" aria-label="Danışıq növü" style="max-width:150px"><option value="phone">Telefon danışığı</option><option value="meeting">Fiziki görüş</option></select><select id="noteOutcome" aria-label="Danışığın nəticəsi" style="max-width:190px"><option value="">Danışığın nəticəsi…</option>${Object.entries(CALL_RESULTS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select><input id="note" placeholder="Qeyd, məs. sabah 11-də yenidən zəng"><button class="btn ghost" type="submit">Əlavə et</button></form>
     </section>
   </div>`;
   liveResult();
@@ -1037,11 +1038,11 @@ function evHtml(e){
   const d=e.details||{};
   const extra=e.kind==="bureau"?`${d.score} bal, ${d.grade} · ${Scoring.VERDICTS[d.verdict]||""} · aylıq borc ${azn(d.debtMonthly||0)}${d.flags?` · ${d.flags} xəbərdarlıq`:""}`:e.kind==="assessed"?`${d.score} bal, ${d.grade} · ${Scoring.VERDICTS[d.verdict]||""}`:
     e.kind==="offer"?`${azn(d.price)}, ilkin ${d.downPct}%, ${d.months} ay, illik ${d.rate}%`:
-    e.kind==="rejected"?d.reason:e.kind==="note"?d.text:e.kind==="webhook"?`ref № ${d.ref||"—"} · ${d.result||""}${d.error?" · Göndərilmədi: "+d.error:""}`:e.kind==="sms"?(d.error?"Göndərilmədi: "+d.error:d.text)+(d.demo?" (SMS provayderi qoşulmayıb, göndərilmədi)":""):
+    e.kind==="rejected"?d.reason:e.kind==="note"?[CALL_RESULTS[d.outcome],d.text].filter(Boolean).join(" · "):e.kind==="webhook"?`ref № ${d.ref||"—"} · ${d.result||""}${d.error?" · Göndərilmədi: "+d.error:""}`:e.kind==="sms"?(d.error?"Göndərilmədi: "+d.error:d.text)+(d.demo?" (SMS provayderi qoşulmayıb, göndərilmədi)":""):
     e.kind==="info_request"?d.text:e.kind==="info_reply"?[d.text,d.files?`${d.files} sənəd`:""].filter(Boolean).join(" · "):
     e.kind==="created"?`${d.files||0} sənəd`:e.kind==="accepted"&&d.downPct!=null?`ilkin ödəniş ${d.downPct}%`:"";
   const [ic,cls]=EV_IC[e.kind]||["clock",""];
-  const title=e.kind==="sms"?`SMS${d.to?" → "+d.to:""}`:EVENTS[e.kind]||e.kind;
+  const title=e.kind==="note"&&CALL_RESULTS[d.outcome]?(d.channel==="meeting"?"Fiziki görüşün nəticəsi":"Telefon danışığının nəticəsi"):e.kind==="sms"?`SMS${d.to?" → "+d.to:""}`:EVENTS[e.kind]||e.kind;
   return `<li><span class="dot ${d.error?"k-bad":cls}">${IC[ic]}</span><div class="body"><b>${esc(title)}</b>${extra?`<p>${esc(extra)}</p>`:""}<small>${dt(e.at)} · ${esc(e.actor)}</small></div></li>`;
 }
 function inputs(){
@@ -1077,8 +1078,8 @@ document.addEventListener("change",e=>{if(e.target.closest("#aForm"))liveResult(
 document.addEventListener("submit",async e=>{
   if(e.target.id==="aForm"){e.preventDefault();
     try{await api(`/applications/${cur.id}/assessment`,{method:"PUT",body:JSON.stringify(inputs())});toast("Qiymətləndirmə saxlanıldı");await openApp(cur.id);loadList()}catch(err){toast(err.message)}}
-  if(e.target.id==="nForm"){e.preventDefault();const t=$("#note").value.trim();if(!t)return;
-    try{await api(`/applications/${cur.id}/notes`,{method:"POST",body:JSON.stringify({text:t})});await openApp(cur.id)}catch(err){toast(err.message)}}
+  if(e.target.id==="nForm"){e.preventDefault();const t=$("#note").value.trim(),outcome=$("#noteOutcome").value;if(!t&&!outcome){toast("Nəticəni seç və ya qeyd yaz.");return}
+    try{await api(`/applications/${cur.id}/notes`,{method:"POST",body:JSON.stringify({text:t,outcome:outcome||undefined,channel:$("#noteChannel").value})});await openApp(cur.id)}catch(err){toast(err.message)}}
 });
 document.addEventListener("click",async e=>{
   const b=e.target.closest("button");if(!b)return;

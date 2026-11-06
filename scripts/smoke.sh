@@ -123,6 +123,9 @@ R2=$(curl -fsS -H "x-app-token: $TOK2" "$B/api/applications/$ID2")
 sleep 1; curl -fsS "${H[@]}" "$B/api/admin/applications/$ID2" | grep -q "təsdiqlənmədi. Səbəb: Mövcud kredit" || fail; echo "✓ rədd SMS-ində səbəb var"
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID2/notes" -d '{"text":"zəng edildi"}' >/dev/null
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID2" | J 'events.length')" -ge 3 ] || fail; echo "✓ tarixçə"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID2/notes" -d '{"outcome":"toString"}')" = 400 ] || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID2/notes" -d '{"outcome":"verified","channel":"meeting"}' >/dev/null
+curl -fsS "${H[@]}" "$B/api/admin/applications?q=$ID2" | grep -q '"last_call":"verified"' || fail; echo "✓ danışığın nəticəsi qeyd olunur və siyahıda görünür"
 curl -fsS "${H[@]}" "$B/api/admin/stats" | grep -c '"accepted"' >/dev/null || fail; echo "✓ statistika"
 # Başqa cihazdan: nömrə + FİN + SMS kodu
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/lookup/otp" -H "Content-Type: application/json" -d "{\"id\":\"$ID2\",\"fin\":\"0000000\"}")" = 404 ] || fail; echo "✓ yanlış FİN tapılmır"

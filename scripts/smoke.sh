@@ -109,6 +109,12 @@ AI=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID2")
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID2/reject" -d '{"reason":"DTI 70%"}')" = 400 ] || fail; echo "✓ müştəri səbəbi seçilmədən rədd olmur"
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID2/reject" -d '{"reason":"DTI 70%","code":"debt"}' >/dev/null
 sleep 1; grep -q '^wh-token-12345 {"event":"rejected","external_id":"111938","application_id":"'"$ID2"'","date":"[^"]*"}$' "$WHF" || fail
+# A ref added later by staff: the partner gets "submitted" and then the current result.
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID2/partner-ref" -d '{"ref":"bad ref!"}')" = 400 ] || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID2/partner-ref" -d '{"ref":"222333"}' | grep -q '"partner_ref":"222333"' || fail
+sleep 1; grep -q '^wh-token-12345 {"event":"submitted","external_id":"222333","application_id":"'"$ID2"'"' "$WHF" \
+  && grep -q '^wh-token-12345 {"event":"rejected","external_id":"222333","application_id":"'"$ID2"'"' "$WHF" || fail
+echo "✓ sonradan əlavə edilən ref partnyora göndərilir"
 curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/webhook" -d '{"clear":true}' | grep -q '"connected":false' || fail
 kill $WHPID 2>/dev/null; echo "✓ partnyor webhook: rədd bildirişi göndərilir"
 R2=$(curl -fsS -H "x-app-token: $TOK2" "$B/api/applications/$ID2")

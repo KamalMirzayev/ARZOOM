@@ -748,7 +748,10 @@ const grp=n=>Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");
 const azn=n=>grp(n)+" ₼";
 const pmt=(F,rate,n)=>{const r=rate/100/12;return r?F*r/(1-Math.pow(1+r,-n)):F/n};
 
-$$("[data-app]").forEach(a=>a.href=APP_URL+(a.dataset.app==="mine"?"#muracietlerim":""));
+// A partner link (e.g. Bitrix: ?partner=groupmotors&ref=111938) may land on this site: carry it to the leasing app.
+const REF=(()=>{const u=new URLSearchParams(location.search),q=new URLSearchParams(),ok=v=>/^[A-Za-z0-9_.-]{1,64}$/.test(v||"");
+  const p=u.get("partner"),r=u.get("ref")||u.get("amp;ref");if(ok(p))q.set("partner",p);if(ok(r))q.set("ref",r);const s=q.toString();return s?"?"+s:""})();
+$$("[data-app]").forEach(a=>a.href=APP_URL+REF+(a.dataset.app==="mine"?"#muracietlerim":""));
 $("#yr").textContent=new Date().getFullYear();
 
 /* calculator */

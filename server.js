@@ -513,11 +513,12 @@ const whState = () => ({ connected: !!WH.url, host: WH.url ? new URL(WH.url).hos
 //   approved:  the same plus terms (credit amount, down payment, months, monthly payment, interest rate)
 //   rejected:  external_id, application_id, date
 const WH_EVENT = { review: "submitted", offer: "approved", rejected: "rejected" };
-async function postResult(id, attempt = 1) {
+// `only` sends one given event instead of the one for the current status (used when a ref is added afterwards).
+async function postResult(id, attempt = 1, only = null) {
   if (!WH.url) return;
   const { rows } = await pool.query("SELECT id, partner_ref, status, offer, created_at, updated_at FROM applications WHERE id = $1", [id]);
   const a = rows[0];
-  const event = a && WH_EVENT[a.status];
+  const event = a && (only || WH_EVENT[a.status]);
   if (!a || !a.partner_ref || !event) return;
   const r2 = x => Math.round(x * 100) / 100;
   const body = { event, external_id: a.partner_ref, application_id: a.id, date: new Date(event === "submitted" ? a.created_at : a.updated_at).toISOString() };
@@ -534,7 +535,7 @@ async function postResult(id, attempt = 1) {
   } catch (e) { error = e.name === "TimeoutError" ? "cavab gəlmədi (10 san.)" : "qoşulmaq olmadı"; }
   WH.last = { ok: !error, at: new Date().toISOString(), id, error };
   await logEvent(pool, id, "Sistem", "webhook", { result: event, ref: a.partner_ref, ...(error ? { error } : {}) }).catch(() => {});
-  if (error) { console.error(`Partnyor webhook xətası (${id}): ${error}`); if (attempt < 2) setTimeout(() => postResult(id, attempt + 1).catch(() => {}), 60000); }
+  if (error) { console.error(`Partnyor webhook xətası (${id}): ${error}`); if (attempt < 2) setTimeout(() => postResult(id, attempt + 1, only).catch(() => {}), 60000); }
 }
 const sendResult = id => postResult(id).catch(e => console.error(e.message));
 // Stock and prices come from the same partner, with the same token: GET {origin}/credit/kb/{token}, refreshed every 15 minutes.
@@ -765,6 +766,24 @@ app.post("/api/admin/applications/:id/offer", admin, brandGate, can("apps.offer"
 });
 
 // Before an offer the expert may ask the customer for more documents or information. The customer answers in the cabinet.
+// An application that came without the partner's ref (e.g. the link lost it): staff add the ref by hand.
+// The partner then gets "submitted" and, when the application is already decided, the current result too.
+app.post("/api/admin/applications/:id/partner-ref", admin, brandGate, can("apps.assess"), async (req, res) => {
+  const ref = partnerCode(req.body?.ref), partner = partnerCode(req.body?.partner);
+  if (!ref) return bad(res, "Ref nömrəsi yalnız hərf, rəqəm, nöqtə, tire və alt xətdən ibarət ola bilər (64 simvoladək).");
+  const r = await pool.query(
+    "UPDATE applications SET partner_ref = $2, partner = COALESCE(partner, $3) WHERE id = $1 RETURNING id, status, partner, partner_ref",
+    [req.params.id, ref, partner]);
+  if (!r.rowCount) return bad(res, "Müraciət tapılmadı.", 404);
+  await logEvent(pool, req.params.id, req.staff, "partner_ref", { ref });
+  audit(req, req.user.username, "apps.partner_ref", `${req.params.id}: ${ref}`);
+  if (WH.url) {
+    await postResult(req.params.id, 1, "submitted").catch(e => console.error(e.message));
+    if (WH_EVENT[r.rows[0].status] && WH_EVENT[r.rows[0].status] !== "submitted") await postResult(req.params.id).catch(e => console.error(e.message));
+  }
+  res.json({ ok: true, partner: r.rows[0].partner, partner_ref: r.rows[0].partner_ref, sent: !!WH.url });
+});
+
 app.post("/api/admin/applications/:id/request-info", admin, brandGate, can("apps.assess"), async (req, res) => {
   const text = String(req.body?.text || "").trim().slice(0, 300);
   if (text.length < 5) return bad(res, "Müştəridən nə tələb olunduğunu yaz.");

@@ -523,7 +523,7 @@ const REJECT_CODES={credit:"Kredit tarixçəsi uyğun deyil",income:"Gəlir ayl�
 const STATUS_SHORT={info:"Məlumat gözlənir",declined:"İmtina etdi"};
 const STATUS={review:"Baxılır",info:"Əlavə məlumat gözlənilir",offer:"Təklif göndərilib",rejected:"Rədd edilib",accepted:"Satışa ötürülüb",declined:"Müştəri imtina etdi",cancelled:"Ləğv edilib"};
 const INCOME={extra:"Əlavə sənədlər (müştəri cavabı)",work:"Rəsmi iş yeri",informal:"Qeyri-rəsmi gəlirlər",biz:"Sahibkar",pension:"Pensiya",social:"Sosial yardım"};
-const EVENTS={webhook:"Partnyora bildiriş göndərildi",info_request:"Müştəridən əlavə məlumat istənildi",info_reply:"Müştəri əlavə məlumat göndərdi",bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",rejected:"Müraciət rədd edildi",note:"Qeyd",
+const EVENTS={partner_ref:"Partnyor ref nömrəsi əlavə edildi",webhook:"Partnyora bildiriş göndərildi",info_request:"Müştəridən əlavə məlumat istənildi",info_reply:"Müştəri əlavə məlumat göndərdi",bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",rejected:"Müraciət rədd edildi",note:"Qeyd",
   accepted:"Müştəri son təklifi təsdiqlədi: anderraytinqə və satışa ötürüldü",declined:"Müştəri təklifdən imtina etdi",cancelled:"Müştəri müraciəti ləğv etdi",sms:"SMS"};
 const FILTERS=[["","Hamısı"],["review","Baxılır"],["info","Məlumat"],["offer","Təklif"],["accepted","Satış"],["rejected","Rədd"],["declined","İmtina"],["cancelled","Ləğv"]];
 
@@ -684,7 +684,7 @@ document.addEventListener("click",async e=>{if(e.target.id!=="whOff")return;
 document.addEventListener("change",async e=>{const c=e.target.closest("[data-ubrand]");if(!c)return;const id=c.dataset.ubrand;
   const brands=[...document.querySelectorAll(`[data-ubrand="${id}"]:checked`)].map(i=>i.value);
   try{await api("/users/"+id,{method:"POST",body:JSON.stringify({brands})});toast(brands.length?"Markalar: "+brands.join(", "):"Bütün markalar")}catch(err){toast(err.message)}renderUsers()});
-const AUDIT={"apps.export":"Excel-ə çıxardı","settings.sms":"SMS ayarını dəyişdi","settings.webhook":"Webhook ayarını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
+const AUDIT={"apps.partner_ref":"Partnyor ref nömrəsi əlavə etdi","apps.export":"Excel-ə çıxardı","settings.sms":"SMS ayarını dəyişdi","settings.webhook":"Webhook ayarını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
   "user.update":"İstifadəçini dəyişdi","file.view":"Sənədə baxdı","app.delete":"Müraciəti sildi"};
 $("#usersBtn").onclick=renderUsers;
 // Excel: downloads what the list shows now (status filter and search), all rows, not only the first 500.
@@ -952,7 +952,8 @@ function renderDetail(){
         <dt>Şəxsiyyət vəsiqəsi</dt><dd class="mono">${esc(a.id_series)} ${esc(a.id_number)}</dd>
         ${a.birth_date?`<dt>Doğum tarixi</dt><dd>${esc(fmtDob(a.birth_date))}</dd>`:""}
         <dt>Mobil</dt><dd><a href="tel:+${esc(a.phone)}">+${esc(a.phone)}</a></dd>
-        ${a.partner_ref||a.partner?`<dt>Partnyor</dt><dd><span class="mono">${esc(a.partner||"—")}</span> · ref № <b class="mono">${esc(a.partner_ref||"—")}</b></dd>`:""}
+        ${a.partner_ref?`<dt>Partnyor</dt><dd><span class="mono">${esc(a.partner||"—")}</span> · ref № <b class="mono">${esc(a.partner_ref)}</b></dd>`
+          :`<dt>Partnyor ref №</dt><dd><span style="display:flex;gap:6px;flex-wrap:wrap"><input id="refIn" class="mono" maxlength="64" placeholder="Bitrix ref, məs. 111938" style="max-width:180px"><button class="btn ghost sm" type="button" id="refSave">Əlavə et</button></span></dd>`}
         <dt>Gəlir mənbəyi</dt><dd>${a.income_sources.map(s=>INCOME[s]).join(", ")}</dd>
         ${a.guarantor!=null?`<dt>Zamin</dt><dd>${a.guarantor?"Təmin edə bilər":"Təmin edə bilməz"}</dd>`:""}
         ${a.voen?`<dt>VÖEN</dt><dd class="mono">${esc(a.voen)}</dd>`:""}
@@ -1086,6 +1087,10 @@ document.addEventListener("click",async e=>{
   if(b.dataset.file){
     try{const r=await fetch("/api/admin/files/"+encodeURIComponent(b.dataset.file),{headers:{"x-admin-token":token}});if(!r.ok)throw new Error("Fayl açılmadı.");
       const u=URL.createObjectURL(await r.blob());window.open(u,"_blank");setTimeout(()=>URL.revokeObjectURL(u),60000)}catch(err){toast(err.message)}}
+  if(b.id==="refSave"){
+    const ref=$("#refIn").value.trim();if(!ref){toast("Ref nömrəsini yaz.");return}
+    try{const r=await api(`/applications/${cur.id}/partner-ref`,{method:"POST",body:JSON.stringify({ref,partner:"groupmotors"})});
+      toast(r.sent?"Ref əlavə edildi, partnyora göndərildi":"Ref əlavə edildi (webhook qoşulmayıb)");await openApp(cur.id)}catch(err){toast(err.message)}}
   if(b.id==="sendOffer"){
     const i=inputs();if(!(+i.price>0)){toast("Avtomobilin qiymətini yaz.");return}
     const r=Scoring.assess(i);

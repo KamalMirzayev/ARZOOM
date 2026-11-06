@@ -226,7 +226,7 @@ const upload = multer({
 });
 
 app.post("/api/applications", submitLimit, upload.any(), async (req, res) => {
-  const b = req.body, files = req.files || [];
+  const b = req.body || {}, files = req.files || [];
   const cleanup = () => files.forEach(f => fs.rm(f.path, () => {}));
   const fin = String(b.fin || "").toUpperCase();
   const phone = normPhone(b.phone);

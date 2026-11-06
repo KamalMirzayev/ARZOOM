@@ -109,7 +109,7 @@ AI=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID2")
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "x-app-token: $TOK2" "$B/api/applications/$ID2/info" -F "text=yenə")" = 409 ] || fail; echo "✓ əlavə məlumat: sorğu, müştəri cavabı və sənəd, yenidən baxış"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID2/reject" -d '{"reason":"DTI 70%"}')" = 400 ] || fail; echo "✓ müştəri səbəbi seçilmədən rədd olmur"
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID2/reject" -d '{"reason":"DTI 70%","code":"debt"}' >/dev/null
-sleep 1; grep -q '^wh-token-12345 {"event":"rejected","external_id":"111938","application_id":"'"$ID2"'","date":"[^"]*"}$' "$WHF" || fail
+sleep 1; grep -q '^wh-token-12345 {"event":"rejected","external_id":"111938","application_id":"'"$ID2"'","date":"[^"]*","phone":"+994501112235"}$' "$WHF" || fail
 # A ref added later by staff: the partner gets "submitted" and then the current result.
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID2/partner-ref" -d '{"ref":"bad ref!"}')" = 400 ] || fail
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID2/partner-ref" -d '{"ref":"222333"}' | grep -q '"partner_ref":"222333"' || fail

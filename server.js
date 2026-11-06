@@ -652,7 +652,7 @@ app.get("/api/admin/applications", admin, async (req, res) => {
   const st = String(req.query.status || "");
   const { rows } = await pool.query(
     `SELECT id, created_at, updated_at, fin, phone, partner, partner_ref, brand, model, income_sources, status,
-            assessment->'result'->>'grade' AS grade, (assessment->'result'->>'score')::int AS score
+            assessment->'result'->>'grade' AS grade, (assessment->'result'->>'score')::int AS score, ${LAST_CALL} AS last_call
      FROM applications
      WHERE ($1 = '' OR status = $1)
        AND ($2 = '' OR id ILIKE '%' || $2 || '%' OR fin ILIKE '%' || $2 || '%' OR phone LIKE '%' || $2 || '%' OR upper(model) LIKE '%' || $2 || '%' OR upper(partner_ref) = $2)
@@ -671,7 +671,8 @@ app.get("/api/admin/export.xlsx", admin, async (req, res) => {
   const st = String(req.query.status || "");
   const { rows } = await pool.query(
     `SELECT id, created_at, updated_at, status, fin, id_series, id_number, birth_date::text AS birth_date, phone, partner, partner_ref, income_sources, voen, brand, model, guarantor,
-            assessment->'result'->>'grade' AS grade, (assessment->'result'->>'score')::int AS score, offer, reject_public, decided_by
+            assessment->'result'->>'grade' AS grade, (assessment->'result'->>'score')::int AS score, offer, reject_public, decided_by,
+            ${LAST_CALL} AS last_call
      FROM applications
      WHERE ($1 = '' OR status = $1)
        AND ($2 = '' OR id ILIKE '%' || $2 || '%' OR fin ILIKE '%' || $2 || '%' OR phone LIKE '%' || $2 || '%' OR upper(model) LIKE '%' || $2 || '%' OR upper(partner_ref) = $2)
@@ -680,7 +681,7 @@ app.get("/api/admin/export.xlsx", admin, async (req, res) => {
   const cols = [["Müraciət №", 14], ["Daxil olub", 17], ["Status", 18], ["FİN", 10], ["Şəxsiyyət vəsiqəsi", 16], ["Doğum tarixi", 12],
     ["Telefon", 15], ["Partnyor", 14], ["Partnyor ref №", 14], ["Gəlir mənbələri", 28], ["VÖEN", 12], ["Marka", 14], ["Model", 18], ["Zamin", 8], ["Bal", 7], ["Risk dərəcəsi", 10],
     ["Avtomobilin qiyməti", 14], ["İlkin ödəniş %", 10], ["İlkin ödəniş", 13], ["İlkin kredit məbləği", 15], ["Müddət (ay)", 10],
-    ["İllik faiz %", 10], ["Aylıq ödəniş", 13], ["Rədd səbəbi", 30], ["Qərar verən", 14], ["Son dəyişiklik", 17]].map(([title, width]) => ({ title, width }));
+    ["İllik faiz %", 10], ["Aylıq ödəniş", 13], ["Rədd səbəbi", 30], ["Qərar verən", 14], ["Son danışığın nəticəsi", 20], ["Son dəyişiklik", 17]].map(([title, width]) => ({ title, width }));
   const r2 = x => Math.round(x * 100) / 100;
   const data = rows.map(a => {
     const o = a.offer, t = o?.price ? finalTerms(o, o.final?.downPct ?? o.downPct) : null;
@@ -689,7 +690,7 @@ app.get("/api/admin/export.xlsx", admin, async (req, res) => {
       (a.income_sources || []).map(s => INCOME_NAMES[s] || s).join(", "), a.voen || "", a.brand, a.model,
       a.guarantor == null ? "" : a.guarantor ? "Bəli" : "Xeyr", a.score ?? "", a.grade || "",
       t ? o.price : "", t ? t.dp : "", t ? r2(t.down) : "", t ? r2(t.credit) : "", t ? t.months : "", t ? o.rate : "", t ? r2(t.pay) : "",
-      a.reject_public || "", a.decided_by || "", a.updated_at];
+      a.reject_public || "", a.decided_by || "", CALL_RESULTS[a.last_call] || "", a.updated_at];
   });
   audit(req, req.user.username, "apps.export", `${rows.length} müraciət${st ? `, status: ${st}` : ""}${q ? `, axtarış: ${q}` : ""}`);
   const day = new Date(Date.now() + 4 * 3600e3).toISOString().slice(0, 10);
@@ -817,12 +818,20 @@ app.post("/api/admin/applications/:id/reject", admin, brandGate, can("apps.rejec
   res.json({ ok: true });
 });
 
+// Result of a talk with the customer, picked from a fixed list; the note text is optional with it.
+const CALL_RESULTS = { agreed: "Razılaşdı", thinking: "Düşünür", callback: "Yenidən zəng ediləcək", docs: "Sənəd gətirəcək",
+  verified: "Məlumatlar təsdiqləndi", mismatch: "Uyğunsuzluq aşkarlandı",
+  no_answer: "Cavab vermədi", not_interested: "Maraqlanmır", wrong_number: "Nömrə səhvdir" };
+const LAST_CALL = `(SELECT details->>'outcome' FROM application_events e WHERE e.application_id = applications.id AND e.kind = 'note' AND details ? 'outcome' ORDER BY e.at DESC LIMIT 1)`;
 app.post("/api/admin/applications/:id/notes", admin, brandGate, can("apps.notes"), async (req, res) => {
   const text = String(req.body?.text || "").trim().slice(0, 2000);
-  if (!text) return bad(res, "Qeyd boşdur.");
+  const outcome = req.body?.outcome ? String(req.body.outcome) : null;
+  if (outcome && !Object.hasOwn(CALL_RESULTS, outcome)) return bad(res, "Danışığın nəticəsi düzgün deyil.");
+  if (!text && !outcome) return bad(res, "Qeyd boşdur.");
+  const channel = outcome ? (req.body?.channel === "meeting" ? "meeting" : "phone") : null;
   const r = await pool.query("SELECT 1 FROM applications WHERE id = $1", [req.params.id]);
   if (!r.rowCount) return bad(res, "Müraciət tapılmadı.", 404);
-  await logEvent(pool, req.params.id, req.staff, "note", { text });
+  await logEvent(pool, req.params.id, req.staff, "note", outcome ? { text, outcome, channel } : { text });
   res.json({ ok: true });
 });
 

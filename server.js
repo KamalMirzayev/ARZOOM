@@ -519,12 +519,13 @@ const WH_EVENT = { review: "submitted", offer: "approved", rejected: "rejected",
 // `only` sends one given event instead of the one for the current status (used when a ref is added afterwards).
 async function postResult(id, attempt = 1, only = null) {
   if (!WH.url) return;
-  const { rows } = await pool.query("SELECT id, partner_ref, status, offer, created_at, updated_at FROM applications WHERE id = $1", [id]);
+  const { rows } = await pool.query("SELECT id, partner_ref, status, offer, phone, created_at, updated_at FROM applications WHERE id = $1", [id]);
   const a = rows[0];
   const event = a && (only || WH_EVENT[a.status]);
   if (!a || !a.partner_ref || !event) return;
   const r2 = x => Math.round(x * 100) / 100;
-  const body = { event, external_id: a.partner_ref, application_id: a.id, date: new Date(event === "submitted" ? a.created_at : a.updated_at).toISOString() };
+  const body = { event, external_id: a.partner_ref, application_id: a.id, date: new Date(event === "submitted" ? a.created_at : a.updated_at).toISOString(),
+                 phone: "+" + a.phone };
   if ((event === "approved" || event === "accepted") && a.offer) {
     const o = a.offer, t = finalTerms(o, event === "accepted" ? (o.final?.downPct ?? o.downPct) : o.downPct);
     body.terms = { amount: r2(t.credit), car_price: o.price, down_payment: r2(t.down), down_payment_pct: t.dp, months: t.months,

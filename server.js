@@ -368,6 +368,7 @@ app.post("/api/applications/:id/cancel", lookupLimit, async (req, res) => {
     [req.params.id]);
   if (!r.rowCount) return bad(res, "Müraciət tapılmadı.", 404);
   await logEvent(pool, req.params.id, "Müştəri", "cancelled");
+  sendResult(req.params.id);
   notify(req.params.id, r.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id} sizin istəyinizlə ləğv edildi. Yeni müraciət üçün:${SITE_URL ? " " + SITE_URL : " *5665"}`);
   res.json({ ok: true });
 });
@@ -391,6 +392,7 @@ app.post("/api/applications/:id/decision", lookupLimit, async (req, res) => {
      WHERE id = $1 AND status = 'offer' RETURNING phone`, [req.params.id, d, final]);
   if (!done.rowCount) return bad(res, "Təklif tapılmadı.", 404);
   await logEvent(pool, req.params.id, "Müştəri", d, final);
+  sendResult(req.params.id);
   if (d === "accepted") announceAccepted(req.params.id).catch(e => console.error(e.message));
   else notify(req.params.id, done.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id} üzrə təklifdən imtina etdiniz, müraciət bağlandı. Fikrinizi dəyişsəniz, *5665 nömrəsinə zəng edin.`);
   res.json({ ok: true, final });
@@ -512,7 +514,8 @@ const whState = () => ({ connected: !!WH.url, host: WH.url ? new URL(WH.url).hos
 //   submitted: external_id, application_id, date
 //   approved:  the same plus terms (credit amount, down payment, months, monthly payment, interest rate)
 //   rejected:  external_id, application_id, date
-const WH_EVENT = { review: "submitted", offer: "approved", rejected: "rejected" };
+// Every result is sent to the partner (Bitrix): sent to sales, rejected, declined by the customer, cancelled.
+const WH_EVENT = { review: "submitted", offer: "approved", rejected: "rejected", accepted: "accepted", declined: "declined", cancelled: "cancelled" };
 // `only` sends one given event instead of the one for the current status (used when a ref is added afterwards).
 async function postResult(id, attempt = 1, only = null) {
   if (!WH.url) return;
@@ -522,8 +525,8 @@ async function postResult(id, attempt = 1, only = null) {
   if (!a || !a.partner_ref || !event) return;
   const r2 = x => Math.round(x * 100) / 100;
   const body = { event, external_id: a.partner_ref, application_id: a.id, date: new Date(event === "submitted" ? a.created_at : a.updated_at).toISOString() };
-  if (event === "approved") {
-    const o = a.offer, t = finalTerms(o, o.downPct);
+  if ((event === "approved" || event === "accepted") && a.offer) {
+    const o = a.offer, t = finalTerms(o, event === "accepted" ? (o.final?.downPct ?? o.downPct) : o.downPct);
     body.terms = { amount: r2(t.credit), car_price: o.price, down_payment: r2(t.down), down_payment_pct: t.dp, months: t.months,
                    monthly_payment: r2(t.pay), interest_rate: o.rate };
   }

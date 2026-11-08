@@ -202,6 +202,13 @@ main{padding:26px clamp(18px,2.4vw,34px) 40px;min-width:0;max-width:1240px}
 .files{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}.files>div{min-width:0}
 .files h4{margin:0 0 8px;font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
 .files .row{display:grid;gap:8px;grid-template-columns:minmax(0,1fr)}
+.dpal{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.dchip{border:1px dashed var(--line);background:var(--raised);border-radius:999px;padding:5px 10px;font-size:12px;cursor:grab;color:inherit;font-weight:500}
+.dchip:hover{border-color:var(--blue);color:var(--blue)}.dchip.used{opacity:.45}
+.dzone{min-height:52px;border:2px dashed var(--line);border-radius:12px;padding:8px;display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start;font-size:12.5px}
+.dzone.over{border-color:var(--blue);background:rgba(59,130,246,.08)}
+.dreq{display:inline-flex;align-items:center;gap:6px;background:var(--raised);border:1px solid var(--blue);border-radius:999px;padding:4px 6px 4px 10px;font-size:12.5px;font-weight:600}
+.dreq button{border:0;background:transparent;color:inherit;cursor:pointer;font-size:15px;line-height:1;padding:0 4px}
 .fbtn{box-sizing:border-box;min-width:0;max-width:100%;display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--raised);border-radius:11px;padding:9px 12px;font-size:13px;cursor:pointer;text-align:left;width:100%;font-weight:600}
 .fbtn:hover{border-color:var(--blue);color:var(--blue)}
 .fbtn svg{width:18px;height:18px;flex:none;color:var(--blue)}
@@ -523,6 +530,17 @@ const REJECT_CODES={credit:"Kredit tarixçəsi uyğun deyil",income:"Gəlir ayl�
 const STATUS_SHORT={info:"Məlumat gözlənir",declined:"İmtina etdi"};
 const STATUS={review:"Baxılır",info:"Əlavə məlumat gözlənilir",offer:"Təklif göndərilib",rejected:"Rədd edilib",accepted:"Satışa ötürülüb",declined:"Müştəri imtina etdi",cancelled:"Ləğv edilib"};
 const INCOME={extra:"Əlavə sənədlər (müştəri cavabı)",work:"Rəsmi iş yeri",informal:"Qeyri-rəsmi gəlirlər",biz:"Sahibkar",pension:"Pensiya",social:"Sosial yardım"};
+// Documents that can be asked from the customer; staff combine them by dragging into the request.
+const INFO_DOCS={mygov_salary:"MyGov-dan rəsmi əmək haqqı arayışı",salary_card:"Əmək haqqı kart hesabından çıxarış (son 6 ay)",debit_card:"Debet kartdan çıxarış (son 12 ay)",work_ref:"İş yerindən arayış (vəzifə və maaş)",dsmf:"DSMF-dən sosial sığorta arayışı",pension:"Pensiya ödənişi haqqında arayış",voen_extract:"VÖEN çıxarışı",biz_bank:"Biznes hesabından çıxarış (son 6 ay)",rent:"İcarə müqaviləsi",property:"Əmlak sənədi (çıxarış)",guarantor_id:"Zaminin şəxsiyyət vəsiqəsi",guarantor_income:"Zaminin gəlir sənədi"};
+let reqDocs=[],reqFor=null;
+function addDoc(d){if(reqDocs.length>=8){toast("Ən çox 8 sənəd istəmək olar.");return}if(d.key!=="custom"&&reqDocs.some(x=>x.key===d.key))return;reqDocs.push(d);renderDocZone()}
+function renderDocZone(){const z=$("#docZone");if(!z)return;
+  z.innerHTML=reqDocs.length?reqDocs.map((d,i)=>`<span class="dreq">${i+1}. ${esc(d.label)}<button type="button" data-undoc="${i}" aria-label="${esc(d.label)} sil">×</button></span>`).join(""):`<span class="muted">Sənədləri bura sürüşdürün. Müştəri hər birini ayrıca yükləyəcək.</span>`;
+  document.querySelectorAll("#docPal .dchip").forEach(c=>c.classList.toggle("used",reqDocs.some(x=>x.key===c.dataset.doc)))}
+document.addEventListener("dragstart",e=>{const c=e.target.closest?.(".dchip");if(c){e.dataTransfer.setData("text/plain",c.dataset.doc);e.dataTransfer.effectAllowed="copy"}});
+document.addEventListener("dragover",e=>{const z=e.target.closest?.("#docZone");if(z){e.preventDefault();z.classList.add("over")}});
+document.addEventListener("dragleave",e=>{const z=e.target.closest?.("#docZone");if(z)z.classList.remove("over")});
+document.addEventListener("drop",e=>{const z=e.target.closest?.("#docZone");if(!z)return;e.preventDefault();z.classList.remove("over");const k=e.dataTransfer.getData("text/plain");if(INFO_DOCS[k])addDoc({key:k,label:INFO_DOCS[k]})});
 const CALL_RESULTS={agreed:"Razılaşdı",thinking:"Düşünür",callback:"Yenidən zəng ediləcək",docs:"Sənəd gətirəcək",verified:"Məlumatlar təsdiqləndi",mismatch:"Uyğunsuzluq aşkarlandı",no_answer:"Cavab vermədi",not_interested:"Maraqlanmır",wrong_number:"Nömrə səhvdir"};
 const EVENTS={partner_ref:"Partnyor ref nömrəsi əlavə edildi",webhook:"Partnyora bildiriş göndərildi",info_request:"Müştəridən əlavə məlumat istənildi",info_reply:"Müştəri əlavə məlumat göndərdi",bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",rejected:"Müraciət rədd edildi",note:"Qeyd",
   accepted:"Müştəri son təklifi təsdiqlədi: anderraytinqə və satışa ötürüldü",declined:"Müştəri təklifdən imtina etdi",cancelled:"Müştəri müraciəti ləğv etdi",sms:"SMS"};
@@ -966,7 +984,7 @@ function renderDetail(){
       ${a.reject_reason?`<div class="callout bad">İmtina səbəbi<small>${a.reject_public?`Müştəriyə: ${esc(a.reject_public)}<br>`:""}Daxili: ${esc(a.reject_reason)}</small></div>`:""}
     </section>
     <section class="panel">${ph("doc","Gəlir sənədləri",`<span class="muted" style="font-size:12px">${a.files.length} fayl</span>`)}
-      <div class="files">${(bySrc.extra?["extra"]:[]).concat(a.income_sources).map(s=>`<div><h4>${INCOME[s]}</h4><div class="row">${(bySrc[s]||[]).map(f=>`<button type="button" class="fbtn" data-file="${esc(f.stored_name)}" title="${esc(f.original_name)}">${IC.doc}<span>${esc(f.original_name)}</span><em>${f.size_bytes?Math.max(1,Math.round(f.size_bytes/1024))+" KB":""}</em></button>`).join("")||`<span class="nofile">Sənəd yüklənməyib</span>`}</div></div>`).join("")}</div>
+      <div class="files">${(bySrc.extra?["extra"]:[]).concat(a.income_sources).map(s=>`<div><h4>${INCOME[s]}</h4><div class="row">${(bySrc[s]||[]).map(f=>`<button type="button" class="fbtn" data-file="${esc(f.stored_name)}" title="${esc((f.doc_label?f.doc_label+": ":"")+f.original_name)}">${IC.doc}<span>${f.doc_label?`<b>${esc(f.doc_label)}</b> · `:""}${esc(f.original_name)}</span><em>${f.size_bytes?Math.max(1,Math.round(f.size_bytes/1024))+" KB":""}</em></button>`).join("")||`<span class="nofile">Sənəd yüklənməyib</span>`}</div></div>`).join("")}</div>
     </section>
 
     ${akbHtml(a)}
@@ -1001,7 +1019,12 @@ function renderDetail(){
             <h3>Qərar</h3>
             <button class="btn" type="button" id="sendOffer" style="width:100%" ${open?"":"disabled"}>Təklifi müştəriyə göndər</button>
             <div class="or">və ya</div>
-            <label class="f">Müştəridən əlavə sənəd və ya məlumat istə<textarea id="infoText" maxlength="300" placeholder="Məs. Son 6 ayın əmək haqqı arayışı və ya iş yerinin ünvanı"></textarea></label>
+            <div class="f">Müştəridən əlavə sənəd istə <span class="muted" style="font-weight:500">(sənədi aşağıdakı sahəyə sürüşdür və ya üzərinə klikləyin)</span>
+              <div class="dpal" id="docPal">${Object.entries(INFO_DOCS).map(([k,v])=>`<button type="button" class="dchip" draggable="true" data-doc="${k}">${v}</button>`).join("")}</div>
+              <div class="dzone" id="docZone" aria-label="Tələb olunan sənədlər"></div>
+              <span style="display:flex;gap:6px;margin-top:6px"><input id="docCustom" maxlength="80" placeholder="Başqa sənəd, məs. nikah şəhadətnaməsi"><button class="btn ghost sm" type="button" id="docAdd">Əlavə et</button></span>
+            </div>
+            <label class="f">Müştəriyə qeyd (istəyə bağlı)<textarea id="infoText" maxlength="300" placeholder="Məs. çıxarış bankın möhürü ilə olsun"></textarea></label>
             <div class="actions"><button class="btn ghost" type="button" id="askInfo" ${["review","info"].includes(a.status)?"":"disabled"}>Məlumat istə</button></div>
             <div class="or">və ya</div>
             <label class="f">Müştəriyə göstəriləcək səbəb (SMS və kabinet)<select id="rejectCode"><option value="">Seç…</option>${Object.entries(REJECT_CODES).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></label>
@@ -1022,6 +1045,8 @@ function renderDetail(){
       <form id="nForm" class="noteform"><select id="noteChannel" aria-label="Danışıq növü" style="max-width:150px"><option value="phone">Telefon danışığı</option><option value="meeting">Fiziki görüş</option></select><select id="noteOutcome" aria-label="Danışığın nəticəsi" style="max-width:190px"><option value="">Danışığın nəticəsi…</option>${Object.entries(CALL_RESULTS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select><input id="note" placeholder="Qeyd, məs. sabah 11-də yenidən zəng"><button class="btn ghost" type="submit">Əlavə et</button></form>
     </section>
   </div>`;
+  if(reqFor!==a.id){reqDocs=[];reqFor=a.id}
+  renderDocZone();
   liveResult();
   creditCalc();
   if(!has("apps.assess"))$("#aForm").querySelectorAll("input,select,textarea,button").forEach(el=>el.disabled=true);
@@ -1112,9 +1137,12 @@ document.addEventListener("click",async e=>{
     if(!confirmInline(b,"Silməyi təsdiqlə: "+cur.id))return;
     try{await api(`/applications/${encodeURIComponent(cur.id)}`,{method:"DELETE",body:JSON.stringify({reason})});toast(`Müraciət ${cur.id} silindi`);
       cur=null;$("#shell").classList.remove("open");await loadList();renderHome()}catch(err){toast(err.message)}}
+  if(b.dataset.doc&&b.closest("#docPal")){addDoc({key:b.dataset.doc,label:INFO_DOCS[b.dataset.doc]});return}
+  if(b.dataset.undoc!=null){reqDocs.splice(+b.dataset.undoc,1);renderDocZone();return}
+  if(b.id==="docAdd"){const label=$("#docCustom").value.trim();if(label.length<3){toast("Sənədin adını yaz.");$("#docCustom").focus();return}addDoc({key:"custom",label});$("#docCustom").value="";return}
   if(b.id==="askInfo"){
-    const text=$("#infoText").value.trim();if(text.length<5){toast("Müştəridən nə tələb olunduğunu yaz.");$("#infoText").focus();return}
-    try{await api(`/applications/${encodeURIComponent(cur.id)}/request-info`,{method:"POST",body:JSON.stringify({text})});
+    const text=$("#infoText").value.trim();if(text.length<5&&!reqDocs.length){toast("Sənədi seç və ya müştəridən nə tələb olunduğunu yaz.");return}
+    try{await api(`/applications/${encodeURIComponent(cur.id)}/request-info`,{method:"POST",body:JSON.stringify({text,docs:reqDocs})});reqDocs=[];
       toast("Sorğu müştəriyə SMS ilə göndərildi");await openApp(cur.id);loadList()}catch(err){toast(err.message)}}
   if(b.id==="reject"){
     const code=$("#rejectCode").value;if(!code){toast("Müştəriyə göstəriləcək səbəbi seç.");$("#rejectCode").focus();return}

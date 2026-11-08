@@ -560,13 +560,13 @@ function applyStock(brands){
 }
 const curTrim=()=>{const m=curModel();return m&&m[4]&&trim?m[4].find(t=>t.name===trim):null};
 const INC=[
-  {k:"work",t:"Rəsmi iş yeri",h:"Əmək müqaviləsi ilə işləyirəm",d:"Əmək haqqı arayışı və ya bank çıxarışı"},
+  {k:"work",t:"Rəsmi iş yeri",h:"Əmək müqaviləsi ilə işləyirəm",d:"Əmək haqqı arayışı və ya bank çıxarışı",req:true},
   {k:"informal",t:"Qeyri-rəsmi gəlirlər",h:"(debet kartdan çıxarış, müqavilələr, icarə müqaviləsi, təsərrüfat və digər)",d:"Gəliri təsdiq edən sənəd, məs. debet kartdan son 12 ayın çıxarışı",req:true},
-  {k:"biz",t:"Sahibkar",h:"VÖEN üzrə fəaliyyət göstərirəm",d:"VÖEN çıxarışı və ya son 6 ayın bank çıxarışı"},
-  {k:"pension",t:"Pensiya",h:"Pensiya alıram",d:"Pensiya vəsiqəsi və ya ödəniş arayışı"},
-  {k:"social",t:"Sosial yardım",h:"Sosial yardım və ya müavinət alıram",d:"Təyinat haqqında arayış"}
+  {k:"biz",t:"Sahibkar",h:"VÖEN üzrə fəaliyyət göstərirəm",d:"VÖEN çıxarışı və ya son 6 ayın bank çıxarışı",req:true},
+  {k:"pension",t:"Pensiya",h:"Pensiya alıram",d:"Pensiya vəsiqəsi və ya ödəniş arayışı",req:true},
+  {k:"social",t:"Sosial yardım",h:"Sosial yardım və ya müavinət alıram",d:"Təyinat haqqında arayış",req:true}
 ];
-const inc={work:{on:true},informal:{on:true}};
+const inc={work:{on:true}};
 // Answer to "can you provide a guarantor if risk requires one?", asked once when leaving the income step.
 let guarantor=null;
 const GUARANTOR={yes:"Təmin edə bilər",no:"Təmin edə bilməz"};
@@ -600,8 +600,8 @@ function renderInc(){
         <span class="err-msg" data-err="aVoen" hidden>VÖEN 10 rəqəmdən ibarət olmalıdır.</span>`:""}
       <small class="hint">${s.d}${s.req?` <b style="color:var(--ink)">(məcburi)</b>`:""}</small>
       ${fl.map((f,i)=>`<span class="file" style="display:flex;gap:8px;align-items:center;max-width:100%"><span style="overflow:hidden;text-overflow:ellipsis">✓ ${esc(f)}</span><button type="button" class="rmfile" data-rm="${s.k}:${i}" aria-label="${esc(f)} faylını sil">×</button></span>`).join("")}
-      <label class="btn ghost sm" for="f-${s.k}">${fl.length?"Daha sənəd əlavə et":"Sənəd yüklə"}<input type="file" id="f-${s.k}" data-file="${s.k}" accept="image/*,.pdf" multiple></label>
-      ${s.req?`<span class="err-msg" data-err="doc-${s.k}" hidden>Debet kart çıxarışını yüklə: bu gəlir mənbəyi üçün məcburidir.</span>`:""}</div>`:""}
+      <label class="btn ghost sm" for="f-${s.k}">${fl.length?"Daha sənəd əlavə et":"Sənəd yüklə"}<input type="file" id="f-${s.k}" data-file="${s.k}" accept="application/pdf,image/jpeg,image/png" multiple></label>
+      ${s.req?`<span class="err-msg" data-err="doc-${s.k}" hidden>Sənədi yüklə: bu gəlir mənbəyi üçün məcburidir.</span>`:""}</div>`:""}
   </div>`}).join("");
   renderSide();
 }
@@ -777,9 +777,12 @@ function offerHtml(a){
 function infoHtml(a){
   return `<div class="info-req">
     <span class="eyebrow">Əlavə məlumat lazımdır</span>
-    <p style="margin:8px 0 14px;font-weight:600">${esc(a.info?.text||"Kredit eksperti əlavə məlumat istəyir.")}</p>
-    <label class="field">Cavabınız<textarea class="inp" id="inf-${a.id}" rows="3" maxlength="2000" placeholder="Məs. iş yerinin ünvanı və ya izah"></textarea></label>
-    <label class="field" style="margin-top:10px">Sənəd və ya şəkil (PDF, JPG, PNG, 10 MB-dək)<input class="inp" type="file" id="inff-${a.id}" multiple accept="application/pdf,image/*"></label>
+    ${a.info?.text?`<p style="margin:8px 0 14px;font-weight:600">${esc(a.info.text)}</p>`:""}
+    ${(a.info?.docs||[]).length?`<p style="margin:8px 0 8px;font-weight:600">Bu sənədlərin hər birini yükləyin:</p>
+      ${a.info.docs.map((d,i)=>`<label class="field docslot" style="margin-top:8px"><span>${i+1}. ${esc(d.label)} <b style="color:var(--ink)">(məcburi)</b></span><input class="inp" type="file" data-slot="${a.id}" data-i="${i}" id="infd-${a.id}-${i}" multiple accept="application/pdf,image/jpeg,image/png"></label>`).join("")}`:
+      (a.info?.text?"":`<p style="margin:8px 0 14px;font-weight:600">Kredit eksperti əlavə məlumat istəyir.</p>`)}
+    <label class="field" style="margin-top:10px">Cavabınız ${(a.info?.docs||[]).length?"(istəyə bağlı)":""}<textarea class="inp" id="inf-${a.id}" rows="3" maxlength="2000" placeholder="Məs. iş yerinin ünvanı və ya izah"></textarea></label>
+    <label class="field" style="margin-top:10px">${(a.info?.docs||[]).length?"Başqa sənəd (istəyə bağlı)":"Sənəd və ya şəkil"} (PDF, JPG, PNG, 10 MB-dək)<input class="inp" type="file" id="inff-${a.id}" multiple accept="application/pdf,image/jpeg,image/png"></label>
     <div class="err-msg" id="infe-${a.id}" hidden></div>
     <div class="btns" style="margin-top:14px"><button type="button" class="btn" data-info="${a.id}">Göndər</button></div>
   </div>`;
@@ -892,13 +895,16 @@ document.addEventListener("click",e=>{
       if(!r.ok){const j=await r.json().catch(()=>({}));b.textContent=j.error||"Xəta baş verdi";return}}catch(e){b.textContent="Bağlantı xətası";return}}
     a.state=d;if(d==="accepted")a.offer.final={downPct:dp,at:new Date().toISOString()};saveApps();renderApps()};
   if(b.dataset.info){const a=A(b.dataset.info);if(!a)return;const id=CSS.escape(a.id),er=$(`#infe-${id}`);
-    const fd=new FormData(),text=$(`#inf-${id}`).value.trim(),files=[...$(`#inff-${id}`).files];
-    if(!text&&!files.length){er.hidden=false;er.textContent="Cavab yazın və ya sənəd əlavə edin.";return}
-    if(files.some(f=>f.size>10*1024*1024)){er.hidden=false;er.textContent="Hər fayl 10 MB-dan böyük olmamalıdır.";return}
-    fd.append("text",text);files.forEach(f=>fd.append("file_extra",f));b.disabled=true;b.textContent="Göndərilir…";
+    const fd=new FormData(),text=$(`#inf-${id}`).value.trim(),files=[...$(`#inff-${id}`).files],docs=a.info?.docs||[];
+    const slots=docs.map((_,i)=>[...$(`#infd-${id}-${i}`).files]),miss=docs.findIndex((_,i)=>!slots[i].length),all=files.concat(...slots);
+    if(miss>=0){er.hidden=false;er.textContent=`Bu sənədi yükləyin: ${docs[miss].label}.`;$(`#infd-${id}-${miss}`).focus();return}
+    if(!text&&!all.length){er.hidden=false;er.textContent="Cavab yazın və ya sənəd əlavə edin.";return}
+    if(all.some(f=>f.size>10*1024*1024)){er.hidden=false;er.textContent="Hər fayl 10 MB-dan böyük olmamalıdır.";return}
+    if(all.some(f=>!/^(application\/pdf|image\/(jpeg|png))$/.test(f.type))){er.hidden=false;er.textContent="Yalnız PDF, JPG və ya PNG faylı yükləyin.";return}
+    fd.append("text",text);files.forEach(f=>fd.append("file_extra",f));slots.forEach((l,i)=>l.forEach(f=>fd.append("file_d"+i,f)));b.disabled=true;b.textContent="Göndərilir…";
     (async()=>{try{const r=await fetch(`/api/applications/${encodeURIComponent(a.id)}/info`,{method:"POST",headers:{"x-app-token":a.token||""},body:fd});
       const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||"Göndərilmədi.");
-      a.state="review";a.docs=(+a.docs||0)+files.length;if(a.info)a.info.answeredAt=new Date().toISOString();saveApps();renderApps()}
+      a.state="review";a.docs=(+a.docs||0)+all.length;if(a.info)a.info.answeredAt=new Date().toISOString();saveApps();renderApps()}
     catch(err){er.hidden=false;er.textContent=err.message;b.disabled=false;b.textContent="Göndər"}})()}
   if(b.dataset.accept)decide(b.dataset.accept,"accepted");
   if(b.dataset.decline)decide(b.dataset.decline,"declined");
@@ -919,7 +925,11 @@ $("#aIdSer").addEventListener("change",e=>{const len=e.target.value==="AZE"?8:7;
 $("#aOp").addEventListener("change",renderSide);
 $("#incSrc").addEventListener("change",e=>{const k=e.target.dataset.inc,f=e.target.dataset.file;
   if(k){inc[k]=inc[k]||{};inc[k].on=e.target.checked;renderInc()}
-  if(f&&e.target.files.length){inc[f].files=[...(inc[f].files||[]),...[...e.target.files].map(x=>x.name)];FILES[f]=[...(FILES[f]||[]),...e.target.files];renderInc()}});
+  if(f&&e.target.files.length){
+    // Type and size are checked when the file is picked, not only after the SMS code at the end.
+    const all=[...e.target.files],ok=all.filter(x=>/^(application\/pdf|image\/(jpeg|png))$/.test(x.type)&&x.size<=10*1024*1024);
+    inc[f].files=[...(inc[f].files||[]),...ok.map(x=>x.name)];FILES[f]=[...(FILES[f]||[]),...ok];renderInc();
+    if(ok.length<all.length)err("doc-"+f,true,"Yalnız PDF, JPG və ya PNG faylı yükləyin, hər biri 10 MB-dək.");else if(ok.length)err("doc-"+f,false)}});
 $("#incSrc").addEventListener("input",e=>{if(e.target.dataset.voen!==undefined){e.target.value=e.target.value.replace(/\D/g,"");inc.biz.voen=e.target.value;if(e.target.value.length===10)err("aVoen",false)}});
 $("#resend").addEventListener("click",startOtp);
 /* consent documents open in a modal; the checkbox stays untouched */

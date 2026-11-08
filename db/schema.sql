@@ -138,3 +138,5 @@ ALTER TABLE applications ADD COLUMN IF NOT EXISTS partner_ref TEXT;
 CREATE INDEX IF NOT EXISTS applications_partner_ref_idx ON applications (partner_ref);
 -- Partnyor stokundan seçilmiş komplektasiyanın qiyməti (müraciət anındakı)
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS car_price NUMERIC(12,2);
+-- Əlavə məlumat sorğusunda tələb olunan sənədin adı (məs. "MyGov-dan rəsmi əmək haqqı arayışı")
+ALTER TABLE application_files ADD COLUMN IF NOT EXISTS doc_label TEXT;

@@ -35,7 +35,7 @@ apply() { # $1 phone, $2 file
   local code; code=$(printf "%06d" $((RANDOM * RANDOM % 1000000))); seed "$1" "$code"
   curl -sS -X POST "$B/api/applications" -F fin=5ABC12D -F idSeries=AZE -F idNumber=12345678 -F birthDate=1990-05-17 -F phone="$1" \
     -F incomeSources=work,biz -F voen=1234567890 -F brand=Toyota -F model=Camry -F consent=true -F consentText=ok \
-    -F guarantor=yes -F otp="$code" -F partner=groupmotors -F partnerRef=111938 -F "file_work=@$2;type=application/pdf"
+    -F guarantor=yes -F otp="$code" -F partner=groupmotors -F partnerRef=111938 -F "file_work=@$2;type=application/pdf" -F "file_biz=@$2;type=application/pdf"
 }
 # A sales manager with a phone gets the new-application SMS.
 SU="satis$RANDOM"
@@ -107,6 +107,15 @@ curl -fsS -X POST -H "x-app-token: $TOK2" "$B/api/applications/$ID2/info" -F "te
 AI=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID2")
 [ "$(echo "$AI" | J status)" = review ] && echo "$AI" | grep -q '"income_source":"extra"' && echo "$AI" | grep -q "əlavə məlumat lazımdır" || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "x-app-token: $TOK2" "$B/api/applications/$ID2/info" -F "text=yenə")" = 409 ] || fail; echo "✓ əlavə məlumat: sorğu, müştəri cavabı və sənəd, yenidən baxış"
+# Sənəd kombinasiyası: hər tələb olunan sənəd ayrıca yüklənməlidir
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID2/request-info" -d '{"docs":[{"key":"toString"}]}')" = 400 ] || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID2/request-info" -d '{"docs":[{"key":"mygov_salary"},{"key":"salary_card"}]}' | grep -q '"label":"MyGov-dan rəsmi əmək haqqı arayışı"' || fail
+curl -fsS -H "x-app-token: $TOK2" "$B/api/applications/$ID2" | grep -q '"key":"salary_card"' || fail
+curl -sS -X POST -H "x-app-token: $TOK2" "$B/api/applications/$ID2/info" -F "file_d0=@$TMP/arayis.pdf;type=application/pdf" | grep -q "Əmək haqqı kart hesabından" || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "x-app-token: $TOK2" "$B/api/applications/$ID2/info" -F "file_d9=@$TMP/arayis.pdf;type=application/pdf")" = 400 ] || fail
+curl -fsS -X POST -H "x-app-token: $TOK2" "$B/api/applications/$ID2/info" -F "file_d0=@$TMP/arayis.pdf;type=application/pdf" -F "file_d1=@$TMP/arayis.pdf;type=application/pdf" >/dev/null || fail
+curl -fsS "${H[@]}" "$B/api/admin/applications/$ID2" | grep -q '"doc_label":"Əmək haqqı kart hesabından çıxarış (son 6 ay)"' || fail
+echo "✓ əlavə sənəd kombinasiyası: hər sənəd ayrıca, çatışmayan rədd olunur"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID2/reject" -d '{"reason":"DTI 70%"}')" = 400 ] || fail; echo "✓ müştəri səbəbi seçilmədən rədd olmur"
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID2/reject" -d '{"reason":"DTI 70%","code":"debt"}' >/dev/null
 sleep 1; grep -q '^wh-token-12345 {"event":"rejected","external_id":"111938","application_id":"'"$ID2"'","date":"[^"]*","phone":"+994501112235"}$' "$WHF" || fail
@@ -166,7 +175,7 @@ curl -fsS -H "x-admin-token: $ES" "$B/api/admin/me" | grep -c '"apps.notes"' >/d
 curl -fsS -X POST -H "x-admin-token: $ES" "$B/api/admin/logout" >/dev/null
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/stats")" = 401 ] || fail; echo "✓ çıxışdan sonra sessiya bağlanır"
 # Təhlükəsizlik
-R=$(curl -sS -X POST "$B/api/applications" -F fin=5ABC12D -F idSeries=AZE -F idNumber=12345678 -F birthDate=1990-05-17 -F phone=994501112299 -F incomeSources=work \
+R=$(curl -sS -X POST "$B/api/applications" -F fin=5ABC12D -F idSeries=AZE -F idNumber=12345678 -F birthDate=1990-05-17 -F phone=994501112299 -F incomeSources=work -F "file_work=@$TMP/arayis.pdf;type=application/pdf" \
   --form-string 'brand=<img src=x onerror=alert(1)>' -F model=Camry -F consent=true -F consentText=ok -F otp=000000)
 echo "$R" | grep -c "Avtomobil seçilməyib" >/dev/null || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/applications" -F fin=5ABC12D -F idSeries=toString -F idNumber=1 -F phone=994501112299 -F incomeSources=work -F brand=Toyota -F model=Camry -F consent=true)" = 400 ] || fail

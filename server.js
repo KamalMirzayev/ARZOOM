@@ -31,7 +31,14 @@ const partnerCode = v => (/^[A-Za-z0-9_.-]{1,64}$/.test(String(v || "").trim()) 
 const INCOME = ["work", "informal", "biz", "pension", "social"];
 const INCOME_NAMES = { work: "rəsmi iş", informal: "qeyri-rəsmi gəlirlər", biz: "sahibkar", pension: "pensiya", social: "sosial yardım" };
 // Sources that cannot be accepted without a document: informal income needs a debit-card statement, contract, lease or similar proof.
-const DOC_REQUIRED = { informal: "Qeyri-rəsmi gəlirlər üçün sənəd məcburidir: debet kart çıxarışı, müqavilə, icarə müqaviləsi və ya digər." };
+// Every income source the customer picks needs at least one document.
+const DOC_REQUIRED = {
+  work: "Rəsmi iş yeri üçün sənəd məcburidir: əmək haqqı arayışı və ya bank çıxarışı.",
+  informal: "Qeyri-rəsmi gəlirlər üçün sənəd məcburidir: debet kart çıxarışı, müqavilə, icarə müqaviləsi və ya digər.",
+  biz: "Sahibkar üçün sənəd məcburidir: VÖEN çıxarışı və ya son 6 ayın bank çıxarışı.",
+  pension: "Pensiya üçün sənəd məcburidir: pensiya vəsiqəsi və ya ödəniş arayışı.",
+  social: "Sosial yardım üçün sənəd məcburidir: təyinat haqqında arayış."
+};
 // Date of birth as YYYY-MM-DD: a real calendar date, 18 to 80 years ago.
 function birthDate(v) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v || "")); if (!m) return null;
@@ -326,11 +333,16 @@ app.get("/api/applications/:id", lookupLimit, async (req, res) => {
 });
 
 // The customer answers a request for more information: a text and/or extra documents. The application goes back to review.
-app.post("/api/applications/:id/info", lookupLimit, upload.array("file_extra", 10), async (req, res) => {
+// Each requested document comes in its own field (file_d0, file_d1, ...); free extra files come as file_extra.
+app.post("/api/applications/:id/info", lookupLimit, upload.any(), async (req, res) => {
   const files = req.files || [];
   const cleanup = () => files.forEach(f => fs.rm(f.path, () => {}));
   if (!(await tokenApp(req))) { cleanup(); return bad(res, "Giriş müddəti bitib. Müraciəti yenidən SMS kodu ilə tap.", 401); }
+  if (files.length > 20 || files.some(f => !/^file_(extra|d[0-7])$/.test(f.fieldname))) { cleanup(); return bad(res, "Sənədlər düzgün göndərilməyib."); }
   const text = String(req.body?.text || "").trim().slice(0, 2000);
+  const asked = (await pool.query("SELECT info_request FROM applications WHERE id = $1", [req.params.id])).rows[0]?.info_request?.docs || [];
+  const missing = asked.find((_, i) => !files.some(f => f.fieldname === "file_d" + i));
+  if (missing) { cleanup(); return bad(res, `Bu sənədi yükləyin: ${missing.label}.`); }
   if (!text && !files.length) { cleanup(); return bad(res, "Cavab yazın və ya sənəd əlavə edin."); }
   const fake = files.find(f => !sniff(f.path));
   if (fake) { cleanup(); return bad(res, `"${String(fake.originalname).slice(0, 100)}" PDF və ya şəkil deyil.`); }
@@ -342,10 +354,12 @@ app.post("/api/applications/:id/info", lookupLimit, upload.array("file_extra", 1
          info_request = info_request || jsonb_build_object('answer', $2::text, 'answeredAt', now(), 'files', $3::int)
        WHERE id = $1 AND status = 'info' RETURNING id, brand, model, info_request`, [req.params.id, text, files.length]);
     if (!r.rowCount) { await client.query("ROLLBACK"); cleanup(); return bad(res, "Bu müraciət üçün əlavə məlumat gözlənilmir.", 409); }
-    for (const f of files)
+    for (const f of files) {
+      const label = f.fieldname === "file_extra" ? null : asked[+f.fieldname.slice(6)]?.label || null;
       await client.query(
-        `INSERT INTO application_files (application_id, income_source, original_name, stored_name, mime, size_bytes) VALUES ($1,'extra',$2,$3,$4,$5)`,
-        [req.params.id, f.originalname.slice(0, 200), f.filename, sniff(f.path), f.size]);
+        `INSERT INTO application_files (application_id, income_source, original_name, stored_name, mime, size_bytes, doc_label) VALUES ($1,'extra',$2,$3,$4,$5,$6)`,
+        [req.params.id, f.originalname.slice(0, 200), f.filename, sniff(f.path), f.size, label]);
+    }
     await logEvent(client, req.params.id, "Müştəri", "info_reply", { text, files: files.length });
     await client.query("COMMIT");
     res.json({ ok: true, status: "review" });
@@ -789,16 +803,43 @@ app.post("/api/admin/applications/:id/partner-ref", admin, brandGate, can("apps.
   res.json({ ok: true, partner: r.rows[0].partner, partner_ref: r.rows[0].partner_ref, sent: !!WH.url });
 });
 
+// Documents staff can ask for, combined by drag and drop in the panel. "custom" carries a label typed by staff.
+const INFO_DOCS = {
+  mygov_salary: "MyGov-dan rəsmi əmək haqqı arayışı", salary_card: "Əmək haqqı kart hesabından çıxarış (son 6 ay)",
+  debit_card: "Debet kartdan çıxarış (son 12 ay)", work_ref: "İş yerindən arayış (vəzifə və maaş)",
+  dsmf: "DSMF-dən sosial sığorta arayışı", pension: "Pensiya ödənişi haqqında arayış", voen_extract: "VÖEN çıxarışı",
+  biz_bank: "Biznes hesabından çıxarış (son 6 ay)", rent: "İcarə müqaviləsi", property: "Əmlak sənədi (çıxarış)",
+  guarantor_id: "Zaminin şəxsiyyət vəsiqəsi", guarantor_income: "Zaminin gəlir sənədi"
+};
+function infoDocs(list) {
+  if (!Array.isArray(list) || list.length > 8) return null;
+  const out = [];
+  for (const d of list) {
+    const key = String(d?.key || "");
+    if (key === "custom") {
+      const label = String(d?.label || "").trim().replace(/\s+/g, " ").slice(0, 80);
+      if (label.length < 3) return null;
+      out.push({ key, label });
+    } else if (Object.hasOwn(INFO_DOCS, key)) out.push({ key, label: INFO_DOCS[key] });
+    else return null;
+  }
+  return out;
+}
+app.get("/api/admin/info-docs", admin, (_req, res) => res.json(INFO_DOCS));
+
 app.post("/api/admin/applications/:id/request-info", admin, brandGate, can("apps.assess"), async (req, res) => {
   const text = String(req.body?.text || "").trim().slice(0, 300);
-  if (text.length < 5) return bad(res, "Müştəridən nə tələb olunduğunu yaz.");
-  const request = { text, at: new Date().toISOString(), by: req.staff, byUser: req.user.username };
+  const docs = infoDocs(req.body?.docs ?? []);
+  if (!docs) return bad(res, "Sənəd siyahısı düzgün deyil (ən çox 8 sənəd).");
+  if (text.length < 5 && !docs.length) return bad(res, "Müştəridən nə tələb olunduğunu yaz və ya sənəd seç.");
+  const request = { text, docs, at: new Date().toISOString(), by: req.staff, byUser: req.user.username };
   const r = await pool.query(
     `UPDATE applications SET status = 'info', info_request = $2, updated_at = now()
      WHERE id = $1 AND status IN ('review','info') RETURNING id, phone`, [req.params.id, request]);
   if (!r.rowCount) return bad(res, "Bu müraciət üçün məlumat istəmək olmur.", 409);
-  await logEvent(pool, req.params.id, req.staff, "info_request", { text });
-  notify(req.params.id, r.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id} üzrə əlavə məlumat lazımdır: ${text} Kabinetdə cavab yazın və ya sənəd yükləyin.${cabinet()}`);
+  const need = [docs.map(d => d.label).join(", "), text].filter(Boolean).join(". ");
+  await logEvent(pool, req.params.id, req.staff, "info_request", { text: need });
+  notify(req.params.id, r.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id} üzrə əlavə məlumat lazımdır: ${need}. Kabinetdə sənədləri yükləyin.${cabinet()}`);
   res.json({ ok: true, request });
 });
 

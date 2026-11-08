@@ -206,6 +206,11 @@ main{padding:26px clamp(18px,2.4vw,34px) 40px;min-width:0;max-width:1240px}
 .dchip{border:1px dashed var(--line);background:var(--raised);border-radius:999px;padding:5px 10px;font-size:12px;cursor:grab;color:inherit;font-weight:500}
 .dchip:hover{border-color:var(--blue);color:var(--blue)}.dchip.used{opacity:.45}
 .dzone{min-height:52px;border:2px dashed var(--line);border-radius:12px;padding:8px;display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start;font-size:12.5px}
+.dcases{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px;margin:8px 0}
+.dcase{text-align:left;border:1px solid var(--line);background:var(--raised);border-radius:10px;padding:7px 9px;font-size:12.5px;font-weight:600;color:inherit;cursor:pointer;min-width:0}
+.dcase small{display:block;font-weight:400;font-size:11px;opacity:.7;margin-top:2px;overflow-wrap:anywhere}
+.dcase:hover{border-color:var(--blue)}.dcase.rec{border-color:rgba(59,130,246,.45)}.dcase.on{border-color:var(--blue);background:rgba(59,130,246,.1);box-shadow:inset 0 0 0 1px var(--blue)}
+.dmore{margin:6px 0 8px;font-size:12.5px}.dmore summary{cursor:pointer;color:var(--blue);font-weight:600;margin-bottom:4px}
 .dzone.over{border-color:var(--blue);background:rgba(59,130,246,.08)}
 .dreq{display:inline-flex;align-items:center;gap:6px;background:var(--raised);border:1px solid var(--blue);border-radius:999px;padding:4px 6px 4px 10px;font-size:12.5px;font-weight:600}
 .dreq button{border:0;background:transparent;color:inherit;cursor:pointer;font-size:15px;line-height:1;padding:0 4px}
@@ -532,11 +537,29 @@ const STATUS={review:"Baxılır",info:"Əlavə məlumat gözlənilir",offer:"Tə
 const INCOME={extra:"Əlavə sənədlər (müştəri cavabı)",work:"Rəsmi iş yeri",informal:"Qeyri-rəsmi gəlirlər",biz:"Sahibkar",pension:"Pensiya",social:"Sosial yardım"};
 // Documents that can be asked from the customer; staff combine them by dragging into the request.
 const INFO_DOCS={mygov_salary:"MyGov-dan rəsmi əmək haqqı arayışı",salary_card:"Əmək haqqı kart hesabından çıxarış (son 6 ay)",debit_card:"Debet kartdan çıxarış (son 12 ay)",work_ref:"İş yerindən arayış (vəzifə və maaş)",dsmf:"DSMF-dən sosial sığorta arayışı",pension:"Pensiya ödənişi haqqında arayış",voen_extract:"VÖEN çıxarışı",biz_bank:"Biznes hesabından çıxarış (son 6 ay)",rent:"İcarə müqaviləsi",property:"Əmlak sənədi (çıxarış)",guarantor_id:"Zaminin şəxsiyyət vəsiqəsi",guarantor_income:"Zaminin gəlir sənədi"};
-let reqDocs=[],reqFor=null;
+// Ready-made request cases: one click fills the documents and the note. "for" lists the income sources a case suits.
+const INFO_CASES=[
+  {id:"salary",title:"Rəsmi maaş təsdiqi",docs:["mygov_salary","salary_card"],for:["work"],note:"Arayış MyGov-dan, çıxarış maaş kartı olan bankdan olsun."},
+  {id:"salary_nocard",title:"Maaş nağd verilir",docs:["mygov_salary","work_ref"],for:["work"],note:"İş yerindən arayış möhürlü və imzalı olsun."},
+  {id:"social_ins",title:"Sosial sığorta yoxlaması",docs:["dsmf","work_ref"],for:["work"],note:""},
+  {id:"informal",title:"Qeyri-rəsmi gəlir",docs:["debit_card","property"],for:["informal"],note:"Çıxarışda daxilolmalar görünsün."},
+  {id:"informal_rent",title:"İcarə gəliri",docs:["rent","debit_card"],for:["informal"],note:"İcarə haqqının daxil olduğu kartın çıxarışı olsun."},
+  {id:"biz",title:"Sahibkar gəliri",docs:["voen_extract","biz_bank"],for:["biz"],note:"Çıxarış bankın möhürü ilə olsun."},
+  {id:"pension",title:"Pensiya təsdiqi",docs:["pension","debit_card"],for:["pension","social"],note:""},
+  {id:"guarantor",title:"Zamin tələb olunur",docs:["guarantor_id","guarantor_income"],for:[],note:"Zaminin sənədlərini də kabinetdən yükləyin."}
+];
+let reqDocs=[],reqFor=null,reqCase=null;
+function applyCase(id){const c=INFO_CASES.find(x=>x.id===id);if(!c)return;
+  reqDocs=c.docs.map(k=>({key:k,label:INFO_DOCS[k]}));reqCase=id;
+  const t=$("#infoText");if(t&&(!t.value.trim()||INFO_CASES.some(x=>x.note===t.value.trim())))t.value=c.note;renderDocZone()}
+function casesHtml(a){const src=a.income_sources||[],rec=INFO_CASES.filter(c=>c.for.some(s=>src.includes(s)));
+  const list=rec.concat(INFO_CASES.filter(c=>!rec.includes(c)));
+  return list.map(c=>`<button type="button" class="dcase${rec.includes(c)?" rec":""}" data-case="${c.id}" title="${esc(c.docs.map(k=>INFO_DOCS[k]).join(" + "))}">${rec.includes(c)?"★ ":""}${esc(c.title)}<small>${esc(c.docs.map(k=>INFO_DOCS[k]).join(" + "))}</small></button>`).join("")}
 function addDoc(d){if(reqDocs.length>=8){toast("Ən çox 8 sənəd istəmək olar.");return}if(d.key!=="custom"&&reqDocs.some(x=>x.key===d.key))return;reqDocs.push(d);renderDocZone()}
 function renderDocZone(){const z=$("#docZone");if(!z)return;
   z.innerHTML=reqDocs.length?reqDocs.map((d,i)=>`<span class="dreq">${i+1}. ${esc(d.label)}<button type="button" data-undoc="${i}" aria-label="${esc(d.label)} sil">×</button></span>`).join(""):`<span class="muted">Sənədləri bura sürüşdürün. Müştəri hər birini ayrıca yükləyəcək.</span>`;
-  document.querySelectorAll("#docPal .dchip").forEach(c=>c.classList.toggle("used",reqDocs.some(x=>x.key===c.dataset.doc)))}
+  document.querySelectorAll("#docPal .dchip").forEach(c=>c.classList.toggle("used",reqDocs.some(x=>x.key===c.dataset.doc)));
+  const keys=reqDocs.map(d=>d.key).join();document.querySelectorAll("#docCases .dcase").forEach(b=>{const c=INFO_CASES.find(x=>x.id===b.dataset.case);b.classList.toggle("on",!!c&&c.docs.join()===keys)})}
 document.addEventListener("dragstart",e=>{const c=e.target.closest?.(".dchip");if(c){e.dataTransfer.setData("text/plain",c.dataset.doc);e.dataTransfer.effectAllowed="copy"}});
 document.addEventListener("dragover",e=>{const z=e.target.closest?.("#docZone");if(z){e.preventDefault();z.classList.add("over")}});
 document.addEventListener("dragleave",e=>{const z=e.target.closest?.("#docZone");if(z)z.classList.remove("over")});
@@ -1019,10 +1042,14 @@ function renderDetail(){
             <h3>Qərar</h3>
             <button class="btn" type="button" id="sendOffer" style="width:100%" ${open?"":"disabled"}>Təklifi müştəriyə göndər</button>
             <div class="or">və ya</div>
-            <div class="f">Müştəridən əlavə sənəd istə <span class="muted" style="font-weight:500">(sənədi aşağıdakı sahəyə sürüşdür və ya üzərinə klikləyin)</span>
-              <div class="dpal" id="docPal">${Object.entries(INFO_DOCS).map(([k,v])=>`<button type="button" class="dchip" draggable="true" data-doc="${k}">${v}</button>`).join("")}</div>
+            <div class="f">Müştəridən əlavə sənəd istə <span class="muted" style="font-weight:500">(hazır halı seçin, ★ bu müştərinin gəlir mənbəyinə uyğundur)</span>
+              <div class="dcases" id="docCases">${casesHtml(a)}</div>
               <div class="dzone" id="docZone" aria-label="Tələb olunan sənədlər"></div>
+              <details class="dmore"><summary>Sənədləri əl ilə dəyiş</summary>
+              <span class="muted" style="font-size:12px">Sənədi aşağıdakı sahəyə sürüşdürün və ya üzərinə klikləyin.</span>
+              <div class="dpal" id="docPal">${Object.entries(INFO_DOCS).map(([k,v])=>`<button type="button" class="dchip" draggable="true" data-doc="${k}">${v}</button>`).join("")}</div>
               <span style="display:flex;gap:6px;margin-top:6px"><input id="docCustom" maxlength="80" placeholder="Başqa sənəd, məs. nikah şəhadətnaməsi"><button class="btn ghost sm" type="button" id="docAdd">Əlavə et</button></span>
+              </details>
             </div>
             <label class="f">Müştəriyə qeyd (istəyə bağlı)<textarea id="infoText" maxlength="300" placeholder="Məs. çıxarış bankın möhürü ilə olsun"></textarea></label>
             <div class="actions"><button class="btn ghost" type="button" id="askInfo" ${["review","info"].includes(a.status)?"":"disabled"}>Məlumat istə</button></div>
@@ -1045,7 +1072,9 @@ function renderDetail(){
       <form id="nForm" class="noteform"><select id="noteChannel" aria-label="Danışıq növü" style="max-width:150px"><option value="phone">Telefon danışığı</option><option value="meeting">Fiziki görüş</option></select><select id="noteOutcome" aria-label="Danışığın nəticəsi" style="max-width:190px"><option value="">Danışığın nəticəsi…</option>${Object.entries(CALL_RESULTS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select><input id="note" placeholder="Qeyd, məs. sabah 11-də yenidən zəng"><button class="btn ghost" type="submit">Əlavə et</button></form>
     </section>
   </div>`;
-  if(reqFor!==a.id){reqDocs=[];reqFor=a.id}
+  if(reqFor!==a.id){reqDocs=[];reqFor=a.id;reqCase=null;
+    // Preselect the best-fitting case so a typical request is one click on "Məlumat istə".
+    const rec=INFO_CASES.find(c=>c.for.some(s=>(a.income_sources||[]).includes(s)));if(rec&&["review","info"].includes(a.status))applyCase(rec.id)}
   renderDocZone();
   liveResult();
   creditCalc();
@@ -1137,6 +1166,7 @@ document.addEventListener("click",async e=>{
     if(!confirmInline(b,"Silməyi təsdiqlə: "+cur.id))return;
     try{await api(`/applications/${encodeURIComponent(cur.id)}`,{method:"DELETE",body:JSON.stringify({reason})});toast(`Müraciət ${cur.id} silindi`);
       cur=null;$("#shell").classList.remove("open");await loadList();renderHome()}catch(err){toast(err.message)}}
+  if(b.dataset.case){applyCase(b.dataset.case);return}
   if(b.dataset.doc&&b.closest("#docPal")){addDoc({key:b.dataset.doc,label:INFO_DOCS[b.dataset.doc]});return}
   if(b.dataset.undoc!=null){reqDocs.splice(+b.dataset.undoc,1);renderDocZone();return}
   if(b.id==="docAdd"){const label=$("#docCustom").value.trim();if(label.length<3){toast("Sənədin adını yaz.");$("#docCustom").focus();return}addDoc({key:"custom",label});$("#docCustom").value="";return}

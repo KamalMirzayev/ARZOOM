@@ -140,3 +140,5 @@ CREATE INDEX IF NOT EXISTS applications_partner_ref_idx ON applications (partner
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS car_price NUMERIC(12,2);
 -- Əlavə məlumat sorğusunda tələb olunan sənədin adı (məs. "MyGov-dan rəsmi əmək haqqı arayışı")
 ALTER TABLE application_files ADD COLUMN IF NOT EXISTS doc_label TEXT;
+-- Robocall call results are idempotent by feedback_id (robocall retries until it gets 200).
+CREATE UNIQUE INDEX IF NOT EXISTS application_events_feedback_idx ON application_events ((details->>'feedback_id')) WHERE kind = 'note' AND details ? 'feedback_id';

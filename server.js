@@ -634,9 +634,34 @@ const RC_STATUS = { review: "Baxılır", info: "Əlavə sənəd gözlənilir", o
 const rcFail = rateLimit({ windowMs: 15 * 60e3, max: 20, message: "Çox sayda uğursuz sorğu." });
 // Changes in order of (changed_at, id): changed_at is the later of the row's update and its last event (notes, replies),
 // so call results and customer replies also show up. Deleted applications come as { id, deleted: true }.
-app.get("/api/integrations/robocall/applications", async (req, res) => {
+const rcAuth = (req, res, next) => {
   const got = crypto.createHash("sha256").update(String(req.get("x-integration-token") || "")).digest("hex");
   if (!RC.hash || !sameHex(got, RC.hash)) return rcFail(req, res, () => bad(res, "İcazə yoxdur.", 401));
+  next();
+};
+// The customer's final word from a robocall call. Stored as a call note (channel "robocall"), so it shows in the panel
+// timeline and comes back in last_call. feedback_id makes repeats harmless: robocall retries until it gets 200.
+const ROBO_RESULTS = { agrees_will_visit: "Razıdır, salona gələcək", agrees_will_call: "Razıdır, özü zəng edəcək", thinking: "Düşünür",
+  docs_will_send: "Sənədləri göndərəcək", docs_cannot: "Sənədləri təqdim edə bilmir", declined: "İmtina etdi",
+  callback: "Yenidən zəng istədi", wrong_person: "Başqa şəxsdir", other: "Digər" };
+app.post("/api/integrations/robocall/applications/:id/feedback", rcAuth, async (req, res) => {
+  const b = req.body || {};
+  const feedback_id = String(b.feedback_id || "").trim().slice(0, 120);
+  if (!feedback_id) return bad(res, "feedback_id lazımdır.");
+  const outcome = String(b.outcome || "");
+  if (!Object.hasOwn(ROBO_RESULTS, outcome)) return bad(res, "outcome düzgün deyil.");
+  const r = await pool.query("SELECT 1 FROM applications WHERE id = $1", [req.params.id]);
+  if (!r.rowCount) return bad(res, "Müraciət tapılmadı.", 404);
+  const label = String(b.outcome_label || "").trim().slice(0, 120) || ROBO_RESULTS[outcome];
+  const details = { outcome, outcome_label: label, channel: "robocall", text: b.reason ? String(b.reason).trim().slice(0, 2000) : "",
+                    feedback_id, call_ref: b.call_ref ? String(b.call_ref).slice(0, 120) : null,
+                    call_at: !isNaN(Date.parse(b.at)) ? new Date(b.at).toISOString() : null };
+  const ins = await pool.query(
+    `INSERT INTO application_events (application_id, actor, kind, details) VALUES ($1, 'Robocall', 'note', $2)
+     ON CONFLICT ((details->>'feedback_id')) WHERE kind = 'note' AND details ? 'feedback_id' DO NOTHING`, [req.params.id, details]);
+  res.json({ ok: true, duplicate: !ins.rowCount });
+});
+app.get("/api/integrations/robocall/applications", rcAuth, async (req, res) => {
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 200, 1), 500);
   let since = "1970-01-01T00:00:00Z", afterId = "";
   if (req.query.since) {
@@ -657,7 +682,7 @@ app.get("/api/integrations/robocall/applications", async (req, res) => {
   const { rows: apps } = ids.length ? await pool.query(
     `SELECT a.id, a.phone, a.status, a.created_at, a.updated_at, a.fin, a.birth_date, a.guarantor, a.brand, a.model, a.car_price, a.income_sources,
             a.partner, a.partner_ref, a.offer, a.reject_public, a.info_request,
-            (SELECT jsonb_build_object('outcome', e.details->>'outcome', 'channel', e.details->>'channel', 'text', e.details->>'text', 'at', e.at)
+            (SELECT jsonb_build_object('outcome', e.details->>'outcome', 'outcome_label', e.details->>'outcome_label', 'channel', e.details->>'channel', 'text', e.details->>'text', 'at', e.at)
                FROM application_events e WHERE e.application_id = a.id AND e.kind = 'note' AND e.details ? 'outcome' ORDER BY e.at DESC LIMIT 1) AS last_call
        FROM applications a WHERE a.id = ANY($1)`, [ids]) : { rows: [] };
   const byId = new Map(apps.map(a => [a.id, a]));
@@ -678,7 +703,7 @@ app.get("/api/integrations/robocall/applications", async (req, res) => {
       final_terms: o?.final && a.status === "accepted" ? terms(o.final.downPct) : null,
       info_docs: info ? (info.docs || []).map(d => d.label) : [], info_text: info?.text || null,
       reject_reason: a.status === "rejected" ? a.reject_public || null : null,
-      last_call: a.last_call ? { outcome: a.last_call.outcome, outcome_label: CALL_RESULTS[a.last_call.outcome] || a.last_call.outcome,
+      last_call: a.last_call ? { outcome: a.last_call.outcome, outcome_label: a.last_call.outcome_label || CALL_RESULTS[a.last_call.outcome] || a.last_call.outcome,
                                  channel: a.last_call.channel || null, text: a.last_call.text || null, at: a.last_call.at } : null,
       cabinet_url: SITE_URL ? `${SITE_URL}/#muracietlerim` : null
     };
@@ -787,7 +812,7 @@ app.get("/api/admin/export.xlsx", admin, async (req, res) => {
       (a.income_sources || []).map(s => INCOME_NAMES[s] || s).join(", "), a.voen || "", a.brand, a.model,
       a.guarantor == null ? "" : a.guarantor ? "Bəli" : "Xeyr", a.score ?? "", a.grade || "",
       t ? o.price : "", t ? t.dp : "", t ? r2(t.down) : "", t ? r2(t.credit) : "", t ? t.months : "", t ? o.rate : "", t ? r2(t.pay) : "",
-      a.reject_public || "", a.decided_by || "", CALL_RESULTS[a.last_call] || "", a.updated_at];
+      a.reject_public || "", a.decided_by || "", CALL_RESULTS[a.last_call] || ROBO_RESULTS[a.last_call] || "", a.updated_at];
   });
   audit(req, req.user.username, "apps.export", `${rows.length} müraciət${st ? `, status: ${st}` : ""}${q ? `, axtarış: ${q}` : ""}`);
   const day = new Date(Date.now() + 4 * 3600e3).toISOString().slice(0, 10);

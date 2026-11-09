@@ -226,6 +226,15 @@ main{padding:26px clamp(18px,2.4vw,34px) 40px;min-width:0;max-width:1240px}
 .fbtn svg{width:18px;height:18px;flex:none;color:var(--blue)}
 .fbtn span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
 .fbtn em{flex:none;font-style:normal;font-size:11.5px;color:var(--muted);font-weight:500}
+.fitem{display:grid;gap:6px;min-width:0}.fline{display:flex;gap:6px;min-width:0}.fline .fbtn{flex:1}
+.aibtn{flex:none;border:1px solid var(--line);background:var(--raised);border-radius:11px;padding:0 12px;font-size:12.5px;font-weight:700;color:var(--blue);cursor:pointer}
+.aibtn:hover{border-color:var(--blue)}.aibtn:disabled{opacity:.6;cursor:wait}
+.ai{border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px;display:grid;gap:8px;background:var(--raised)}
+.ai .aih{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline}.ai .aih b{font-size:14px}
+.ai .kv{display:grid;gap:4px 14px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}.ai .kv span{color:var(--muted)}.ai .kv b{color:var(--fg);font-weight:600}
+.ai .flags{margin:0;padding-left:18px;color:var(--bad)}.ai .ok{color:var(--ok)}.ai .bad{color:var(--bad)}
+.ai table{border-collapse:collapse;font-size:12.5px}.ai td{padding:2px 12px 2px 0}.ai td:last-child{text-align:right}
+.ai .foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
 .nofile{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:13px;border:1px dashed var(--line-2);border-radius:11px;padding:9px 12px}
 
 /* assessment */
@@ -582,7 +591,7 @@ document.addEventListener("dragleave",e=>{const z=e.target.closest?.("#docZone")
 document.addEventListener("drop",e=>{const z=e.target.closest?.("#docZone");if(!z)return;e.preventDefault();z.classList.remove("over");const k=e.dataTransfer.getData("text/plain");if(INFO_DOCS[k])addDoc({key:k,label:INFO_DOCS[k]})});
 const ROBO_RESULTS={wants_lower_monthly:"Aylıq ödənişi çox hesab edir",wants_lower_down:"İlkin ödənişdə endirim istəyir",wants_other_terms:"Başqa şərt istəyir (müddət, məbləğ)",transferred_to_sales:"Satış təmsilçisinə qoşuldu",agrees_will_visit:"Razıdır, salona gələcək",agrees_will_call:"Razıdır, özü zəng edəcək",thinking:"Düşünür",docs_will_send:"Sənədləri göndərəcək",docs_cannot:"Sənədləri təqdim edə bilmir",declined:"İmtina etdi",callback:"Yenidən zəng istədi",wrong_person:"Başqa şəxsdir",other:"Digər"};
 const CALL_RESULTS={agreed:"Razılaşdı",thinking:"Düşünür",callback:"Yenidən zəng ediləcək",docs:"Sənəd gətirəcək",verified:"Məlumatlar təsdiqləndi",mismatch:"Uyğunsuzluq aşkarlandı",no_answer:"Cavab vermədi",not_interested:"Maraqlanmır",wrong_number:"Nömrə səhvdir"};
-const EVENTS={partner_ref:"Partnyor ref nömrəsi əlavə edildi",webhook:"Partnyora bildiriş göndərildi",info_request:"Müştəridən əlavə məlumat istənildi",info_reply:"Müştəri əlavə məlumat göndərdi",bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",reoffer:"Müştəri başqa şərt istəyir: təkrar təklif",rejected:"Müraciət rədd edildi",note:"Qeyd",
+const EVENTS={partner_ref:"Partnyor ref nömrəsi əlavə edildi",webhook:"Partnyora bildiriş göndərildi",info_request:"Müştəridən əlavə məlumat istənildi",info_reply:"Müştəri əlavə məlumat göndərdi",bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",reoffer:"Müştəri başqa şərt istəyir: təkrar təklif",doc_analysis:"Gəlir sənədi süni intellektlə analiz edildi",rejected:"Müraciət rədd edildi",note:"Qeyd",
   accepted:"Müştəri son təklifi təsdiqlədi: anderraytinqə və satışa ötürüldü",declined:"Müştəri təklifdən imtina etdi",cancelled:"Müştəri müraciəti ləğv etdi",sms:"SMS"};
 const FILTERS=[["","Hamısı"],["review","Baxılır"],["info","Məlumat"],["offer","Təklif"],["reoffer","Təkrar təklif"],["accepted","Satış"],["rejected","Rədd"],["declined","İmtina"],["cancelled","Ləğv"]];
 
@@ -699,9 +708,10 @@ async function renderUsers(){
   </div>
   <form class="panel" id="whBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("send","Partnyor webhook (Bitrix)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <section class="panel" id="rcBox" style="margin-top:16px;display:grid;gap:12px">${ph("send","Robocall inteqrasiyası")}<p class="muted" style="margin:0">Yüklənir…</p></section>
+  <form class="panel" id="aiBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("doc","Sənəd analizi (süni intellekt)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <form class="panel" id="smsBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("shield","SMS provayderi (Softline)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <section class="panel" id="auditBox" style="margin-top:16px">${ph("shield","Təhlükəsizlik jurnalı")}<p class="muted" style="margin:0">Yüklənir…</p></section>`;
-  renderSms();renderWh();renderRc();
+  renderSms();renderWh();renderRc();renderAi();
   try{const {items}=await api("/audit");
     $("#auditBox").innerHTML=ph("shield","Təhlükəsizlik jurnalı")+(items.length?`<div style="overflow-x:auto"><table class="dtable"><thead><tr><th>Vaxt</th><th>İstifadəçi</th><th>Əməliyyat</th><th>Obyekt</th><th>IP</th></tr></thead>
       <tbody>${items.map(r=>`<tr${r.action==="login.fail"?' class="closed"':""}><td>${dt(r.at)}</td><td class="mono">${esc(r.username||"—")}</td><td>${esc(AUDIT[r.action]||r.action)}</td><td>${esc(r.target||"")}</td><td class="mono">${esc(r.ip||"")}</td></tr>`).join("")}</tbody></table></div>`
@@ -724,6 +734,60 @@ async function renderSms(st){
 document.addEventListener("submit",async e=>{if(e.target.id!=="smsBox")return;e.preventDefault();
   try{const st=await api("/settings/sms",{method:"POST",body:JSON.stringify({user:$("#slUser").value,key:$("#slKey").value,sender:$("#slSender").value})});
     toast(st.connected?"SMS provayderi qoşuldu":"Saxlanıldı");renderSms(st)}catch(err){toast(err.message)}});
+// Income document analysis: Claude reads the PDF or photo; the expert checks the result and decides.
+const AI_MIME=/^(application\/pdf|image\/(jpeg|png|webp|gif))$/;
+const AI_MATCH={match:["ok","uyğundur"],mismatch:["bad","uyğun deyil"],unknown:["","yoxlanmadı"]};
+const AI_STAMP={present:"var",missing:"yoxdur",unclear:"aydın deyil",not_expected:"tələb olunmur"};
+const AI_CONF={high:"yüksək",medium:"orta",low:"aşağı"};
+const money=n=>n==null?"—":Number(n).toLocaleString("az-AZ",{maximumFractionDigits:2});
+function aiCard(x){
+  const m=k=>{const [c,t]=AI_MATCH[x[k]]||AI_MATCH.unknown;return `<b class="${c}">${t}</b>`};
+  const per=[x.period_from,x.period_to].filter(Boolean).join(" – ");
+  return `<div class="ai">
+    <div class="aih"><b>${esc(x.doc_type_label||"Sənəd")}</b>${x.avg_monthly_net!=null?`<span>Orta aylıq: <b>${money(x.avg_monthly_net)} ${esc(x.currency||"AZN")}</b> <span class="muted">(${esc(x.amount_basis_label||"")})</span></span>`:""}</div>
+    <div>${esc(x.summary||"")}</div>
+    <div class="kv">
+      <div><span>Sahibi</span><br><b>${esc(x.holder_name||"—")}</b> · ad ${m("name_match")}</div>
+      <div><span>FİN</span><br><b class="mono">${esc(x.holder_fin||"—")}</b> · ${m("fin_match")}</div>
+      <div><span>Verən təşkilat</span><br><b>${esc(x.issuer||"—")}</b>${x.position?` · ${esc(x.position)}`:""}</div>
+      <div><span>Dövr / tarix</span><br><b>${esc(per||"—")}</b>${x.issue_date?` · verilib ${esc(x.issue_date)}`:""}</div>
+      <div><span>Möhür, imza</span><br><b>${AI_STAMP[x.stamp_signature]||"—"}</b></div>
+    </div>
+    ${x.monthly_items?.length?`<table>${x.monthly_items.map(i=>`<tr><td class="mono">${esc(i.month)}</td><td>${esc(i.note||"")}</td><td class="mono">${money(i.amount)}</td></tr>`).join("")}</table>`:""}
+    ${x.red_flags?.length?`<ul class="flags">${x.red_flags.map(f=>`<li>${esc(f)}</li>`).join("")}</ul>`:`<div class="ok">Şübhəli əlamət tapılmadı.</div>`}
+    <div class="foot">Etibarlılıq: ${AI_CONF[x.confidence]||"—"} · ${esc(x.by||"")}, ${dt(x.at)} · Süni intellekt oxuyub, son qərar ekspertindir.<span class="sp" style="flex:1"></span>${x.avg_monthly_net!=null&&has("apps.assess")?`<button type="button" class="aibtn" style="padding:3px 10px" data-aiinc="${x.avg_monthly_net}">Gəlir xanasına yaz</button>`:""}</div>
+  </div>`;
+}
+async function aiRun(id,b){
+  b.disabled=true;b.textContent="Oxunur…";
+  try{const x=await api(`/applications/${cur.id}/files/${id}/analyze`,{method:"POST",body:"{}"});
+    const f=cur.files.find(f=>f.id==id);if(f)f.analysis=x;
+    const box=$("#fi"+id);box.querySelector(".ai")?.remove();box.insertAdjacentHTML("beforeend",aiCard(x));b.textContent="Yenidən analiz";return true}
+  catch(err){toast(err.message);b.textContent="Analiz et";return false}finally{b.disabled=false}
+}
+document.addEventListener("click",async e=>{
+  const b=e.target.closest?.("[data-ai],#aiAll,[data-aiinc]");if(!b||!cur)return;
+  if(b.dataset.ai)return aiRun(b.dataset.ai,b);
+  if(b.dataset.aiinc){const i=$("#aForm [name=incomeMonthly]");if(!i){toast("Qiymətləndirmə forması tapılmadı.");return}
+    i.value=Math.round(+b.dataset.aiinc);i.dispatchEvent(new Event("input",{bubbles:true}));i.scrollIntoView({behavior:"smooth",block:"center"});toast("Gəlir xanasına yazıldı, yoxlayıb saxlayın");return}
+  b.disabled=true;
+  for(const x of [...document.querySelectorAll("[data-ai]")].filter(x=>!cur.files.find(f=>f.id==x.dataset.ai)?.analysis)){if(!await aiRun(x.dataset.ai,x))break}
+  b.remove();
+});
+// Claude API key for document analysis: typed once, kept on the server, never shown again.
+async function renderAi(st){
+  const box=$("#aiBox");if(!box)return;
+  try{st=st||await api("/settings/ai")}catch(e){box.hidden=true;return}
+  box.innerHTML=ph("doc","Sənəd analizi (süni intellekt)")+`
+    <p style="margin:0">${st.connected?`<span class="st sm s-accepted">Qoşulub</span> <span class="muted">Model: ${esc(st.model)}</span>`:`<span class="st sm s-rejected">Qoşulmayıb</span> <span class="muted">Gəlir sənədləri avtomatik oxunmur.</span>`}</p>
+    ${st.last?`<p style="margin:0;font-size:13px">${st.last.ok?`<span class="muted">Son analiz: ${dt(st.last.at)}</span>`:`<b style="color:var(--bad)">Son analiz alınmadı (${dt(st.last.at)}):</b> ${esc(st.last.error)}`}</p>`:""}
+    <label class="f">Anthropic API açarı<input id="aiKey" type="password" autocomplete="new-password" spellcheck="false" placeholder="${st.connected?"Saxlanılıb, dəyişmək üçün yenisini yaz":"sk-ant-…"}" required></label>
+    <div class="pbar"><small class="muted">Ekspert "Analiz et" basanda sənəd Anthropic-ə (Claude) göndərilir, nəticə müraciətdə saxlanılır. Açar ekranda bir daha göstərilmir.</small><span class="sp"></span>${st.connected?`<button class="btn ghost sm" type="button" id="aiOff">Söndür</button>`:""}<button class="btn sm" type="submit">Saxla</button></div>`;
+}
+document.addEventListener("submit",async e=>{if(e.target.id!=="aiBox")return;e.preventDefault();
+  try{const st=await api("/settings/ai",{method:"POST",body:JSON.stringify({key:$("#aiKey").value})});toast("Açar saxlanıldı");renderAi(st)}catch(err){toast(err.message)}});
+document.addEventListener("click",async e=>{if(e.target.id!=="aiOff")return;
+  try{renderAi(await api("/settings/ai",{method:"POST",body:JSON.stringify({clear:true})}));toast("Sənəd analizi söndürüldü")}catch(err){toast(err.message)}});
 // Robocall pulls application data with a token generated here; the token is shown once.
 async function renderRc(st){
   const box=$("#rcBox");if(!box)return;
@@ -762,7 +826,7 @@ document.addEventListener("click",async e=>{if(e.target.id!=="whOff")return;
 document.addEventListener("change",async e=>{const c=e.target.closest("[data-ubrand]");if(!c)return;const id=c.dataset.ubrand;
   const brands=[...document.querySelectorAll(`[data-ubrand="${id}"]:checked`)].map(i=>i.value);
   try{await api("/users/"+id,{method:"POST",body:JSON.stringify({brands})});toast(brands.length?"Markalar: "+brands.join(", "):"Bütün markalar")}catch(err){toast(err.message)}renderUsers()});
-const AUDIT={"apps.partner_ref":"Partnyor ref nömrəsi əlavə etdi","apps.export":"Excel-ə çıxardı","settings.sms":"SMS ayarını dəyişdi","settings.webhook":"Webhook ayarını dəyişdi","settings.robocall":"Robocall inteqrasiyasını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
+const AUDIT={"apps.partner_ref":"Partnyor ref nömrəsi əlavə etdi","apps.export":"Excel-ə çıxardı","settings.sms":"SMS ayarını dəyişdi","settings.webhook":"Webhook ayarını dəyişdi","settings.robocall":"Robocall inteqrasiyasını dəyişdi","settings.ai":"Sənəd analizi açarını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
   "user.update":"İstifadəçini dəyişdi","file.view":"Sənədə baxdı","app.delete":"Müraciəti sildi"};
 $("#usersBtn").onclick=renderUsers;
 // Excel: downloads what the list shows now (status filter and search), all rows, not only the first 500.
@@ -1049,8 +1113,8 @@ function renderDetail(){
       ${a.info_request?`<div class="callout">${a.status==="info"?"Müştəridən əlavə məlumat gözlənilir":"Əlavə məlumat sorğusu"}<small>Sorğu: ${esc(a.info_request.text)} · ${esc(a.info_request.by||"")}, ${dt(a.info_request.at)}${a.info_request.answeredAt?`<br>Cavab: ${esc(a.info_request.answer||"—")}${a.info_request.files?` · ${a.info_request.files} sənəd`:""} · ${dt(a.info_request.answeredAt)}`:""}</small></div>`:""}
       ${a.reject_reason?`<div class="callout bad">İmtina səbəbi<small>${a.reject_public?`Müştəriyə: ${esc(a.reject_public)}<br>`:""}Daxili: ${esc(a.reject_reason)}</small></div>`:""}
     </section>
-    <section class="panel">${ph("doc","Gəlir sənədləri",`<span class="muted" style="font-size:12px">${a.files.length} fayl</span>`)}
-      <div class="files">${(bySrc.extra?["extra"]:[]).concat(a.income_sources).map(s=>`<div><h4>${INCOME[s]}</h4><div class="row">${(bySrc[s]||[]).map(f=>`<button type="button" class="fbtn" data-file="${esc(f.stored_name)}" title="${esc((f.doc_label?f.doc_label+": ":"")+f.original_name)}">${IC.doc}<span>${f.doc_label?`<b>${esc(f.doc_label)}</b> · `:""}${esc(f.original_name)}</span><em>${f.size_bytes?Math.max(1,Math.round(f.size_bytes/1024))+" KB":""}</em></button>`).join("")||`<span class="nofile">Sənəd yüklənməyib</span>`}</div></div>`).join("")}</div>
+    <section class="panel">${ph("doc","Gəlir sənədləri",`${has("apps.assess")&&a.files.some(f=>!f.analysis&&AI_MIME.test(f.mime||""))?`<button type="button" class="aibtn" id="aiAll" style="padding:4px 10px">Hamısını analiz et</button> `:""}<span class="muted" style="font-size:12px">${a.files.length} fayl</span>`)}
+      <div class="files">${(bySrc.extra?["extra"]:[]).concat(a.income_sources).map(s=>`<div><h4>${INCOME[s]}</h4><div class="row">${(bySrc[s]||[]).map(f=>`<div class="fitem" id="fi${f.id}"><div class="fline"><button type="button" class="fbtn" data-file="${esc(f.stored_name)}" title="${esc((f.doc_label?f.doc_label+": ":"")+f.original_name)}">${IC.doc}<span>${f.doc_label?`<b>${esc(f.doc_label)}</b> · `:""}${esc(f.original_name)}</span><em>${f.size_bytes?Math.max(1,Math.round(f.size_bytes/1024))+" KB":""}</em></button>${has("apps.assess")&&AI_MIME.test(f.mime||"")?`<button type="button" class="aibtn" data-ai="${f.id}">${f.analysis?"Yenidən analiz":"Analiz et"}</button>`:""}</div>${f.analysis?aiCard(f.analysis):""}</div>`).join("")||`<span class="nofile">Sənəd yüklənməyib</span>`}</div></div>`).join("")}</div>
     </section>
 
     ${akbHtml(a)}
@@ -1130,12 +1194,12 @@ function renderDetail(){
   if(!has("docs.view"))document.querySelectorAll("[data-file]").forEach(b=>{b.disabled=true;b.title="Sənədləri açmaq üçün icazən yoxdur"});
   if($("#akbBox"))tipOn($("#akbBox"));
 }
-const EV_IC={reoffer:["send","k-bad"],webhook:["send",""],info_request:["msg",""],info_reply:["inbox","k-ok"],bureau:["shield",""],created:["inbox",""],assessed:["gauge",""],offer:["send",""],rejected:["x","k-bad"],note:["pen",""],accepted:["check","k-ok"],declined:["x","k-bad"],cancelled:["x","k-bad"],sms:["msg","k-sms"]};
+const EV_IC={doc_analysis:["doc",""],reoffer:["send","k-bad"],webhook:["send",""],info_request:["msg",""],info_reply:["inbox","k-ok"],bureau:["shield",""],created:["inbox",""],assessed:["gauge",""],offer:["send",""],rejected:["x","k-bad"],note:["pen",""],accepted:["check","k-ok"],declined:["x","k-bad"],cancelled:["x","k-bad"],sms:["msg","k-sms"]};
 function evHtml(e){
   const d=e.details||{};
   const extra=e.kind==="bureau"?`${d.score} bal, ${d.grade} · ${Scoring.VERDICTS[d.verdict]||""} · aylıq borc ${azn(d.debtMonthly||0)}${d.flags?` · ${d.flags} xəbərdarlıq`:""}`:e.kind==="assessed"?`${d.score} bal, ${d.grade} · ${Scoring.VERDICTS[d.verdict]||""}`:
     e.kind==="offer"?`${azn(d.price)}, ilkin ${d.downPct}%, ${d.months} ay, illik ${d.rate}%`:
-    e.kind==="reoffer"?[d.label,d.reason].filter(Boolean).join(" · "):e.kind==="rejected"?d.reason:e.kind==="note"?[d.channel==="robocall"?(d.outcome_label||ROBO_RESULTS[d.outcome]):CALL_RESULTS[d.outcome],d.text].filter(Boolean).join(" · "):e.kind==="webhook"?`ref № ${d.ref||"—"} · ${d.result||""}${d.error?" · Göndərilmədi: "+d.error:""}`:e.kind==="sms"?(d.error?"Göndərilmədi: "+d.error:d.text)+(d.demo?" (SMS provayderi qoşulmayıb, göndərilmədi)":""):
+    e.kind==="doc_analysis"?[d.file,d.doc,d.avg!=null?`orta aylıq ${money(d.avg)} ₼`:"",d.flags?`${d.flags} xəbərdarlıq`:""].filter(Boolean).join(" · "):e.kind==="reoffer"?[d.label,d.reason].filter(Boolean).join(" · "):e.kind==="rejected"?d.reason:e.kind==="note"?[d.channel==="robocall"?(d.outcome_label||ROBO_RESULTS[d.outcome]):CALL_RESULTS[d.outcome],d.text].filter(Boolean).join(" · "):e.kind==="webhook"?`ref № ${d.ref||"—"} · ${d.result||""}${d.error?" · Göndərilmədi: "+d.error:""}`:e.kind==="sms"?(d.error?"Göndərilmədi: "+d.error:d.text)+(d.demo?" (SMS provayderi qoşulmayıb, göndərilmədi)":""):
     e.kind==="info_request"?d.text:e.kind==="info_reply"?[d.text,d.files?`${d.files} sənəd`:""].filter(Boolean).join(" · "):
     e.kind==="created"?`${d.files||0} sənəd`:e.kind==="accepted"&&d.downPct!=null?`ilkin ödəniş ${d.downPct}%`:"";
   const [ic,cls]=EV_IC[e.kind]||["clock",""];

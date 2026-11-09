@@ -686,9 +686,10 @@ async function renderUsers(){
     </div>
   </div>
   <form class="panel" id="whBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("send","Partnyor webhook (Bitrix)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
+  <section class="panel" id="rcBox" style="margin-top:16px;display:grid;gap:12px">${ph("send","Robocall inteqrasiyası")}<p class="muted" style="margin:0">Yüklənir…</p></section>
   <form class="panel" id="smsBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("shield","SMS provayderi (Softline)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <section class="panel" id="auditBox" style="margin-top:16px">${ph("shield","Təhlükəsizlik jurnalı")}<p class="muted" style="margin:0">Yüklənir…</p></section>`;
-  renderSms();renderWh();
+  renderSms();renderWh();renderRc();
   try{const {items}=await api("/audit");
     $("#auditBox").innerHTML=ph("shield","Təhlükəsizlik jurnalı")+(items.length?`<div style="overflow-x:auto"><table class="dtable"><thead><tr><th>Vaxt</th><th>İstifadəçi</th><th>Əməliyyat</th><th>Obyekt</th><th>IP</th></tr></thead>
       <tbody>${items.map(r=>`<tr${r.action==="login.fail"?' class="closed"':""}><td>${dt(r.at)}</td><td class="mono">${esc(r.username||"—")}</td><td>${esc(AUDIT[r.action]||r.action)}</td><td>${esc(r.target||"")}</td><td class="mono">${esc(r.ip||"")}</td></tr>`).join("")}</tbody></table></div>`
@@ -711,6 +712,21 @@ async function renderSms(st){
 document.addEventListener("submit",async e=>{if(e.target.id!=="smsBox")return;e.preventDefault();
   try{const st=await api("/settings/sms",{method:"POST",body:JSON.stringify({user:$("#slUser").value,key:$("#slKey").value,sender:$("#slSender").value})});
     toast(st.connected?"SMS provayderi qoşuldu":"Saxlanıldı");renderSms(st)}catch(err){toast(err.message)}});
+// Robocall pulls application data with a token generated here; the token is shown once.
+async function renderRc(st){
+  const box=$("#rcBox");if(!box)return;
+  try{st=st||await api("/settings/robocall")}catch(e){box.hidden=true;return}
+  box.innerHTML=ph("send","Robocall inteqrasiyası")+`
+    <p style="margin:0">${st.tokenSet?`<span class="st sm s-accepted">Qoşulub</span> <span class="muted">${st.lastPull?"Son sorğu: "+dt(st.lastPull):"Robocall hələ məlumat çəkməyib."}</span>`:`<span class="st sm s-rejected">Qoşulmayıb</span> <span class="muted">Robocall müraciətləri görmür.</span>`}</p>
+    <label class="f">Robocall-un İnteqrasiyalar səhifəsinə yazılacaq ünvan<input readonly value="${esc(st.endpoint)}" class="mono" data-sel></label>
+    ${st.token?`<label class="f">Token (yalnız indi görünür, kopyalayıb robocall panelinə yazın)<input id="rcToken" readonly value="${esc(st.token)}" class="mono" data-sel></label>`:""}
+    <div class="pbar"><small class="muted">Robocall bu ünvandan müraciətləri, statusu, təklif şərtlərini, istənilən sənədləri və son danışığın nəticəsini çəkir. Faiz dərəcəsi və komissiya göndərilmir, FİN gizlədilir.</small><span class="sp"></span>${st.tokenSet?`<button class="btn ghost sm" type="button" id="rcOff">Söndür</button>`:""}<button class="btn sm" type="button" id="rcGen">${st.tokenSet?"Yeni token yarat":"Token yarat"}</button></div>`;
+}
+document.addEventListener("focusin",e=>{if(e.target.matches?.("[data-sel]"))e.target.select()});
+document.addEventListener("click",async e=>{const b=e.target.closest?.("#rcGen,#rcOff");if(!b)return;
+  if(b.id==="rcGen"&&b.textContent.startsWith("Yeni")&&!confirmInline(b,"Köhnə token işləməyəcək, təsdiqlə"))return;
+  try{const st=await api("/settings/robocall",{method:"POST",body:JSON.stringify(b.id==="rcOff"?{clear:true}:{})});renderRc(st);
+    toast(b.id==="rcOff"?"Robocall inteqrasiyası söndürüldü":"Token yaradıldı, robocall panelinə yazın")}catch(err){toast(err.message)}});
 // Partner webhook: the final credit result of applications that came with a ref number is posted here.
 async function renderWh(st){
   const box=$("#whBox");if(!box)return;
@@ -734,7 +750,7 @@ document.addEventListener("click",async e=>{if(e.target.id!=="whOff")return;
 document.addEventListener("change",async e=>{const c=e.target.closest("[data-ubrand]");if(!c)return;const id=c.dataset.ubrand;
   const brands=[...document.querySelectorAll(`[data-ubrand="${id}"]:checked`)].map(i=>i.value);
   try{await api("/users/"+id,{method:"POST",body:JSON.stringify({brands})});toast(brands.length?"Markalar: "+brands.join(", "):"Bütün markalar")}catch(err){toast(err.message)}renderUsers()});
-const AUDIT={"apps.partner_ref":"Partnyor ref nömrəsi əlavə etdi","apps.export":"Excel-ə çıxardı","settings.sms":"SMS ayarını dəyişdi","settings.webhook":"Webhook ayarını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
+const AUDIT={"apps.partner_ref":"Partnyor ref nömrəsi əlavə etdi","apps.export":"Excel-ə çıxardı","settings.sms":"SMS ayarını dəyişdi","settings.webhook":"Webhook ayarını dəyişdi","settings.robocall":"Robocall inteqrasiyasını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
   "user.update":"İstifadəçini dəyişdi","file.view":"Sənədə baxdı","app.delete":"Müraciəti sildi"};
 $("#usersBtn").onclick=renderUsers;
 // Excel: downloads what the list shows now (status filter and search), all rows, not only the first 500.

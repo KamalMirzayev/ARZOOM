@@ -645,7 +645,7 @@ const ROBO_RESULTS = { agrees_will_visit: "Razıdır, salona gələcək", agrees
   docs_will_send: "Sənədləri göndərəcək", docs_cannot: "Sənədləri təqdim edə bilmir", declined: "İmtina etdi",
   callback: "Yenidən zəng istədi", wrong_person: "Başqa şəxsdir", other: "Digər",
   wants_lower_monthly: "Aylıq ödənişi çox hesab edir", wants_lower_down: "İlkin ödənişdə endirim istəyir",
-  wants_other_terms: "Başqa şərt istəyir (müddət, məbləğ)" };
+  wants_other_terms: "Başqa şərt istəyir (müddət, məbləğ)", transferred_to_sales: "Satış təmsilçisinə qoşuldu" };
 // The customer is interested but not with these terms: the application goes to "Təkrar təklif" for staff to rework the offer.
 const REOFFER_OUTCOMES = new Set(["wants_lower_monthly", "wants_lower_down", "wants_other_terms"]);
 app.post("/api/integrations/robocall/applications/:id/feedback", rcAuth, async (req, res) => {
@@ -659,13 +659,16 @@ app.post("/api/integrations/robocall/applications/:id/feedback", rcAuth, async (
   const label = String(b.outcome_label || "").trim().slice(0, 120) || ROBO_RESULTS[outcome];
   const details = { outcome, outcome_label: label, channel: "robocall", text: b.reason ? String(b.reason).trim().slice(0, 2000) : "",
                     feedback_id, call_ref: b.call_ref ? String(b.call_ref).slice(0, 120) : null,
-                    call_at: !isNaN(Date.parse(b.at)) ? new Date(b.at).toISOString() : null };
+                    call_at: !isNaN(Date.parse(b.at)) ? new Date(b.at).toISOString() : null,
+                    // amounts the customer asked for, if robocall caught them (e.g. monthly payment, down payment %)
+                    requested_terms: b.requested_terms && typeof b.requested_terms === "object" && !Array.isArray(b.requested_terms)
+                      && JSON.stringify(b.requested_terms).length <= 500 ? b.requested_terms : null };
   const ins = await pool.query(
     `INSERT INTO application_events (application_id, actor, kind, details) VALUES ($1, 'Robocall', 'note', $2)
      ON CONFLICT ((details->>'feedback_id')) WHERE kind = 'note' AND details ? 'feedback_id' DO NOTHING`, [req.params.id, details]);
   let reoffer = false;
   if (ins.rowCount && REOFFER_OUTCOMES.has(outcome)) {
-    const request = { outcome, label, reason: details.text || null, at: new Date().toISOString(), source: "robocall" };
+    const request = { outcome, label, reason: details.text || null, requested_terms: details.requested_terms, at: new Date().toISOString(), source: "robocall" };
     const u = await pool.query(`UPDATE applications SET status = 'reoffer', reoffer = $2, updated_at = now()
                                 WHERE id = $1 AND status IN ('offer','declined') RETURNING id`, [req.params.id, request]);
     if (u.rowCount) { reoffer = true; await logEvent(pool, req.params.id, "Robocall", "reoffer", request); }

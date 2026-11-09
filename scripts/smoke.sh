@@ -231,7 +231,7 @@ curl -fsS -H "x-integration-token: $RCT" "$RCU?limit=500" | grep -q '"last_call"
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$RLIVE" | grep -o "$FBID" | wc -l)" = 1 ] || fail
 # Təkrar təklif: the customer wants a lower monthly payment -> the offer goes back to staff; a new offer moves it on
 node -e 'const {Client}=require("pg"),db=new Client({connectionString:process.env.DATABASE_URL});db.connect().then(()=>db.query("UPDATE applications SET status = '"'"'offer'"'"' WHERE id = $1",[process.argv[1]])).then(()=>db.end())' "$RLIVE"
-RO='{"feedback_id":"'"$FBID"'-ro","outcome":"wants_lower_monthly","reason":"Aylıq 800-dən çox ola bilməz"}'
+RO='{"feedback_id":"'"$FBID"'-ro","outcome":"wants_lower_monthly","reason":"Aylıq 800-dən çox ola bilməz","requested_terms":{"monthly_payment":800}}'
 curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$RCU/$RLIVE/feedback" -d "$RO" | grep -q '"reoffer":true' || fail
 curl -fsS "${H[@]}" "$B/api/admin/applications?status=reoffer" | grep -q "\"id\":\"$RLIVE\"" || fail
 curl -fsS "${H[@]}" "$B/api/admin/applications/$RLIVE" | grep -q '"reoffer":{[^}]*"reason":"Aylıq 800-dən çox ola bilməz"' || fail
@@ -239,6 +239,7 @@ curl -fsS -H "x-integration-token: $RCT" "$RCU?limit=500" | grep -q '"status":"r
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$RLIVE/offer" -d '{"price":45000,"downPct":20,"months":60,"rate":17,"commissionPct":1.5}' >/dev/null || fail
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$RLIVE" | J status)" = offer ] || fail
 curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$RCU/$RLIVE/feedback" -d '{"feedback_id":"'"$FBID"'-x","outcome":"thinking"}' | grep -q '"reoffer":false' || fail
+curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$RCU/$RLIVE/feedback" -d '{"feedback_id":"'"$FBID"'-ts","outcome":"transferred_to_sales","reason":"Ext 205"}' | grep -q '"ok":true' || fail
 echo "✓ təkrar təklif: robocall narazılığı müraciəti geri qaytarır, yeni təklif göndərilir"
 curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/robocall" -d '{"clear":true}' >/dev/null || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-integration-token: $RCT" "$RCU")" = 401 ] || fail

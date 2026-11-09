@@ -55,6 +55,29 @@ curl -fsS "${H[@]}" "$B/api/admin/applications?period=yesterday&q=$ID" | grep -q
 echo "✓ siyahı günə görə: bu gün, dünən; axtarış bütün tarixlərdə"
 STORED=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J 'files[0].stored_name')
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J birth_date)" = 1990-05-17 ] || fail; echo "✓ doğum tarixi saxlanılır"
+# Income document analysis. In CI the server's ANTHROPIC_BASE_URL points at this local stand-in for the Claude API,
+# which checks the request shape (model, PDF block, JSON schema) and answers like the API does.
+if [ -n "$AI_STUB_PORT" ]; then
+AIF="$TMP/ai.txt"
+node -e 'require("http").createServer((q,r)=>{let b="";q.on("data",c=>b+=c);q.on("end",()=>{const j=JSON.parse(b);require("fs").appendFileSync(process.argv[1],(q.headers["x-api-key"]||String(q.headers.authorization).replace("Bearer ",""))+" "+j.model+" "+j.messages[0].content[0].type+" "+j.messages[0].content[0].source.media_type+" "+j.output_config.format.type+" "+(q.headers["anthropic-beta"]||"")+"\n");
+  const out={doc_type:"salary_certificate",doc_type_label:"Əmək haqqı arayışı",holder_name:"Test Testov",holder_fin:"5ABC12D",issuer:"Test MMC",position:"Mühasib",issue_date:"2026-11-01",period_from:"2026-05-01",period_to:"2026-10-31",currency:"AZN",
+    monthly_items:[{month:"2026-09",amount:1500,note:null},{month:"2026-10",amount:1700,note:null}],avg_monthly_net:1600,amount_basis:"net",stamp_signature:"present",name_match:"match",fin_match:"match",red_flags:["Arayış 1 aydan köhnədir"],summary:"Test MMC-nin arayışı.",confidence:"high"};
+  r.setHeader("content-type","application/json");r.end(JSON.stringify({id:"msg_1",type:"message",role:"assistant",model:j.model,stop_reason:"end_turn",content:[{type:"text",text:JSON.stringify(out)}],usage:{input_tokens:10,output_tokens:5}}))})}).listen(+process.argv[2])' "$AIF" "$AI_STUB_PORT" &
+AIPID=$!; sleep 1
+FID=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J 'files[0].id')
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID/files/$FID/analyze")" = 409 ] || fail
+curl -s -X POST "${H[@]}" "$B/api/admin/settings/ai" -d '{"key":"nope"}' | grep -q "sk-ant-" || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/ai" -d '{"key":"sk-ant-test-0123456789abcdefghij"}' | grep -q '"connected":true' || fail
+curl -fsS "${H[@]}" "$B/api/admin/settings/ai" | grep -q "0123456789abcdefghij" && fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/files/$FID/analyze" | grep -q '"avg_monthly_net":1600' || fail
+grep -q "^sk-ant-test-0123456789abcdefghij claude-opus-5-5 document application/pdf json_schema" "$AIF" || fail
+A=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID")
+echo "$A" | grep -q '"red_flags":\["Arayış 1 aydan köhnədir"\]' && echo "$A" | grep -q '"kind":"doc_analysis"' || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID/files/999999/analyze")" = 404 ] || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/ai" -d '{"clear":true}' | grep -q '"connected":false' || fail
+kill $AIPID 2>/dev/null
+echo "✓ gəlir sənədinin analizi: açar paneldə, PDF süni intellektə gedir, nəticə və xəbərdarlıqlar saxlanılır"
+fi
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J guarantor)" = true ] || fail; echo "✓ zamin cavabı saxlanılır"
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J partner_ref)" = 111938 ] && curl -fsS "${H[@]}" "$B/api/admin/applications?q=111938" | grep -q "$ID" || fail; echo "✓ partnyor ref nömrəsi saxlanılır və axtarılır"
 sleep 1; curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q "Yeni müraciət № $ID" || fail; echo "✓ yeni müraciət SMS-i menecerə və risk ekspertinə"

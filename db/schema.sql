@@ -144,3 +144,5 @@ ALTER TABLE application_files ADD COLUMN IF NOT EXISTS doc_label TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS application_events_feedback_idx ON application_events ((details->>'feedback_id')) WHERE kind = 'note' AND details ? 'feedback_id';
 -- "Təkrar təklif": the customer wants other terms (robocall call result); staff rework the offer.
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS reoffer JSONB;
+-- Gəlir sənədinin süni intellektlə analizi (ekspert "Analiz et" basanda)
+ALTER TABLE application_files ADD COLUMN IF NOT EXISTS analysis JSONB;

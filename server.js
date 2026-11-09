@@ -14,6 +14,7 @@ const Stock = require("./lib/stock");
 const { sendSms } = Sms;
 const Scoring = require("./lib/scoring");
 const Akb = require("./lib/akb");
+const DocAI = require("./lib/docai");
 const Perms = require("./lib/permissions");
 const { rateLimit } = require("./lib/ratelimit");
 const { sniff } = require("./lib/filecheck");
@@ -629,6 +630,58 @@ app.post("/api/admin/settings/robocall", admin, adminOnly, async (req, res) => {
   audit(req, req.user.username, "settings.robocall", "yeni token");
   res.json({ ...rcState(), token });
 });
+/* ---------- income document analysis (Claude): the expert presses "Analiz et" on a document ---------- */
+// The API key is typed once in the panel (or ANTHROPIC_API_KEY in .env) and never sent back to the browser.
+const AI = { last: null };
+async function loadAiSettings() {
+  const { rows } = await pool.query("SELECT value FROM settings WHERE key = 'anthropic_api_key'");
+  DocAI.setKey(rows[0]?.value || process.env.ANTHROPIC_API_KEY || "");
+}
+const aiState = () => ({ connected: DocAI.configured(), model: DocAI.MODEL, last: AI.last });
+app.get("/api/admin/settings/ai", admin, adminOnly, (_req, res) => res.json(aiState()));
+app.post("/api/admin/settings/ai", admin, adminOnly, async (req, res) => {
+  if (req.body?.clear) {
+    await pool.query("DELETE FROM settings WHERE key = 'anthropic_api_key'");
+    await loadAiSettings();
+    audit(req, req.user.username, "settings.ai", "söndürüldü");
+    return res.json(aiState());
+  }
+  const key = String(req.body?.key || "").trim();
+  if (!/^sk-ant-[A-Za-z0-9_-]{20,}$/.test(key)) return bad(res, "Açar sk-ant- ilə başlamalıdır.");
+  await pool.query("INSERT INTO settings (key, value, updated_by) VALUES ('anthropic_api_key',$1,$2) ON CONFLICT (key) DO UPDATE SET value = $1, updated_by = $2, updated_at = now()", [key, req.user.username]);
+  DocAI.setKey(key); AI.last = null;
+  audit(req, req.user.username, "settings.ai", "açar yeniləndi");
+  res.json(aiState());
+});
+const aiBusy = new Set();
+app.post("/api/admin/applications/:id/files/:fileId/analyze", admin, brandGate, can("apps.assess"), async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT f.id, f.stored_name, f.mime, f.income_source, f.doc_label, f.original_name, a.fin, a.created_at, a.bureau->'borrower'->>'name' AS bname,
+            a.assessment->'inputs'->>'incomeMonthly' AS income
+     FROM application_files f JOIN applications a ON a.id = f.application_id WHERE f.application_id = $1 AND f.id = $2`,
+    [req.params.id, Number(req.params.fileId) || 0]);
+  const f = rows[0];
+  if (!f) return bad(res, "Sənəd tapılmadı.", 404);
+  if (aiBusy.has(f.id)) return bad(res, "Bu sənəd artıq analiz olunur.", 409);
+  aiBusy.add(f.id);
+  try {
+    const result = await DocAI.analyze({
+      filePath: path.join(UPLOAD_DIR, path.basename(f.stored_name)), mime: f.mime,
+      sourceLabel: f.doc_label || INCOME_NAMES[f.income_source] || f.income_source,
+      applicant: { name: f.bname, fin: f.fin, declaredIncome: Number(f.income) || null, appliedAt: new Date(f.created_at).toISOString().slice(0, 10) }
+    });
+    const analysis = { ...result, at: new Date().toISOString(), by: req.staff };
+    await pool.query("UPDATE application_files SET analysis = $2 WHERE id = $1", [f.id, analysis]);
+    await logEvent(pool, req.params.id, req.staff, "doc_analysis",
+      { file: f.original_name, doc: result.doc_type_label, avg: result.avg_monthly_net, flags: result.red_flags.length });
+    AI.last = { ok: true, at: analysis.at };
+    res.json(analysis);
+  } catch (e) {
+    AI.last = { ok: false, at: new Date().toISOString(), error: e.message };
+    if (!e.status) console.error("Sənəd analizi xətası:", e.message);
+    bad(res, e.status ? e.message : "Analiz alınmadı.", e.status || 500);
+  } finally { aiBusy.delete(f.id); }
+});
 const RC_STATUS = { review: "Baxılır", info: "Əlavə sənəd gözlənilir", offer: "Təklif göndərilib", reoffer: "Təklif yenidən hazırlanır", rejected: "Rədd edilib",
                     accepted: "Satışa ötürülüb", declined: "Müştəri imtina etdi", cancelled: "Müştəri ləğv etdi" };
 const rcFail = rateLimit({ windowMs: 15 * 60e3, max: 20, message: "Çox sayda uğursuz sorğu." });
@@ -1161,6 +1214,7 @@ async function start() {
   await loadSmsSettings();
   await loadWebhookSettings();
   await loadRobocallSettings();
+  await loadAiSettings();
   loadStock(); setInterval(loadStock, 15 * 60 * 1000).unref();
   // First start: the "admin" account gets ADMIN_TOKEN from .env as its password; change it after signing in.
   const users = await pool.query("SELECT count(*)::int AS n FROM staff_users");

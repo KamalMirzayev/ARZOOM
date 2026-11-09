@@ -605,6 +605,89 @@ app.post("/api/admin/settings/webhook", admin, adminOnly, async (req, res) => {
   res.json(whState());
 });
 
+/* ---------- robocall integration: robocall pulls application data and calls customers ---------- */
+// The token is generated in the panel and shown once; only its sha256 is stored. Robocall sends it as X-Integration-Token.
+// No interest rate or commission goes out (the bot must never mention them), and FİN is masked.
+const RC = { hash: "", lastPull: null };
+async function loadRobocallSettings() {
+  const { rows } = await pool.query("SELECT value FROM settings WHERE key = 'robocall_token_hash'");
+  RC.hash = rows[0]?.value || "";
+}
+const rcState = () => ({ tokenSet: !!RC.hash, lastPull: RC.lastPull, endpoint: (SITE_URL || "") + "/api/integrations/robocall/applications" });
+app.get("/api/admin/settings/robocall", admin, adminOnly, (_req, res) => res.json(rcState()));
+app.post("/api/admin/settings/robocall", admin, adminOnly, async (req, res) => {
+  if (req.body?.clear) {
+    await pool.query("DELETE FROM settings WHERE key = 'robocall_token_hash'");
+    RC.hash = ""; RC.lastPull = null;
+    audit(req, req.user.username, "settings.robocall", "söndürüldü");
+    return res.json(rcState());
+  }
+  const token = "rc_" + crypto.randomBytes(24).toString("base64url");
+  const hash = crypto.createHash("sha256").update(token).digest("hex");
+  await pool.query("INSERT INTO settings (key, value, updated_by) VALUES ('robocall_token_hash',$1,$2) ON CONFLICT (key) DO UPDATE SET value = $1, updated_by = $2, updated_at = now()", [hash, req.user.username]);
+  RC.hash = hash;
+  audit(req, req.user.username, "settings.robocall", "yeni token");
+  res.json({ ...rcState(), token });
+});
+const RC_STATUS = { review: "Baxılır", info: "Əlavə sənəd gözlənilir", offer: "Təklif göndərilib", rejected: "Rədd edilib",
+                    accepted: "Satışa ötürülüb", declined: "Müştəri imtina etdi", cancelled: "Müştəri ləğv etdi" };
+const rcFail = rateLimit({ windowMs: 15 * 60e3, max: 20, message: "Çox sayda uğursuz sorğu." });
+// Changes in order of (changed_at, id): changed_at is the later of the row's update and its last event (notes, replies),
+// so call results and customer replies also show up. Deleted applications come as { id, deleted: true }.
+app.get("/api/integrations/robocall/applications", async (req, res) => {
+  const got = crypto.createHash("sha256").update(String(req.get("x-integration-token") || "")).digest("hex");
+  if (!RC.hash || !sameHex(got, RC.hash)) return rcFail(req, res, () => bad(res, "İcazə yoxdur.", 401));
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 200, 1), 500);
+  let since = "1970-01-01T00:00:00Z", afterId = "";
+  if (req.query.since) {
+    const [t, i = ""] = String(req.query.since).split("|");
+    if (isNaN(Date.parse(t))) return bad(res, "since düzgün deyil (ISO tarix və ya next_since).");
+    since = t; afterId = i;
+  }
+  const { rows: page } = await pool.query(
+    `WITH items AS (
+       SELECT a.id, greatest(a.updated_at, a.created_at, coalesce((SELECT max(e.at) FROM application_events e WHERE e.application_id = a.id), a.created_at)) AS changed_at, false AS deleted
+         FROM applications a
+       UNION ALL
+       SELECT application_id, max(at), true FROM deletion_log GROUP BY application_id)
+     SELECT id, deleted, changed_at, to_char(changed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_at
+       FROM items WHERE (changed_at, id) > ($1::timestamptz, $2) ORDER BY changed_at, id LIMIT $3`, [since, afterId, limit + 1]);
+  const has_more = page.length > limit; if (has_more) page.pop();
+  const ids = page.filter(p => !p.deleted).map(p => p.id);
+  const { rows: apps } = ids.length ? await pool.query(
+    `SELECT a.id, a.phone, a.status, a.created_at, a.updated_at, a.fin, a.birth_date, a.guarantor, a.brand, a.model, a.car_price, a.income_sources,
+            a.partner, a.partner_ref, a.offer, a.reject_public, a.info_request,
+            (SELECT jsonb_build_object('outcome', e.details->>'outcome', 'channel', e.details->>'channel', 'text', e.details->>'text', 'at', e.at)
+               FROM application_events e WHERE e.application_id = a.id AND e.kind = 'note' AND e.details ? 'outcome' ORDER BY e.at DESC LIMIT 1) AS last_call
+       FROM applications a WHERE a.id = ANY($1)`, [ids]) : { rows: [] };
+  const byId = new Map(apps.map(a => [a.id, a]));
+  const r2 = x => Math.round(x * 100) / 100;
+  const items = page.map(p => {
+    const changed_at = p.cursor_at;
+    if (p.deleted) return { id: p.id, deleted: true, changed_at };
+    const a = byId.get(p.id); if (!a) return { id: p.id, deleted: true, changed_at };
+    const o = a.offer, info = a.status === "info" ? a.info_request : null;
+    const terms = dp => { const t = finalTerms(o, dp); return { car_price: o.price, down_payment_pct: t.dp, down_payment: r2(t.down), amount: r2(t.credit), months: t.months, monthly_payment: r2(t.pay) }; };
+    return {
+      id: a.id, deleted: false, changed_at, created_at: a.created_at, updated_at: a.updated_at,
+      phone: "+" + a.phone, status: a.status, status_label: RC_STATUS[a.status] || a.status,
+      fin_masked: "***" + String(a.fin || "").trim().slice(-4), birth_date: a.birth_date ? (a.birth_date instanceof Date ? a.birth_date.toISOString() : String(a.birth_date)).slice(0, 10) : null,
+      guarantor: a.guarantor, brand: a.brand, model: a.model, car_price: a.car_price != null ? +a.car_price : (o?.price ?? null),
+      income_sources: a.income_sources, partner: a.partner || null, partner_ref: a.partner_ref || null,
+      offer: o && ["offer", "accepted", "declined"].includes(a.status) ? terms(o.downPct) : null,
+      final_terms: o?.final && a.status === "accepted" ? terms(o.final.downPct) : null,
+      info_docs: info ? (info.docs || []).map(d => d.label) : [], info_text: info?.text || null,
+      reject_reason: a.status === "rejected" ? a.reject_public || null : null,
+      last_call: a.last_call ? { outcome: a.last_call.outcome, outcome_label: CALL_RESULTS[a.last_call.outcome] || a.last_call.outcome,
+                                 channel: a.last_call.channel || null, text: a.last_call.text || null, at: a.last_call.at } : null,
+      cabinet_url: SITE_URL ? `${SITE_URL}/#muracietlerim` : null
+    };
+  });
+  const last = page[page.length - 1];
+  RC.lastPull = new Date().toISOString();
+  res.json({ items, has_more, next_since: last ? `${last.cursor_at}|${last.id}` : (req.query.since || null) });
+});
+
 app.get("/api/admin/users", admin, adminOnly, async (_req, res) => {
   const { rows } = await pool.query("SELECT id, username, name, role, phone, permissions, brands, active, created_at, last_login FROM staff_users ORDER BY created_at");
   res.json({ users: rows.map(u => ({ ...u, custom: Array.isArray(u.permissions) && u.role !== "admin", permissions: Perms.effective(u) })),
@@ -1027,6 +1110,7 @@ async function start() {
   if (!process.env.OTP_SECRET) console.warn("OTP_SECRET .env-də yoxdur: hər yenidən başlamada göndərilmiş SMS kodları etibarsız olur.");
   await loadSmsSettings();
   await loadWebhookSettings();
+  await loadRobocallSettings();
   loadStock(); setInterval(loadStock, 15 * 60 * 1000).unref();
   // First start: the "admin" account gets ADMIN_TOKEN from .env as its password; change it after signing in.
   const users = await pool.query("SELECT count(*)::int AS n FROM staff_users");

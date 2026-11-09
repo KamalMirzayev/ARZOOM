@@ -196,4 +196,25 @@ curl -sSI "$B/admin" | grep -i "^content-security-policy" | grep -vq "script-src
 AU=$(curl -fsS "${H[@]}" "$B/api/admin/audit")
 for k in login.fail login file.view user.create app.delete; do echo "$AU" | grep -q "\"action\":\"$k\"" || fail; done
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $SS" "$B/api/admin/audit")" = 403 ] || fail; echo "✓ təhlükəsizlik jurnalı"
+# Robocall: token-protected pull of applications, paged; no interest rate, FİN masked, deleted ones flagged
+RCU="$B/api/integrations/robocall/applications"
+[ "$(curl -s -o /dev/null -w '%{http_code}' "$RCU")" = 401 ] || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "x-admin-token: $SS" -H "Content-Type: application/json" "$B/api/admin/settings/robocall" -d '{}')" = 403 ] || fail
+RCT=$(curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/robocall" -d '{}' | grep -o '"token":"rc_[A-Za-z0-9_-]*"' | cut -d'"' -f4)
+[ -n "$RCT" ] || fail
+curl -fsS "${H[@]}" "$B/api/admin/settings/robocall" | grep -q '"token"' && fail
+RC1=$(curl -fsS -H "x-integration-token: $RCT" "$RCU?limit=1")
+echo "$RC1" | grep -q '"has_more":true' || fail
+NS=$(echo "$RC1" | grep -o '"next_since":"[^"]*"' | cut -d'"' -f4)
+RC2=$(curl -fsS -H "x-integration-token: $RCT" --get --data-urlencode "since=$NS" "$RCU?limit=1")
+[ "$(echo "$RC1" | grep -o '"id":"[^"]*"' | head -1)" != "$(echo "$RC2" | grep -o '"id":"[^"]*"' | head -1)" ] || fail
+RCA=$(curl -fsS -H "x-integration-token: $RCT" "$RCU?limit=500")
+echo "$RCA" | grep -q '"rate"\|interest\|commission\|"fin":' && fail
+echo "$RCA" | grep -q "\"id\":\"$ID2\",\"deleted\":true" || fail
+echo "$RCA" | grep -q '"status_label":"Təklif göndərilib"' || fail
+echo "$RCA" | grep -q '"monthly_payment":' || fail
+echo "$RCA" | grep -q '"fin_masked":"\*\*\*' || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/robocall" -d '{"clear":true}' >/dev/null || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-integration-token: $RCT" "$RCU")" = 401 ] || fail
+echo "✓ robocall inteqrasiyası: token, səhifələmə, faizsiz, silinmişlər"
 echo "Bütün yoxlamalar keçdi."

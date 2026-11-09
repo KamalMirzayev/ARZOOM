@@ -711,7 +711,7 @@ async function renderUsers(){
     </div>
   </div>
   <form class="panel" id="whBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("send","Partnyor webhook (Bitrix)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
-  <section class="panel" id="rcBox" style="margin-top:16px;display:grid;gap:12px">${ph("send","Robocall inteqrasiyası")}<p class="muted" style="margin:0">Yüklənir…</p></section>
+  <section class="panel" id="rcBox" style="margin-top:16px;display:grid;gap:12px">${ph("send","ArzoomCall inteqrasiyası")}<p class="muted" style="margin:0">Yüklənir…</p></section>
   <form class="panel" id="aiBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("doc","Sənəd analizi (süni intellekt)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <form class="panel" id="smsBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("shield","SMS provayderi (Softline)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <section class="panel" id="auditBox" style="margin-top:16px">${ph("shield","Təhlükəsizlik jurnalı")}<p class="muted" style="margin:0">Yüklənir…</p></section>`;
@@ -798,21 +798,23 @@ document.addEventListener("click",async e=>{
   for(const x of [...document.querySelectorAll("[data-ai]")].filter(x=>!cur.files.find(f=>f.id==x.dataset.ai)?.analysis)){if(!await aiRun(x.dataset.ai,x))break}
   b.remove();
 });
-// Robocall pulls application data with a token generated here; the token is shown once.
+// Events written before the rename carry the old actor name.
+const actorName=a=>a==="Robocall"?"ArzoomCall":a;
+// ArzoomCall (robocall) pulls application data with a token generated here; the token is shown once.
 async function renderRc(st){
   const box=$("#rcBox");if(!box)return;
   try{st=st||await api("/settings/robocall")}catch(e){box.hidden=true;return}
-  box.innerHTML=ph("send","Robocall inteqrasiyası")+`
-    <p style="margin:0">${st.tokenSet?`<span class="st sm s-accepted">Qoşulub</span> <span class="muted">${st.lastPull?"Son sorğu: "+dt(st.lastPull):"Robocall hələ məlumat çəkməyib."}</span>`:`<span class="st sm s-rejected">Qoşulmayıb</span> <span class="muted">Robocall müraciətləri görmür.</span>`}</p>
-    <label class="f">Robocall-un İnteqrasiyalar səhifəsinə yazılacaq ünvan<input readonly value="${esc(st.endpoint)}" class="mono" data-sel></label>
-    ${st.token?`<label class="f">Token (yalnız indi görünür, kopyalayıb robocall panelinə yazın)<input id="rcToken" readonly value="${esc(st.token)}" class="mono" data-sel></label>`:""}
-    <div class="pbar"><small class="muted">Robocall bu ünvandan müraciətləri, statusu, təklif şərtlərini, istənilən sənədləri və son danışığın nəticəsini çəkir. Faiz dərəcəsi və komissiya göndərilmir, FİN gizlədilir.</small><span class="sp"></span>${st.tokenSet?`<button class="btn ghost sm" type="button" id="rcOff">Söndür</button>`:""}<button class="btn sm" type="button" id="rcGen">${st.tokenSet?"Yeni token yarat":"Token yarat"}</button></div>`;
+  box.innerHTML=ph("send","ArzoomCall inteqrasiyası")+`
+    <p style="margin:0">${st.tokenSet?`<span class="st sm s-accepted">Qoşulub</span> <span class="muted">${st.lastPull?"Son sorğu: "+dt(st.lastPull):"ArzoomCall hələ məlumat çəkməyib."}</span>`:`<span class="st sm s-rejected">Qoşulmayıb</span> <span class="muted">Robocall müraciətləri görmür.</span>`}</p>
+    <label class="f">ArzoomCall-un İnteqrasiyalar səhifəsinə yazılacaq ünvan<input readonly value="${esc(st.endpoint)}" class="mono" data-sel></label>
+    ${st.token?`<label class="f">Token (yalnız indi görünür, kopyalayıb ArzoomCall panelinə yazın)<input id="rcToken" readonly value="${esc(st.token)}" class="mono" data-sel></label>`:""}
+    <div class="pbar"><small class="muted">ArzoomCall bu ünvandan müraciətləri, statusu, təklif şərtlərini, istənilən sənədləri və son danışığın nəticəsini çəkir. Faiz dərəcəsi və komissiya göndərilmir, FİN gizlədilir.</small><span class="sp"></span>${st.tokenSet?`<button class="btn ghost sm" type="button" id="rcOff">Söndür</button>`:""}<button class="btn sm" type="button" id="rcGen">${st.tokenSet?"Yeni token yarat":"Token yarat"}</button></div>`;
 }
 document.addEventListener("focusin",e=>{if(e.target.matches?.("[data-sel]"))e.target.select()});
 document.addEventListener("click",async e=>{const b=e.target.closest?.("#rcGen,#rcOff");if(!b)return;
   if(b.id==="rcGen"&&b.textContent.startsWith("Yeni")&&!confirmInline(b,"Köhnə token işləməyəcək, təsdiqlə"))return;
   try{const st=await api("/settings/robocall",{method:"POST",body:JSON.stringify(b.id==="rcOff"?{clear:true}:{})});renderRc(st);
-    toast(b.id==="rcOff"?"Robocall inteqrasiyası söndürüldü":"Token yaradıldı, robocall panelinə yazın")}catch(err){toast(err.message)}});
+    toast(b.id==="rcOff"?"ArzoomCall inteqrasiyası söndürüldü":"Token yaradıldı, ArzoomCall panelinə yazın")}catch(err){toast(err.message)}});
 // Partner webhook: the final credit result of applications that came with a ref number is posted here.
 async function renderWh(st){
   const box=$("#whBox");if(!box)return;
@@ -836,7 +838,7 @@ document.addEventListener("click",async e=>{if(e.target.id!=="whOff")return;
 document.addEventListener("change",async e=>{const c=e.target.closest("[data-ubrand]");if(!c)return;const id=c.dataset.ubrand;
   const brands=[...document.querySelectorAll(`[data-ubrand="${id}"]:checked`)].map(i=>i.value);
   try{await api("/users/"+id,{method:"POST",body:JSON.stringify({brands})});toast(brands.length?"Markalar: "+brands.join(", "):"Bütün markalar")}catch(err){toast(err.message)}renderUsers()});
-const AUDIT={"apps.partner_ref":"Partnyor ref nömrəsi əlavə etdi","apps.export":"Excel-ə çıxardı","settings.sms":"SMS ayarını dəyişdi","settings.webhook":"Webhook ayarını dəyişdi","settings.robocall":"Robocall inteqrasiyasını dəyişdi","settings.ai":"Sənəd analizi açarını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
+const AUDIT={"apps.partner_ref":"Partnyor ref nömrəsi əlavə etdi","apps.export":"Excel-ə çıxardı","settings.sms":"SMS ayarını dəyişdi","settings.webhook":"Webhook ayarını dəyişdi","settings.robocall":"ArzoomCall inteqrasiyasını dəyişdi","settings.ai":"Sənəd analizi açarını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
   "user.update":"İstifadəçini dəyişdi","file.view":"Sənədə baxdı","app.delete":"Müraciəti sildi"};
 $("#usersBtn").onclick=renderUsers;
 // Excel: downloads what the list shows now (status filter and search), all rows, not only the first 500.
@@ -1018,7 +1020,7 @@ async function renderAnalytics(){
     <section class="panel w3">${ph("user","Gəlir mənbəyi")}${hbars(d.income,r=>INCOME[r.source]||r.source,r=>r.n,r=>`${esc(INCOME[r.source]||r.source)}: ${r.n}`)}</section>
     <section class="panel w3">${ph("user","Əməkdaşlar")}
       ${d.staff.length?`<table class="dtable"><thead><tr><th>Əməkdaş</th><th class="n">Qiymətləndirmə</th><th class="n">Təklif</th><th class="n">Rədd</th></tr></thead>
-      <tbody>${d.staff.map(r=>`<tr><td>${esc(r.actor)}</td><td class="n">${r.assessed}</td><td class="n">${r.offers}</td><td class="n">${r.rejects}</td></tr>`).join("")}</tbody></table>`:`<p class="muted" style="margin:0">Bu dövrdə qərar yoxdur.</p>`}</section>
+      <tbody>${d.staff.map(r=>`<tr><td>${esc(actorName(r.actor))}</td><td class="n">${r.assessed}</td><td class="n">${r.offers}</td><td class="n">${r.rejects}</td></tr>`).join("")}</tbody></table>`:`<p class="muted" style="margin:0">Bu dövrdə qərar yoxdur.</p>`}</section>
     <section class="panel w3">${ph("doc","Təklif göstəriciləri")}
       <dl class="kv"><dt>Orta avtomobil qiyməti</dt><dd>${d.money.avg_price?azn(d.money.avg_price):"—"}</dd>
         <dt>İlkin ödənişin orta artımı</dt><dd>${d.money.avg_dp_raise?"+"+d.money.avg_dp_raise.toFixed(1).replace(".",",")+" faiz bəndi":"—"}</dd>
@@ -1119,7 +1121,7 @@ function renderDetail(){
         ${o?`<dt>Təklif</dt><dd>${azn(o.price)}, ilkin ${o.downPct}%, ${o.months} ay, illik ${o.rate}%</dd>`:""}
       </dl>
       ${fin?`<div class="callout">Müştəri son təklifi təsdiqlədi<small>İlkin ödəniş ${fin.downPct}% · ${azn(o.price*fin.downPct/100)} · kredit ${azn(o.price*(1-fin.downPct/100))} · aylıq ${azn(pay)} · ${dt(fin.at)}</small></div>`:""}
-      ${a.status==="reoffer"&&a.reoffer?`<div class="reoffer-box"><b>Təkrar təklif lazımdır.</b> Müştəri: ${esc(a.reoffer.label||"")}${a.reoffer.reason?` · „${esc(a.reoffer.reason)}“`:""}<br><small class="muted">${a.reoffer.source==="robocall"?"Robocall zəngi":"Qeyd"}, ${dt(a.reoffer.at)}. Şərtləri dəyişib yeni təklif göndərin və ya rədd edin.</small></div>`:""}
+      ${a.status==="reoffer"&&a.reoffer?`<div class="reoffer-box"><b>Təkrar təklif lazımdır.</b> Müştəri: ${esc(a.reoffer.label||"")}${a.reoffer.reason?` · „${esc(a.reoffer.reason)}“`:""}<br><small class="muted">${a.reoffer.source==="robocall"?"ArzoomCall zəngi":"Qeyd"}, ${dt(a.reoffer.at)}. Şərtləri dəyişib yeni təklif göndərin və ya rədd edin.</small></div>`:""}
       ${a.info_request?`<div class="callout">${a.status==="info"?"Müştəridən əlavə məlumat gözlənilir":"Əlavə məlumat sorğusu"}<small>Sorğu: ${esc(a.info_request.text)} · ${esc(a.info_request.by||"")}, ${dt(a.info_request.at)}${a.info_request.answeredAt?`<br>Cavab: ${esc(a.info_request.answer||"—")}${a.info_request.files?` · ${a.info_request.files} sənəd`:""} · ${dt(a.info_request.answeredAt)}`:""}</small></div>`:""}
       ${a.reject_reason?`<div class="callout bad">İmtina səbəbi<small>${a.reject_public?`Müştəriyə: ${esc(a.reject_public)}<br>`:""}Daxili: ${esc(a.reject_reason)}</small></div>`:""}
     </section>
@@ -1213,8 +1215,8 @@ function evHtml(e){
     e.kind==="info_request"?d.text:e.kind==="info_reply"?[d.text,d.files?`${d.files} sənəd`:""].filter(Boolean).join(" · "):
     e.kind==="created"?`${d.files||0} sənəd`:e.kind==="accepted"&&d.downPct!=null?`ilkin ödəniş ${d.downPct}%`:"";
   const [ic,cls]=EV_IC[e.kind]||["clock",""];
-  const title=e.kind==="note"&&d.channel==="robocall"?"Robocall zənginin nəticəsi":e.kind==="note"&&CALL_RESULTS[d.outcome]?(d.channel==="meeting"?"Fiziki görüşün nəticəsi":"Telefon danışığının nəticəsi"):e.kind==="sms"?`SMS${d.to?" → "+d.to:""}`:EVENTS[e.kind]||e.kind;
-  return `<li><span class="dot ${d.error?"k-bad":cls}">${IC[ic]}</span><div class="body"><b>${esc(title)}</b>${extra?`<p>${esc(extra)}</p>`:""}<small>${dt(e.at)} · ${esc(e.actor)}</small></div></li>`;
+  const title=e.kind==="note"&&d.channel==="robocall"?"ArzoomCall zənginin nəticəsi":e.kind==="note"&&CALL_RESULTS[d.outcome]?(d.channel==="meeting"?"Fiziki görüşün nəticəsi":"Telefon danışığının nəticəsi"):e.kind==="sms"?`SMS${d.to?" → "+d.to:""}`:EVENTS[e.kind]||e.kind;
+  return `<li><span class="dot ${d.error?"k-bad":cls}">${IC[ic]}</span><div class="body"><b>${esc(title)}</b>${extra?`<p>${esc(extra)}</p>`:""}<small>${dt(e.at)} · ${esc(actorName(e.actor))}</small></div></li>`;
 }
 function inputs(){
   const f=$("#aForm"),o={};

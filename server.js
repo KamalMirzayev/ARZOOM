@@ -695,14 +695,14 @@ app.post("/api/integrations/robocall/applications/:id/feedback", rcAuth, async (
                     requested_terms: b.requested_terms && typeof b.requested_terms === "object" && !Array.isArray(b.requested_terms)
                       && JSON.stringify(b.requested_terms).length <= 500 ? b.requested_terms : null };
   const ins = await pool.query(
-    `INSERT INTO application_events (application_id, actor, kind, details) VALUES ($1, 'Robocall', 'note', $2)
+    `INSERT INTO application_events (application_id, actor, kind, details) VALUES ($1, 'ArzoomCall', 'note', $2)
      ON CONFLICT ((details->>'feedback_id')) WHERE kind = 'note' AND details ? 'feedback_id' DO NOTHING`, [req.params.id, details]);
   let reoffer = false;
   if (ins.rowCount && REOFFER_OUTCOMES.has(outcome)) {
     const request = { outcome, label, reason: details.text || null, requested_terms: details.requested_terms, at: new Date().toISOString(), source: "robocall" };
     const u = await pool.query(`UPDATE applications SET status = 'reoffer', reoffer = $2, updated_at = now()
                                 WHERE id = $1 AND status IN ('offer','declined','cancelled') RETURNING id`, [req.params.id, request]);
-    if (u.rowCount) { reoffer = true; await logEvent(pool, req.params.id, "Robocall", "reoffer", request); }
+    if (u.rowCount) { reoffer = true; await logEvent(pool, req.params.id, "ArzoomCall", "reoffer", request); }
   }
   res.json({ ok: true, duplicate: !ins.rowCount, reoffer });
 });

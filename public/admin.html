@@ -572,6 +572,7 @@ document.addEventListener("dragstart",e=>{const c=e.target.closest?.(".dchip");i
 document.addEventListener("dragover",e=>{const z=e.target.closest?.("#docZone");if(z){e.preventDefault();z.classList.add("over")}});
 document.addEventListener("dragleave",e=>{const z=e.target.closest?.("#docZone");if(z)z.classList.remove("over")});
 document.addEventListener("drop",e=>{const z=e.target.closest?.("#docZone");if(!z)return;e.preventDefault();z.classList.remove("over");const k=e.dataTransfer.getData("text/plain");if(INFO_DOCS[k])addDoc({key:k,label:INFO_DOCS[k]})});
+const ROBO_RESULTS={agrees_will_visit:"Razıdır, salona gələcək",agrees_will_call:"Razıdır, özü zəng edəcək",thinking:"Düşünür",docs_will_send:"Sənədləri göndərəcək",docs_cannot:"Sənədləri təqdim edə bilmir",declined:"İmtina etdi",callback:"Yenidən zəng istədi",wrong_person:"Başqa şəxsdir",other:"Digər"};
 const CALL_RESULTS={agreed:"Razılaşdı",thinking:"Düşünür",callback:"Yenidən zəng ediləcək",docs:"Sənəd gətirəcək",verified:"Məlumatlar təsdiqləndi",mismatch:"Uyğunsuzluq aşkarlandı",no_answer:"Cavab vermədi",not_interested:"Maraqlanmır",wrong_number:"Nömrə səhvdir"};
 const EVENTS={partner_ref:"Partnyor ref nömrəsi əlavə edildi",webhook:"Partnyora bildiriş göndərildi",info_request:"Müştəridən əlavə məlumat istənildi",info_reply:"Müştəri əlavə məlumat göndərdi",bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",rejected:"Müraciət rədd edildi",note:"Qeyd",
   accepted:"Müştəri son təklifi təsdiqlədi: anderraytinqə və satışa ötürüldü",declined:"Müştəri təklifdən imtina etdi",cancelled:"Müştəri müraciəti ləğv etdi",sms:"SMS"};
@@ -1116,11 +1117,11 @@ function evHtml(e){
   const d=e.details||{};
   const extra=e.kind==="bureau"?`${d.score} bal, ${d.grade} · ${Scoring.VERDICTS[d.verdict]||""} · aylıq borc ${azn(d.debtMonthly||0)}${d.flags?` · ${d.flags} xəbərdarlıq`:""}`:e.kind==="assessed"?`${d.score} bal, ${d.grade} · ${Scoring.VERDICTS[d.verdict]||""}`:
     e.kind==="offer"?`${azn(d.price)}, ilkin ${d.downPct}%, ${d.months} ay, illik ${d.rate}%`:
-    e.kind==="rejected"?d.reason:e.kind==="note"?[CALL_RESULTS[d.outcome],d.text].filter(Boolean).join(" · "):e.kind==="webhook"?`ref № ${d.ref||"—"} · ${d.result||""}${d.error?" · Göndərilmədi: "+d.error:""}`:e.kind==="sms"?(d.error?"Göndərilmədi: "+d.error:d.text)+(d.demo?" (SMS provayderi qoşulmayıb, göndərilmədi)":""):
+    e.kind==="rejected"?d.reason:e.kind==="note"?[d.channel==="robocall"?(d.outcome_label||ROBO_RESULTS[d.outcome]):CALL_RESULTS[d.outcome],d.text].filter(Boolean).join(" · "):e.kind==="webhook"?`ref № ${d.ref||"—"} · ${d.result||""}${d.error?" · Göndərilmədi: "+d.error:""}`:e.kind==="sms"?(d.error?"Göndərilmədi: "+d.error:d.text)+(d.demo?" (SMS provayderi qoşulmayıb, göndərilmədi)":""):
     e.kind==="info_request"?d.text:e.kind==="info_reply"?[d.text,d.files?`${d.files} sənəd`:""].filter(Boolean).join(" · "):
     e.kind==="created"?`${d.files||0} sənəd`:e.kind==="accepted"&&d.downPct!=null?`ilkin ödəniş ${d.downPct}%`:"";
   const [ic,cls]=EV_IC[e.kind]||["clock",""];
-  const title=e.kind==="note"&&CALL_RESULTS[d.outcome]?(d.channel==="meeting"?"Fiziki görüşün nəticəsi":"Telefon danışığının nəticəsi"):e.kind==="sms"?`SMS${d.to?" → "+d.to:""}`:EVENTS[e.kind]||e.kind;
+  const title=e.kind==="note"&&d.channel==="robocall"?"Robocall zənginin nəticəsi":e.kind==="note"&&CALL_RESULTS[d.outcome]?(d.channel==="meeting"?"Fiziki görüşün nəticəsi":"Telefon danışığının nəticəsi"):e.kind==="sms"?`SMS${d.to?" → "+d.to:""}`:EVENTS[e.kind]||e.kind;
   return `<li><span class="dot ${d.error?"k-bad":cls}">${IC[ic]}</span><div class="body"><b>${esc(title)}</b>${extra?`<p>${esc(extra)}</p>`:""}<small>${dt(e.at)} · ${esc(e.actor)}</small></div></li>`;
 }
 function inputs(){

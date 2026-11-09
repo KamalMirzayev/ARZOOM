@@ -708,9 +708,10 @@ async function renderUsers(){
   </div>
   <form class="panel" id="whBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("send","Partnyor webhook (Bitrix)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <section class="panel" id="rcBox" style="margin-top:16px;display:grid;gap:12px">${ph("send","Robocall inteqrasiyası")}<p class="muted" style="margin:0">Yüklənir…</p></section>
+  <form class="panel" id="aiBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("doc","Sənəd analizi (süni intellekt)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <form class="panel" id="smsBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("shield","SMS provayderi (Softline)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <section class="panel" id="auditBox" style="margin-top:16px">${ph("shield","Təhlükəsizlik jurnalı")}<p class="muted" style="margin:0">Yüklənir…</p></section>`;
-  renderSms();renderWh();renderRc();
+  renderSms();renderWh();renderRc();renderAi();
   try{const {items}=await api("/audit");
     $("#auditBox").innerHTML=ph("shield","Təhlükəsizlik jurnalı")+(items.length?`<div style="overflow-x:auto"><table class="dtable"><thead><tr><th>Vaxt</th><th>İstifadəçi</th><th>Əməliyyat</th><th>Obyekt</th><th>IP</th></tr></thead>
       <tbody>${items.map(r=>`<tr${r.action==="login.fail"?' class="closed"':""}><td>${dt(r.at)}</td><td class="mono">${esc(r.username||"—")}</td><td>${esc(AUDIT[r.action]||r.action)}</td><td>${esc(r.target||"")}</td><td class="mono">${esc(r.ip||"")}</td></tr>`).join("")}</tbody></table></div>`
@@ -812,7 +813,7 @@ document.addEventListener("click",async e=>{if(e.target.id!=="whOff")return;
 document.addEventListener("change",async e=>{const c=e.target.closest("[data-ubrand]");if(!c)return;const id=c.dataset.ubrand;
   const brands=[...document.querySelectorAll(`[data-ubrand="${id}"]:checked`)].map(i=>i.value);
   try{await api("/users/"+id,{method:"POST",body:JSON.stringify({brands})});toast(brands.length?"Markalar: "+brands.join(", "):"Bütün markalar")}catch(err){toast(err.message)}renderUsers()});
-const AUDIT={"apps.partner_ref":"Partnyor ref nömrəsi əlavə etdi","apps.export":"Excel-ə çıxardı","settings.sms":"SMS ayarını dəyişdi","settings.webhook":"Webhook ayarını dəyişdi","settings.robocall":"Robocall inteqrasiyasını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
+const AUDIT={"apps.partner_ref":"Partnyor ref nömrəsi əlavə etdi","apps.export":"Excel-ə çıxardı","settings.sms":"SMS ayarını dəyişdi","settings.webhook":"Webhook ayarını dəyişdi","settings.robocall":"Robocall inteqrasiyasını dəyişdi","settings.ai":"Sənəd analizi açarını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
   "user.update":"İstifadəçini dəyişdi","file.view":"Sənədə baxdı","app.delete":"Müraciəti sildi"};
 $("#usersBtn").onclick=renderUsers;
 // Excel: downloads what the list shows now (status filter and search), all rows, not only the first 500.

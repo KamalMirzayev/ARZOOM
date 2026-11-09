@@ -1,5 +1,7 @@
 FROM node:22-alpine
 WORKDIR /app
+# Income documents are read on the server itself: PDF text (poppler) and OCR for scans and photos (Azerbaijani, Russian, English).
+RUN apk add --no-cache poppler-utils tesseract-ocr tesseract-ocr-data-aze tesseract-ocr-data-rus tesseract-ocr-data-eng
 ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force

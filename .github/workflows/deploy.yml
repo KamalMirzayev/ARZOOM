@@ -28,14 +28,14 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm audit --omit=dev --audit-level=high
+      - name: OCR (sənəd analizi üçün)
+        run: sudo apt-get update -q && sudo apt-get install -y -q tesseract-ocr tesseract-ocr-aze tesseract-ocr-rus poppler-utils
       - name: API smoke test
         env:
           DATABASE_URL: postgres://arzoom:test@localhost:5432/arzoom
           ADMIN_TOKEN: ci-admin-token-0123456789
           PORT: 3000
           OTP_SECRET: ci-otp-secret
-          ANTHROPIC_BASE_URL: http://127.0.0.1:13998
-          AI_STUB_PORT: 13998
         run: |
           node server.js & sleep 4
           bash scripts/smoke.sh

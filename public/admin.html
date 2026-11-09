@@ -591,7 +591,7 @@ document.addEventListener("dragleave",e=>{const z=e.target.closest?.("#docZone")
 document.addEventListener("drop",e=>{const z=e.target.closest?.("#docZone");if(!z)return;e.preventDefault();z.classList.remove("over");const k=e.dataTransfer.getData("text/plain");if(INFO_DOCS[k])addDoc({key:k,label:INFO_DOCS[k]})});
 const ROBO_RESULTS={wants_lower_monthly:"Aylıq ödənişi çox hesab edir",wants_lower_down:"İlkin ödənişdə endirim istəyir",wants_other_terms:"Başqa şərt istəyir (müddət, məbləğ)",transferred_to_sales:"Satış təmsilçisinə qoşuldu",agrees_will_visit:"Razıdır, salona gələcək",agrees_will_call:"Razıdır, özü zəng edəcək",thinking:"Düşünür",docs_will_send:"Sənədləri göndərəcək",docs_cannot:"Sənədləri təqdim edə bilmir",declined:"İmtina etdi",callback:"Yenidən zəng istədi",wrong_person:"Başqa şəxsdir",other:"Digər"};
 const CALL_RESULTS={agreed:"Razılaşdı",thinking:"Düşünür",callback:"Yenidən zəng ediləcək",docs:"Sənəd gətirəcək",verified:"Məlumatlar təsdiqləndi",mismatch:"Uyğunsuzluq aşkarlandı",no_answer:"Cavab vermədi",not_interested:"Maraqlanmır",wrong_number:"Nömrə səhvdir"};
-const EVENTS={partner_ref:"Partnyor ref nömrəsi əlavə edildi",webhook:"Partnyora bildiriş göndərildi",info_request:"Müştəridən əlavə məlumat istənildi",info_reply:"Müştəri əlavə məlumat göndərdi",bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",reoffer:"Müştəri başqa şərt istəyir: təkrar təklif",doc_analysis:"Gəlir sənədi süni intellektlə analiz edildi",rejected:"Müraciət rədd edildi",note:"Qeyd",
+const EVENTS={partner_ref:"Partnyor ref nömrəsi əlavə edildi",webhook:"Partnyora bildiriş göndərildi",info_request:"Müştəridən əlavə məlumat istənildi",info_reply:"Müştəri əlavə məlumat göndərdi",bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",reoffer:"Müştəri başqa şərt istəyir: təkrar təklif",doc_analysis:"Gəlir sənədi avtomatik oxundu",rejected:"Müraciət rədd edildi",note:"Qeyd",
   accepted:"Müştəri son təklifi təsdiqlədi: anderraytinqə və satışa ötürüldü",declined:"Müştəri təklifdən imtina etdi",cancelled:"Müştəri müraciəti ləğv etdi",sms:"SMS"};
 const FILTERS=[["","Hamısı"],["review","Baxılır"],["info","Məlumat"],["offer","Təklif"],["reoffer","Təkrar təklif"],["accepted","Satış"],["rejected","Rədd"],["declined","İmtina"],["cancelled","Ləğv"]];
 
@@ -734,10 +734,10 @@ async function renderSms(st){
 document.addEventListener("submit",async e=>{if(e.target.id!=="smsBox")return;e.preventDefault();
   try{const st=await api("/settings/sms",{method:"POST",body:JSON.stringify({user:$("#slUser").value,key:$("#slKey").value,sender:$("#slSender").value})});
     toast(st.connected?"SMS provayderi qoşuldu":"Saxlanıldı");renderSms(st)}catch(err){toast(err.message)}});
-// Income document analysis: Claude reads the PDF or photo; the expert checks the result and decides.
-const AI_MIME=/^(application\/pdf|image\/(jpeg|png|webp|gif))$/;
-const AI_MATCH={match:["ok","uyğundur"],mismatch:["bad","uyğun deyil"],unknown:["","yoxlanmadı"]};
-const AI_STAMP={present:"var",missing:"yoxdur",unclear:"aydın deyil",not_expected:"tələb olunmur"};
+// Income document analysis: the server reads the PDF or photo (OCR, nothing leaves the server); the expert checks and decides.
+const AI_MIME=/^(application\/pdf|image\/(jpeg|png|webp|gif|tiff|bmp))$/;
+const AI_MATCH={match:["ok","uyğundur"],partial:["","qismən tapıldı"],mismatch:["bad","tapılmadı"],unknown:["","yoxlanmadı"]};
+const AI_STAMP={unchecked:"avtomatik yoxlanmır, sənədə baxın",present:"var",missing:"yoxdur",unclear:"aydın deyil",not_expected:"tələb olunmur"};
 const AI_CONF={high:"yüksək",medium:"orta",low:"aşağı"};
 const money=n=>n==null?"—":Number(n).toLocaleString("az-AZ",{maximumFractionDigits:2});
 function aiCard(x){
@@ -749,13 +749,14 @@ function aiCard(x){
     <div class="kv">
       <div><span>Sahibi</span><br><b>${esc(x.holder_name||"—")}</b> · ad ${m("name_match")}</div>
       <div><span>FİN</span><br><b class="mono">${esc(x.holder_fin||"—")}</b> · ${m("fin_match")}</div>
-      <div><span>Verən təşkilat</span><br><b>${esc(x.issuer||"—")}</b>${x.position?` · ${esc(x.position)}`:""}</div>
+      <div><span>Verən təşkilat</span><br><b>${esc(x.issuer||"—")}</b>${x.position?` · ${esc(x.position)}`:""}${x.voen?` · VÖEN <span class="mono">${esc(x.voen)}</span>`:""}</div>
       <div><span>Dövr / tarix</span><br><b>${esc(per||"—")}</b>${x.issue_date?` · verilib ${esc(x.issue_date)}`:""}</div>
       <div><span>Möhür, imza</span><br><b>${AI_STAMP[x.stamp_signature]||"—"}</b></div>
     </div>
     ${x.monthly_items?.length?`<table>${x.monthly_items.map(i=>`<tr><td class="mono">${esc(i.month)}</td><td>${esc(i.note||"")}</td><td class="mono">${money(i.amount)}</td></tr>`).join("")}</table>`:""}
     ${x.red_flags?.length?`<ul class="flags">${x.red_flags.map(f=>`<li>${esc(f)}</li>`).join("")}</ul>`:`<div class="ok">Şübhəli əlamət tapılmadı.</div>`}
-    <div class="foot">Etibarlılıq: ${AI_CONF[x.confidence]||"—"} · ${esc(x.by||"")}, ${dt(x.at)} · Süni intellekt oxuyub, son qərar ekspertindir.<span class="sp" style="flex:1"></span>${x.avg_monthly_net!=null&&has("apps.assess")?`<button type="button" class="aibtn" style="padding:3px 10px" data-aiinc="${x.avg_monthly_net}">Gəlir xanasına yaz</button>`:""}</div>
+    ${x.text?`<details><summary class="muted" style="cursor:pointer;font-size:12px">Oxunan mətn</summary><pre style="white-space:pre-wrap;font-size:11.5px;max-height:260px;overflow:auto;margin:6px 0 0">${esc(x.text)}</pre></details>`:""}
+    <div class="foot">Etibarlılıq: ${AI_CONF[x.confidence]||"—"}${x.method==="ocr"?` · OCR dəqiqliyi ${x.ocr_confidence}%`:""} · ${esc(x.by||"")}, ${dt(x.at)} · Serverdə avtomatik oxundu, son qərar ekspertindir.<span class="sp" style="flex:1"></span>${x.avg_monthly_net!=null&&has("apps.assess")?`<button type="button" class="aibtn" style="padding:3px 10px" data-aiinc="${x.avg_monthly_net}">Gəlir xanasına yaz</button>`:""}</div>
   </div>`;
 }
 async function aiRun(id,b){
@@ -774,20 +775,6 @@ document.addEventListener("click",async e=>{
   for(const x of [...document.querySelectorAll("[data-ai]")].filter(x=>!cur.files.find(f=>f.id==x.dataset.ai)?.analysis)){if(!await aiRun(x.dataset.ai,x))break}
   b.remove();
 });
-// Claude API key for document analysis: typed once, kept on the server, never shown again.
-async function renderAi(st){
-  const box=$("#aiBox");if(!box)return;
-  try{st=st||await api("/settings/ai")}catch(e){box.hidden=true;return}
-  box.innerHTML=ph("doc","Sənəd analizi (süni intellekt)")+`
-    <p style="margin:0">${st.connected?`<span class="st sm s-accepted">Qoşulub</span> <span class="muted">Model: ${esc(st.model)}</span>`:`<span class="st sm s-rejected">Qoşulmayıb</span> <span class="muted">Gəlir sənədləri avtomatik oxunmur.</span>`}</p>
-    ${st.last?`<p style="margin:0;font-size:13px">${st.last.ok?`<span class="muted">Son analiz: ${dt(st.last.at)}</span>`:`<b style="color:var(--bad)">Son analiz alınmadı (${dt(st.last.at)}):</b> ${esc(st.last.error)}`}</p>`:""}
-    <label class="f">Anthropic API açarı<input id="aiKey" type="password" autocomplete="new-password" spellcheck="false" placeholder="${st.connected?"Saxlanılıb, dəyişmək üçün yenisini yaz":"sk-ant-…"}" required></label>
-    <div class="pbar"><small class="muted">Ekspert "Analiz et" basanda sənəd Anthropic-ə (Claude) göndərilir, nəticə müraciətdə saxlanılır. Açar ekranda bir daha göstərilmir.</small><span class="sp"></span>${st.connected?`<button class="btn ghost sm" type="button" id="aiOff">Söndür</button>`:""}<button class="btn sm" type="submit">Saxla</button></div>`;
-}
-document.addEventListener("submit",async e=>{if(e.target.id!=="aiBox")return;e.preventDefault();
-  try{const st=await api("/settings/ai",{method:"POST",body:JSON.stringify({key:$("#aiKey").value})});toast("Açar saxlanıldı");renderAi(st)}catch(err){toast(err.message)}});
-document.addEventListener("click",async e=>{if(e.target.id!=="aiOff")return;
-  try{renderAi(await api("/settings/ai",{method:"POST",body:JSON.stringify({clear:true})}));toast("Sənəd analizi söndürüldü")}catch(err){toast(err.message)}});
 // Robocall pulls application data with a token generated here; the token is shown once.
 async function renderRc(st){
   const box=$("#rcBox");if(!box)return;

@@ -234,6 +234,10 @@ main{padding:26px clamp(18px,2.4vw,34px) 40px;min-width:0;max-width:1240px}
 .ai .kv{display:grid;gap:4px 14px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}.ai .kv span{color:var(--muted)}.ai .kv b{color:var(--fg);font-weight:600}
 .ai .flags{margin:0;padding-left:18px;color:var(--bad)}.ai .ok{color:var(--ok)}.ai .bad{color:var(--bad)}
 .ai table{border-collapse:collapse;font-size:12.5px}.ai td{padding:2px 12px 2px 0}.ai td:last-child{text-align:right}
+.ai .stw{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.ai .stc{width:100%}.ai .stc td{padding:4px 8px 4px 0;vertical-align:top}.ai .stc td:nth-child(n+2){text-align:right;white-space:nowrap}
+.ai .stc tr.bad td{color:var(--bad);font-weight:700}
+.ai .bar{height:4px;border-radius:2px;background:var(--line);margin-top:3px}.ai .bar i{display:block;height:100%;border-radius:2px}.ai .bar .bi{background:var(--ok)}.ai .bar .bo{background:var(--blue)}
 .ai .foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
 .nofile{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:13px;border:1px dashed var(--line-2);border-radius:11px;padding:9px 12px}
 
@@ -754,10 +758,19 @@ function aiCard(x){
       <div><span>Möhür, imza</span><br><b>${AI_STAMP[x.stamp_signature]||"—"}</b></div>
     </div>
     ${x.monthly_items?.length?`<table>${x.monthly_items.map(i=>`<tr><td class="mono">${esc(i.month)}</td><td>${esc(i.note||"")}</td><td class="mono">${money(i.amount)}</td></tr>`).join("")}</table>`:""}
+    ${x.statement?aiStatement(x.statement):""}
     ${x.red_flags?.length?`<ul class="flags">${x.red_flags.map(f=>`<li>${esc(f)}</li>`).join("")}</ul>`:`<div class="ok">Şübhəli əlamət tapılmadı.</div>`}
     ${x.text?`<details><summary class="muted" style="cursor:pointer;font-size:12px">Oxunan mətn</summary><pre style="white-space:pre-wrap;font-size:11.5px;max-height:260px;overflow:auto;margin:6px 0 0">${esc(x.text)}</pre></details>`:""}
     <div class="foot">Etibarlılıq: ${AI_CONF[x.confidence]||"—"}${x.method==="ocr"?` · OCR dəqiqliyi ${x.ocr_confidence}%`:""} · ${esc(x.by||"")}, ${dt(x.at)} · Serverdə avtomatik oxundu, son qərar ekspertindir.<span class="sp" style="flex:1"></span>${x.avg_monthly_net!=null&&has("apps.assess")?`<button type="button" class="aibtn" style="padding:3px 10px" data-aiinc="${x.avg_monthly_net}">Gəlir xanasına yaz</button>`:""}</div>
   </div>`;
+}
+// Card or bank statement: income and expenses by category, with each category's share and monthly average.
+function aiStatement(s){
+  const side=(t,g,cls)=>`<div><div class="aih"><b>${t}</b><span>cəmi <b>${money(g.total)} AZN</b> · ayda ~${money(g.monthly)}</span></div>
+    <table class="stc">${g.categories.map(c=>`<tr${c.key==="gambling"?' class="bad"':""}><td>${esc(c.label)}<div class="bar"><i class="${cls}" style="width:${Math.max(2,c.share)}%"></i></div></td><td class="mono">${money(c.total)}</td><td class="mono muted">${c.share}%</td><td class="muted">${c.count} əm.</td></tr>`).join("")||`<tr><td class="muted">yoxdur</td></tr>`}</table></div>`;
+  return `<div class="stw">${side("Mədaxil",s.income,"bi")}${side("Xərclər",s.expense,"bo")}</div>
+    <div><span class="muted">Dövr:</span> <b>${esc(s.months[0]||"")} – ${esc(s.months[s.months.length-1]||"")}</b> (${s.months.length} ay) · <span class="muted">ayda xalis axın:</span> <b class="${s.net_monthly<0?"bad":"ok"}">${s.net_monthly>0?"+":""}${money(s.net_monthly)} AZN</b></div>
+    <details><summary class="muted" style="cursor:pointer;font-size:12px">Əməliyyatlar (${s.transactions.length})</summary><div style="max-height:300px;overflow:auto;margin-top:6px"><table class="stc">${s.transactions.map(t=>`<tr><td class="mono">${esc(t.date)}</td><td>${esc(t.desc)}<br><small class="muted">${esc(t.label)}</small></td><td class="mono ${t.dir==="in"?"ok":""}" style="text-align:right">${t.dir==="in"?"+":"−"}${money(t.amount)}</td></tr>`).join("")}</table></div></details>`;
 }
 async function aiRun(id,b){
   b.disabled=true;b.textContent="Oxunur…";

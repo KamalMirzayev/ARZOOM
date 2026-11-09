@@ -48,6 +48,11 @@ R2=$(apply 994501112235 "$TMP/arayis.pdf"); ID2=$(echo "$R2" | J id); TOK2=$(ech
 
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H 'x-admin-token: wrong-token-xxxxxxxx' "$B/api/admin/applications")" = 401 ] || fail; echo "✓ yanlış açar 401"
 curl -fsS "${H[@]}" "$B/api/admin/applications?status=review" | grep -c "$ID" >/dev/null || fail
+# Period: today's list has the new application, yesterday's does not, a search finds it whatever the period
+curl -fsS "${H[@]}" "$B/api/admin/applications?period=today" | grep -q "\"id\":\"$ID\"" || fail
+curl -fsS "${H[@]}" "$B/api/admin/applications?period=yesterday" | grep -q "\"id\":\"$ID\"" && fail
+curl -fsS "${H[@]}" "$B/api/admin/applications?period=yesterday&q=$ID" | grep -q "\"id\":\"$ID\"" || fail
+echo "✓ siyahı günə görə: bu gün, dünən; axtarış bütün tarixlərdə"
 STORED=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J 'files[0].stored_name')
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J birth_date)" = 1990-05-17 ] || fail; echo "✓ doğum tarixi saxlanılır"
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J guarantor)" = true ] || fail; echo "✓ zamin cavabı saxlanılır"
@@ -215,14 +220,15 @@ echo "$RCA" | grep -q "\"status\":\"accepted\",\"status_label\":\"Satışa ötü
 echo "$RCA" | grep -q '"final_terms":{[^}]*"monthly_payment":' || fail
 echo "$RCA" | grep -q '"fin_masked":"\*\*\*' || fail
 RLIVE=$(echo "$RCA" | grep -o '"id":"[^"]*","deleted":false' | head -1 | cut -d'"' -f4)
-FB='{"feedback_id":"smoke-fb-1","call_ref":"job-1","at":"2026-11-09T10:00:00Z","outcome":"declined","outcome_label":"İmtina etdi","reason":"Başqa yerdən aldı"}'
+FBID="smoke-fb-$(date +%s%N)"
+FB='{"feedback_id":"'"$FBID"'","call_ref":"job-1","at":"2026-11-09T10:00:00Z","outcome":"declined","outcome_label":"İmtina etdi","reason":"Başqa yerdən aldı"}'
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Content-Type: application/json" "$RCU/$RLIVE/feedback" -d "$FB")" = 401 ] || fail
 curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$RCU/$RLIVE/feedback" -d "$FB" | grep -q '"duplicate":false' || fail
 curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$RCU/$RLIVE/feedback" -d "$FB" | grep -q '"duplicate":true' || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$RCU/YOX-0000/feedback" -d "$FB")" = 404 ] || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$RCU/$RLIVE/feedback" -d '{"feedback_id":"x","outcome":"hack"}')" = 400 ] || fail
 curl -fsS -H "x-integration-token: $RCT" "$RCU?limit=500" | grep -q '"last_call":{"outcome":"declined","outcome_label":"İmtina etdi","channel":"robocall","text":"Başqa yerdən aldı"' || fail
-[ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$RLIVE" | grep -o 'smoke-fb-1' | wc -l)" = 1 ] || fail
+[ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$RLIVE" | grep -o "$FBID" | wc -l)" = 1 ] || fail
 curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/robocall" -d '{"clear":true}' >/dev/null || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-integration-token: $RCT" "$RCU")" = 401 ] || fail
 echo "✓ robocall inteqrasiyası: token, səhifələmə, faizsiz, silinmişlər, zəng nəticəsi bir dəfə yazılır"

@@ -127,6 +127,10 @@ aside{border-right:1px solid var(--line);display:flex;flex-direction:column;min-
 .lh #listCount{margin-left:auto;margin-right:8px}
 .ubrands{display:grid;gap:6px;margin-top:10px}.bchips{display:flex;flex-wrap:wrap;gap:6px 14px}
 .search{position:relative}
+.period{display:flex;gap:4px;flex-wrap:wrap}
+.period button{flex:1;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:9px;padding:6px 4px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.period button[aria-pressed="true"]{background:var(--raised);color:var(--ink);border-color:var(--blue)}
+.period.off button{opacity:.45}
 .search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--muted);pointer-events:none}
 .search input{padding-left:34px;border-radius:11px;background:var(--bg)}
 #chips{display:none}
@@ -505,7 +509,8 @@ details.inq summary{cursor:pointer;font-weight:600;font-size:13px;margin-top:14p
     <aside>
       <div class="tools">
         <div class="lh"><h3 id="listTitle">Müraciətlər</h3><span id="listCount"></span><button type="button" class="btn ghost sm" id="exportBtn" hidden title="Siyahıdakı müraciətləri Excel faylı kimi yüklə">Excel</button></div>
-        <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Nömrə, FİN, telefon, model" aria-label="Axtar"></label>
+        <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Nömrə, FİN, telefon (bütün günlər)" aria-label="Axtar"></label>
+        <div class="period" id="period" role="group" aria-label="Dövr"></div>
         <div id="chips"></div>
       </div>
       <div class="list" id="list"></div>
@@ -603,6 +608,9 @@ const initials=a=>(String(a.brand||"?")[0]+String(a.model||"")[0]).toUpperCase()
 const ph=(icon,title,right="")=>`<div class="ph"><span class="ico">${IC[icon]}</span><h3>${title}</h3>${right?`<span class="r">${right}</span>`:""}</div>`;
 
 let token="",me=null,staff="",status="review",query="",cur=null,items=[],counts={};
+// The list opens on today's applications; a search ignores the period and looks through all of them.
+const PERIODS=[["today","Bu gün"],["yesterday","Dünən"],["7d","7 gün"],["30d","30 gün"],["all","Hamısı"]];
+let period="today";try{const p=localStorage.getItem("arzoom-period");if(PERIODS.some(x=>x[0]===p))period=p}catch(e){}
 try{token=sessionStorage.getItem("az-admin-session")||""}catch(e){}
 
 async function api(path,opts={}){
@@ -756,7 +764,7 @@ const AUDIT={"apps.partner_ref":"Partnyor ref nömrəsi əlavə etdi","apps.expo
 $("#usersBtn").onclick=renderUsers;
 // Excel: downloads what the list shows now (status filter and search), all rows, not only the first 500.
 $("#exportBtn").onclick=async()=>{const b=$("#exportBtn");b.disabled=true;
-  try{const r=await fetch(`/api/admin/export.xlsx?status=${status}&q=${encodeURIComponent(query)}`,{headers:{"x-admin-token":token}});
+  try{const r=await fetch(`/api/admin/export.xlsx?status=${status}&period=${period}&q=${encodeURIComponent(query)}`,{headers:{"x-admin-token":token}});
     if(r.status===401){logout(true);return}
     if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||"Fayl hazırlanmadı.")}
     const url=URL.createObjectURL(await r.blob()),a=document.createElement("a");
@@ -801,7 +809,7 @@ function newArrivals(c){const t=sumCounts(c);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden){unseen=0;document.title="Arzoom Qiymətləndirmə"}});
 document.addEventListener("click",()=>{try{if(window.Notification&&Notification.permission==="default")Notification.requestPermission()}catch(e){}},{once:true});
 async function loadList(){
-  const j=await api(`/applications?status=${status}&q=${encodeURIComponent(query)}`);
+  const j=await api(`/applications?status=${status}&period=${period}&q=${encodeURIComponent(query)}`);
   items=j.items;counts=j.counts;newArrivals(counts);renderList();
 }
 function renderList(){
@@ -809,6 +817,8 @@ function renderList(){
   $("#statusNav").innerHTML=`<h6>Müraciətlər</h6>`+FILTERS.map(([k,t])=>`<button type="button" data-st="${k}" title="${t}" aria-pressed="${status===k}"><i class="sd s-${k||"all"}"></i><span class="t">${t}</span><b>${k?counts[k]||0:total}</b></button>`).join("");
   $("#listTitle").textContent=status?FILTERS.find(f=>f[0]===status)[1]:"Bütün müraciətlər";
   $("#listCount").textContent=items.length+" nəticə";
+  const pe=$("#period");pe.classList.toggle("off",!!query);pe.title=query?"Axtarış bütün müraciətlərdə aparılır":"";
+  pe.innerHTML=PERIODS.map(([k,t])=>`<button type="button" data-period="${k}" aria-pressed="${!query&&period===k}">${t}</button>`).join("");
   $("#homeBtn").setAttribute("aria-pressed",String(!cur&&!$("#detail").dataset.page));
   $("#analyticsBtn").setAttribute("aria-pressed",String(!cur&&$("#detail").dataset.page==="analytics"));
   $("#list").innerHTML=items.length?items.map(a=>`<button type="button" class="item" data-id="${a.id}" aria-current="${cur&&cur.id===a.id}">
@@ -818,6 +828,9 @@ function renderList(){
       <span class="tags">${a.grade?`<span class="grade g-${a.grade}">${a.score} · ${a.grade}</span>`:""}<span class="ago">${ago(a.created_at)}</span></span></button>`).join(""):`<div class="empty">${IC.inbox}Bu filtrdə müraciət yoxdur.</div>`;
 }
 $("#statusNav").addEventListener("click",e=>{const b=e.target.closest("[data-st]");if(!b)return;status=b.dataset.st;loadList().catch(err=>toast(err.message))});
+$("#period").addEventListener("click",e=>{const b=e.target.closest("[data-period]");if(!b)return;period=b.dataset.period;
+  try{localStorage.setItem("arzoom-period",period)}catch(e){}
+  if(query){query="";$("#q").value=""}loadList().catch(err=>toast(err.message))});
 let qT;$("#q").addEventListener("input",e=>{clearTimeout(qT);qT=setTimeout(()=>{query=e.target.value.trim();loadList().catch(err=>toast(err.message))},250)});
 $("#list").addEventListener("click",e=>{const b=e.target.closest("[data-id]");if(b)openApp(b.dataset.id)});
 

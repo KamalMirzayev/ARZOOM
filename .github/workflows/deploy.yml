@@ -36,8 +36,6 @@ jobs:
           ADMIN_TOKEN: ci-admin-token-0123456789
           PORT: 3000
           OTP_SECRET: ci-otp-secret
-          ANTHROPIC_BASE_URL: http://127.0.0.1:13998
-          AI_STUB_PORT: 13998
         run: |
           node server.js & sleep 4
           bash scripts/smoke.sh

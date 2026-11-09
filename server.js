@@ -769,9 +769,16 @@ app.get("/api/admin/audit", admin, adminOnly, async (_req, res) => {
   res.json({ items: rows });
 });
 
+// Period of the list by Baku calendar day: today, yesterday, last 7 or 30 days; anything else means all.
+// A search always looks through all applications, whatever the period.
+const PERIODS = { today: [0, false], yesterday: [1, true], "7d": [6, false], "30d": [29, false] };
+const BAKU_DAY = "(date_trunc('day', now() AT TIME ZONE 'Asia/Baku') AT TIME ZONE 'Asia/Baku')";
+const periodArgs = (p, q) => { const v = !q && PERIODS[p]; return v ? v : [null, false]; };
+const PERIOD_SQL = (a, b) => `($${a}::int IS NULL OR (created_at >= ${BAKU_DAY} - make_interval(days => $${a}::int) AND ($${b}::boolean IS NOT TRUE OR created_at < ${BAKU_DAY})))`;
 app.get("/api/admin/applications", admin, async (req, res) => {
   const q = String(req.query.q || "").trim().toUpperCase().slice(0, 64);
   const st = String(req.query.status || "");
+  const [pDays, pEnd] = periodArgs(String(req.query.period || ""), q);
   const { rows } = await pool.query(
     `SELECT id, created_at, updated_at, fin, phone, partner, partner_ref, brand, model, income_sources, status,
             assessment->'result'->>'grade' AS grade, (assessment->'result'->>'score')::int AS score, ${LAST_CALL} AS last_call
@@ -779,8 +786,10 @@ app.get("/api/admin/applications", admin, async (req, res) => {
      WHERE ($1 = '' OR status = $1)
        AND ($2 = '' OR id ILIKE '%' || $2 || '%' OR fin ILIKE '%' || $2 || '%' OR phone LIKE '%' || $2 || '%' OR upper(model) LIKE '%' || $2 || '%' OR upper(partner_ref) = $2)
        AND ($3::text[] IS NULL OR brand = ANY($3))
-     ORDER BY created_at DESC LIMIT 500`, [st, q, req.user.brands]);
-  const counts = await pool.query("SELECT status, count(*)::int AS n FROM applications WHERE ($1::text[] IS NULL OR brand = ANY($1)) GROUP BY status", [req.user.brands]);
+       AND ${PERIOD_SQL(4, 5)}
+     ORDER BY created_at DESC LIMIT 500`, [st, q, req.user.brands, pDays, pEnd]);
+  const counts = await pool.query(`SELECT status, count(*)::int AS n FROM applications WHERE ($1::text[] IS NULL OR brand = ANY($1)) AND ${PERIOD_SQL(2, 3)} GROUP BY status`,
+    [req.user.brands, pDays, pEnd]);
   res.json({ items: rows, counts: Object.fromEntries(counts.rows.map(r => [r.status, r.n])) });
 });
 
@@ -791,6 +800,7 @@ app.get("/api/admin/export.xlsx", admin, async (req, res) => {
   if (!req.perms.includes("apps.export")) return bad(res, "Excel-ə çıxarmaq üçün icazən yoxdur.", 403);
   const q = String(req.query.q || "").trim().toUpperCase().slice(0, 64);
   const st = String(req.query.status || "");
+  const [pDays, pEnd] = periodArgs(String(req.query.period || ""), q);
   const { rows } = await pool.query(
     `SELECT id, created_at, updated_at, status, fin, id_series, id_number, birth_date::text AS birth_date, phone, partner, partner_ref, income_sources, voen, brand, model, guarantor,
             assessment->'result'->>'grade' AS grade, (assessment->'result'->>'score')::int AS score, offer, reject_public, decided_by,
@@ -799,7 +809,8 @@ app.get("/api/admin/export.xlsx", admin, async (req, res) => {
      WHERE ($1 = '' OR status = $1)
        AND ($2 = '' OR id ILIKE '%' || $2 || '%' OR fin ILIKE '%' || $2 || '%' OR phone LIKE '%' || $2 || '%' OR upper(model) LIKE '%' || $2 || '%' OR upper(partner_ref) = $2)
        AND ($3::text[] IS NULL OR brand = ANY($3))
-     ORDER BY created_at DESC`, [st, q, req.user.brands]);
+       AND ${PERIOD_SQL(4, 5)}
+     ORDER BY created_at DESC`, [st, q, req.user.brands, pDays, pEnd]);
   const cols = [["Müraciət №", 14], ["Daxil olub", 17], ["Status", 18], ["FİN", 10], ["Şəxsiyyət vəsiqəsi", 16], ["Doğum tarixi", 12],
     ["Telefon", 15], ["Partnyor", 14], ["Partnyor ref №", 14], ["Gəlir mənbələri", 28], ["VÖEN", 12], ["Marka", 14], ["Model", 18], ["Zamin", 8], ["Bal", 7], ["Risk dərəcəsi", 10],
     ["Avtomobilin qiyməti", 14], ["İlkin ödəniş %", 10], ["İlkin ödəniş", 13], ["İlkin kredit məbləği", 15], ["Müddət (ay)", 10],

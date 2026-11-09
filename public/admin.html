@@ -757,11 +757,12 @@ function aiCard(x){
       <div><span>Dövr / tarix</span><br><b>${esc(per||"—")}</b>${x.issue_date?` · verilib ${esc(x.issue_date)}`:""}</div>
       <div><span>Möhür, imza</span><br><b>${AI_STAMP[x.stamp_signature]||"—"}</b></div>
     </div>
+    ${aiIncome(x)!=null?`<div class="kv"><div><span>Son ${x.income_months||""} ayın medianı (qiymətləndirmə üçün)</span><br><b>${money(aiIncome(x))} ${esc(x.currency||"AZN")}</b></div><div><span>Staj / fəaliyyət</span><br><b>${x.tenure_months!=null?x.tenure_months+" ay":"—"}</b> <span class="muted">${x.tenure_source==="document"?"sənəddəki başlama tarixindən":x.tenure_source?"gəlirin göründüyü aylar":""}</span></div></div>`:""}
     ${x.monthly_items?.length?`<table>${x.monthly_items.map(i=>`<tr><td class="mono">${esc(i.month)}</td><td>${esc(i.note||"")}</td><td class="mono">${money(i.amount)}</td></tr>`).join("")}</table>`:""}
     ${x.statement?aiStatement(x.statement):""}
     ${x.red_flags?.length?`<ul class="flags">${x.red_flags.map(f=>`<li>${esc(f)}</li>`).join("")}</ul>`:`<div class="ok">Şübhəli əlamət tapılmadı.</div>`}
     ${x.text?`<details><summary class="muted" style="cursor:pointer;font-size:12px">Oxunan mətn</summary><pre style="white-space:pre-wrap;font-size:11.5px;max-height:260px;overflow:auto;margin:6px 0 0">${esc(x.text)}</pre></details>`:""}
-    <div class="foot">Etibarlılıq: ${AI_CONF[x.confidence]||"—"}${x.method==="ocr"?` · OCR dəqiqliyi ${x.ocr_confidence}%`:""} · ${esc(x.by||"")}, ${dt(x.at)} · Serverdə avtomatik oxundu, son qərar ekspertindir.<span class="sp" style="flex:1"></span>${x.avg_monthly_net!=null&&has("apps.assess")?`<button type="button" class="aibtn" style="padding:3px 10px" data-aiinc="${x.avg_monthly_net}">Gəlir xanasına yaz</button>`:""}</div>
+    <div class="foot">Etibarlılıq: ${AI_CONF[x.confidence]||"—"}${x.method==="ocr"?` · OCR dəqiqliyi ${x.ocr_confidence}%`:""} · ${esc(x.by||"")}, ${dt(x.at)} · Serverdə avtomatik oxundu, son qərar ekspertindir.<span class="sp" style="flex:1"></span>${aiIncome(x)!=null&&has("apps.assess")?`<button type="button" class="aibtn" style="padding:3px 10px" data-aiinc="${aiIncome(x)}" data-aiten="${x.tenure_months??""}">Gəlir və stajı formaya yaz</button>`:""}</div>
   </div>`;
 }
 // Card or bank statement: income and expenses by category, with each category's share and monthly average.
@@ -772,18 +773,27 @@ function aiStatement(s){
     <div><span class="muted">Dövr:</span> <b>${esc(s.months[0]||"")} – ${esc(s.months[s.months.length-1]||"")}</b> (${s.months.length} ay) · <span class="muted">ayda xalis axın:</span> <b class="${s.net_monthly<0?"bad":"ok"}">${s.net_monthly>0?"+":""}${money(s.net_monthly)} AZN</b></div>
     <details><summary class="muted" style="cursor:pointer;font-size:12px">Əməliyyatlar (${s.transactions.length})</summary><div style="max-height:300px;overflow:auto;margin-top:6px"><table class="stc">${s.transactions.map(t=>`<tr><td class="mono">${esc(t.date)}</td><td>${esc(t.desc)}<br><small class="muted">${esc(t.label)}</small></td><td class="mono ${t.dir==="in"?"ok":""}" style="text-align:right">${t.dir==="in"?"+":"−"}${money(t.amount)}</td></tr>`).join("")}</table></div></details>`;
 }
+// The income for the assessment: the median of the last 12 months (older analyses only have the average).
+const aiIncome=x=>x?.income_median_12m??x?.avg_monthly_net??null;
+function aiFill(inc,ten){
+  const f=$("#aForm");if(!f){toast("Qiymətləndirmə forması tapılmadı.");return false}
+  f.incomeMonthly.value=Math.round(+inc);
+  if(ten!==""&&ten!=null&&(!f.tenureMonths.value||+ten>+f.tenureMonths.value))f.tenureMonths.value=+ten;
+  f.incomeMonthly.dispatchEvent(new Event("input",{bubbles:true}));
+  toast("Gəlir (12 ayın medianı) və staj formaya yazıldı, yoxlayıb saxlayın");return true;
+}
 async function aiRun(id,b){
   b.disabled=true;b.textContent="Oxunur…";
   try{const x=await api(`/applications/${cur.id}/files/${id}/analyze`,{method:"POST",body:"{}"});
     const f=cur.files.find(f=>f.id==id);if(f)f.analysis=x;
-    const box=$("#fi"+id);box.querySelector(".ai")?.remove();box.insertAdjacentHTML("beforeend",aiCard(x));b.textContent="Yenidən analiz";return true}
+    const box=$("#fi"+id);box.querySelector(".ai")?.remove();box.insertAdjacentHTML("beforeend",aiCard(x));b.textContent="Yenidən analiz";
+    if(aiIncome(x)!=null&&has("apps.assess")&&!$("#aForm")?.incomeMonthly.disabled)aiFill(aiIncome(x),x.tenure_months);return true}
   catch(err){toast(err.message);b.textContent="Analiz et";return false}finally{b.disabled=false}
 }
 document.addEventListener("click",async e=>{
   const b=e.target.closest?.("[data-ai],#aiAll,[data-aiinc]");if(!b||!cur)return;
   if(b.dataset.ai)return aiRun(b.dataset.ai,b);
-  if(b.dataset.aiinc){const i=$("#aForm [name=incomeMonthly]");if(!i){toast("Qiymətləndirmə forması tapılmadı.");return}
-    i.value=Math.round(+b.dataset.aiinc);i.dispatchEvent(new Event("input",{bubbles:true}));i.scrollIntoView({behavior:"smooth",block:"center"});toast("Gəlir xanasına yazıldı, yoxlayıb saxlayın");return}
+  if(b.dataset.aiinc){if(aiFill(b.dataset.aiinc,b.dataset.aiten))$("#aForm [name=incomeMonthly]").scrollIntoView({behavior:"smooth",block:"center"});return}
   b.disabled=true;
   for(const x of [...document.querySelectorAll("[data-ai]")].filter(x=>!cur.files.find(f=>f.id==x.dataset.ai)?.analysis)){if(!await aiRun(x.dataset.ai,x))break}
   b.remove();

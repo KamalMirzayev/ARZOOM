@@ -69,8 +69,14 @@ node -e 'require("./lib/ocr").analyze({filePath:"test/arayis-sample.png",mime:"i
 for f in test/kart-cixaris-sample.pdf:application/pdf test/kart-cixaris-sample.png:image/png; do
   node -e 'require("./lib/ocr").analyze({filePath:process.argv[1],mime:process.argv[2],applicant:{name:"Məmmədov Elvin",fin:"5ABC12D"}}).then(r=>{const s=r.statement,c=(d,k)=>s&&s[d].categories.find(x=>x.key===k)?.total;
     process.exit(s&&s.transactions.length===20&&c("income","salary")===4880&&c("income","cash_in")===600&&c("expense","loan_payment")===930&&c("expense","gambling")===50
-      &&c("expense","groceries")===292.9&&r.avg_monthly_net===1626.67&&r.fin_match==="match"&&r.red_flags.some(f=>f.startsWith("Mərc"))?0:1)})' "${f%%:*}" "${f##*:}" || fail
+      &&c("expense","groceries")===292.9&&r.avg_monthly_net===1626.67&&r.income_median_12m===1450&&r.fin_match==="match"&&r.red_flags.some(f=>f.startsWith("Mərc"))?0:1)})' "${f%%:*}" "${f##*:}" || fail
 done
+# Unibank/Birbank layout: the date on its own line, amounts on the next; P2P and terminal income; 12-month median and tenure
+node -e 'const r=require("./lib/ocr").analyzeText(require("fs").readFileSync("test/unibank-statement-sample.txt","utf8"),100,"pdf",{name:"Məmmədov Elvin",fin:""}),s=r.statement,c=(d,k)=>s&&s[d].categories.find(x=>x.key===k)?.total;
+  process.exit(s&&s.transactions.length===13&&c("income","transfer_in")===656.01&&c("income","cash_in")===438.99&&c("expense","transfer_out")===781.01&&c("expense","transport")===300
+    &&s.period_months.length===13&&r.income_months===12&&r.income_median_12m===0&&r.tenure_months===4&&r.red_flags.some(f=>f.includes("tranzit"))?0:1)' || fail
+node -e 'const r=require("./lib/ocr").analyzeText("ARAYIŞ\n01.03.2020-ci il tarixdən mühəndis vəzifəsində işləyir.\nİyul 2026 1 450,00 AZN\nAvqust 2026 1 500,00 AZN\nSentyabr 2026 1 980,00 AZN",100,"pdf",{name:"",fin:""});
+  process.exit(r.income_median_12m===1500&&r.tenure_source==="document"&&r.tenure_months>=80?0:1)' || fail
 echo "✓ gəlir sənədinin analizi serverdə: arayış və kart çıxarışı (PDF və foto), gəlir və xərc kateqoriyaları, FİN və ad yoxlaması, xəbərdarlıqlar"
 else echo "· sənəd analizi yoxlanmadı: tesseract və ya pdftotext yoxdur"; fi
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J guarantor)" = true ] || fail; echo "✓ zamin cavabı saxlanılır"

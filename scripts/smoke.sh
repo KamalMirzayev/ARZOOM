@@ -258,7 +258,11 @@ curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$RLIVE/offer" -d '{"price
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$RLIVE" | J status)" = offer ] || fail
 curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$RCU/$RLIVE/feedback" -d '{"feedback_id":"'"$FBID"'-x","outcome":"thinking"}' | grep -q '"reoffer":false' || fail
 curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$RCU/$RLIVE/feedback" -d '{"feedback_id":"'"$FBID"'-ts","outcome":"transferred_to_sales","reason":"Ext 205"}' | grep -q '"ok":true' || fail
-echo "✓ təkrar təklif: robocall narazılığı müraciəti geri qaytarır, yeni təklif göndərilir"
+# A customer who cancelled is called back too: their wish moves the application to Təkrar təklif as well.
+node -e 'const {Client}=require("pg"),db=new Client({connectionString:process.env.DATABASE_URL});db.connect().then(()=>db.query("UPDATE applications SET status = '"'"'cancelled'"'"' WHERE id = $1",[process.argv[1]])).then(()=>db.end())' "$RLIVE"
+curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$RCU/$RLIVE/feedback" -d '{"feedback_id":"'"$FBID"'-cx","outcome":"wants_lower_down","reason":"İlkin ödəniş 10% olsa"}' | grep -q '"reoffer":true' || fail
+[ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$RLIVE" | J status)" = reoffer ] || fail
+echo "✓ təkrar təklif: robocall narazılığı (imtina və ləğv edənlərdə də) müraciəti geri qaytarır, yeni təklif göndərilir"
 curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/robocall" -d '{"clear":true}' >/dev/null || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-integration-token: $RCT" "$RCU")" = 401 ] || fail
 echo "✓ robocall inteqrasiyası: token, səhifələmə, faizsiz, silinmişlər, zəng nəticəsi bir dəfə yazılır"

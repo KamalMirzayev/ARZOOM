@@ -701,7 +701,7 @@ app.post("/api/integrations/robocall/applications/:id/feedback", rcAuth, async (
   if (ins.rowCount && REOFFER_OUTCOMES.has(outcome)) {
     const request = { outcome, label, reason: details.text || null, requested_terms: details.requested_terms, at: new Date().toISOString(), source: "robocall" };
     const u = await pool.query(`UPDATE applications SET status = 'reoffer', reoffer = $2, updated_at = now()
-                                WHERE id = $1 AND status IN ('offer','declined') RETURNING id`, [req.params.id, request]);
+                                WHERE id = $1 AND status IN ('offer','declined','cancelled') RETURNING id`, [req.params.id, request]);
     if (u.rowCount) { reoffer = true; await logEvent(pool, req.params.id, "Robocall", "reoffer", request); }
   }
   res.json({ ok: true, duplicate: !ins.rowCount, reoffer });

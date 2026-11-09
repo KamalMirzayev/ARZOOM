@@ -47,7 +47,7 @@ ALTER TABLE applications ADD COLUMN IF NOT EXISTS decided_by    TEXT;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS updated_at    TIMESTAMPTZ NOT NULL DEFAULT now();
 ALTER TABLE applications DROP CONSTRAINT IF EXISTS applications_status_check;
 ALTER TABLE applications ADD CONSTRAINT applications_status_check
-  CHECK (status IN ('review','info','offer','rejected','accepted','declined','cancelled'));
+  CHECK (status IN ('review','info','offer','reoffer','rejected','accepted','declined','cancelled'));
 CREATE INDEX IF NOT EXISTS applications_status_idx ON applications (status);
 
 CREATE TABLE IF NOT EXISTS application_events (
@@ -142,3 +142,5 @@ ALTER TABLE applications ADD COLUMN IF NOT EXISTS car_price NUMERIC(12,2);
 ALTER TABLE application_files ADD COLUMN IF NOT EXISTS doc_label TEXT;
 -- Robocall call results are idempotent by feedback_id (robocall retries until it gets 200).
 CREATE UNIQUE INDEX IF NOT EXISTS application_events_feedback_idx ON application_events ((details->>'feedback_id')) WHERE kind = 'note' AND details ? 'feedback_id';
+-- "Təkrar təklif": the customer wants other terms (robocall call result); staff rework the offer.
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS reoffer JSONB;

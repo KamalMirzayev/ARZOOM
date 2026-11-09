@@ -66,7 +66,12 @@ curl -fsS "${H[@]}" "$B/api/admin/applications/$OID" | grep -q '"kind":"doc_anal
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$OID/files/999999/analyze")" = 404 ] || fail
 node -e 'require("./lib/ocr").analyze({filePath:"test/arayis-sample.png",mime:"image/png",applicant:{name:"Məmmədov Elvin",fin:"5ABC12D"}}).then(r=>process.exit(r.method==="ocr"&&r.avg_monthly_net===1626.67&&r.name_match==="match"&&r.fin_match==="match"?0:1))' || fail
 node -e 'require("./lib/ocr").analyze({filePath:"test/arayis-sample.png",mime:"image/png",applicant:{name:"Həsənov Orxan",fin:"7XYZ99K"}}).then(r=>process.exit(r.fin_match==="mismatch"&&r.name_match==="mismatch"&&r.red_flags.length>=2?0:1))' || fail
-echo "✓ gəlir sənədinin analizi serverdə: PDF mətni və foto OCR, məbləğlər, FİN və ad yoxlaması, xəbərdarlıqlar"
+for f in test/kart-cixaris-sample.pdf:application/pdf test/kart-cixaris-sample.png:image/png; do
+  node -e 'require("./lib/ocr").analyze({filePath:process.argv[1],mime:process.argv[2],applicant:{name:"Məmmədov Elvin",fin:"5ABC12D"}}).then(r=>{const s=r.statement,c=(d,k)=>s&&s[d].categories.find(x=>x.key===k)?.total;
+    process.exit(s&&s.transactions.length===20&&c("income","salary")===4880&&c("income","cash_in")===600&&c("expense","loan_payment")===930&&c("expense","gambling")===50
+      &&c("expense","groceries")===292.9&&r.avg_monthly_net===1626.67&&r.fin_match==="match"&&r.red_flags.some(f=>f.startsWith("Mərc"))?0:1)})' "${f%%:*}" "${f##*:}" || fail
+done
+echo "✓ gəlir sənədinin analizi serverdə: arayış və kart çıxarışı (PDF və foto), gəlir və xərc kateqoriyaları, FİN və ad yoxlaması, xəbərdarlıqlar"
 else echo "· sənəd analizi yoxlanmadı: tesseract və ya pdftotext yoxdur"; fi
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J guarantor)" = true ] || fail; echo "✓ zamin cavabı saxlanılır"
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | J partner_ref)" = 111938 ] && curl -fsS "${H[@]}" "$B/api/admin/applications?q=111938" | grep -q "$ID" || fail; echo "✓ partnyor ref nömrəsi saxlanılır və axtarılır"

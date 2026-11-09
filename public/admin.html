@@ -108,7 +108,7 @@ label.chk input{width:17px;height:17px;accent-color:var(--blue);flex:none}
 .nav button b{margin-left:auto;font-family:var(--f-mono);font-weight:500;font-size:11.5px;color:#8F9AC4;background:rgb(255 255 255 / .06);border-radius:6px;padding:1px 7px}
 .nav button[aria-pressed="true"] b{color:#FFFFFF;background:rgb(255 255 255 / .14)}
 .nav .sd{width:8px;height:8px;border-radius:50%;flex:none;margin:0 4px 0 5px;background:#6E79A6}
-.sd.s-review{background:#E9BE62}.sd.s-info{background:#5EC8D8}.sd.s-offer{background:#7E95FF}.sd.s-accepted{background:#6FCF97}.sd.s-rejected,.sd.s-declined{background:#F08A80}.sd.s-cancelled{background:#6E79A6}
+.sd.s-review{background:#E9BE62}.sd.s-info{background:#5EC8D8}.sd.s-offer{background:#7E95FF}.sd.s-reoffer{background:#B98CF5}.sd.s-accepted{background:#6FCF97}.sd.s-rejected,.sd.s-declined{background:#F08A80}.sd.s-cancelled{background:#6E79A6}
 .me{margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:rgb(255 255 255 / .05);border:1px solid rgb(255 255 255 / .08)}
 .av{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:13px;color:#FFFFFF;background:linear-gradient(135deg,#5273FF,#8E5BFF);flex:none}
 .me .who{min-width:0;flex:1;font-size:12.5px;line-height:1.3}
@@ -141,7 +141,7 @@ aside{border-right:1px solid var(--line);display:flex;flex-direction:column;min-
 .tile{grid-row:span 2;width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:13px;letter-spacing:.02em}
 .tile.s-review{background:var(--warn-soft);color:var(--warn)}
 .s-info{background:rgba(94,200,216,.16);color:#2A9BAD}
-.tile.s-info{background:rgba(94,200,216,.16);color:#2A9BAD}.tile.s-offer{background:var(--blue-soft);color:var(--blue)}.tile.s-accepted{background:var(--ok-soft);color:var(--ok)}
+.tile.s-info{background:rgba(94,200,216,.16);color:#2A9BAD}.tile.s-offer{background:var(--blue-soft);color:var(--blue)}.tile.s-reoffer{background:rgba(185,140,245,.16);color:#9B6BE0}.tile.s-accepted{background:var(--ok-soft);color:var(--ok)}
 .tile.s-rejected,.tile.s-declined{background:var(--bad-soft);color:var(--bad)}.tile.s-cancelled{background:var(--line);color:var(--muted)}
 .item .no{font-family:var(--f-mono);font-weight:600;font-size:13px;white-space:nowrap;letter-spacing:-.01em;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .item .car{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -159,6 +159,9 @@ main{padding:26px clamp(18px,2.4vw,34px) 40px;min-width:0;max-width:1240px}
 .st.sm{font-size:11px;padding:2px 8px}
 .s-review{background:var(--warn-soft);color:var(--warn)}
 .s-offer{background:var(--blue-soft);color:var(--blue)}
+.s-reoffer{background:rgba(185,140,245,.16);color:#9B6BE0}
+.reoffer-box{border:1px solid rgba(185,140,245,.5);background:rgba(185,140,245,.08);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.reoffer-box b{color:#9B6BE0}
 .s-accepted{background:var(--ok-soft);color:var(--ok)}
 .s-rejected,.s-declined{background:var(--bad-soft);color:var(--bad)}
 .s-cancelled{background:var(--line);color:var(--muted)}
@@ -537,8 +540,8 @@ const dt=s=>{const d=new Date(s);return d.toLocaleDateString("az-AZ",{day:"2-dig
 // Keys match REJECT_REASONS in server.js, which holds the full text the customer gets.
 const REJECT_CODES={credit:"Kredit tarixçəsi uyğun deyil",income:"Gəlir aylıq ödəniş üçün kifayət etmir",debt:"Borc yükü yüksəkdir",docs:"Sənədlər natamam və ya yoxlanılmadı",terms:"Lizinq şərtlərinə uyğun deyil"};
 // Short labels for the narrow list rows; the full label is the tooltip and is used everywhere else.
-const STATUS_SHORT={info:"Məlumat gözlənir",declined:"İmtina etdi"};
-const STATUS={review:"Baxılır",info:"Əlavə məlumat gözlənilir",offer:"Təklif göndərilib",rejected:"Rədd edilib",accepted:"Satışa ötürülüb",declined:"Müştəri imtina etdi",cancelled:"Ləğv edilib"};
+const STATUS_SHORT={info:"Məlumat gözlənir",declined:"İmtina etdi",reoffer:"Təkrar təklif"};
+const STATUS={review:"Baxılır",info:"Əlavə məlumat gözlənilir",offer:"Təklif göndərilib",reoffer:"Təkrar təklif gözləyir",rejected:"Rədd edilib",accepted:"Satışa ötürülüb",declined:"Müştəri imtina etdi",cancelled:"Ləğv edilib"};
 const INCOME={extra:"Əlavə sənədlər (müştəri cavabı)",work:"Rəsmi iş yeri",informal:"Qeyri-rəsmi gəlirlər",biz:"Sahibkar",pension:"Pensiya",social:"Sosial yardım"};
 // Documents that can be asked from the customer; staff combine them by dragging into the request.
 const INFO_DOCS={mygov_salary:"MyGov-dan rəsmi əmək haqqı arayışı",salary_card:"Əmək haqqı kart hesabından çıxarış (son 6 ay)",debit_card:"Debet kartdan çıxarış (son 12 ay)",work_ref:"İş yerindən arayış (vəzifə və maaş)",dsmf:"DSMF-dən sosial sığorta arayışı",pension:"Pensiya ödənişi haqqında arayış",voen_extract:"VÖEN çıxarışı",biz_bank:"Biznes hesabından çıxarış (son 6 ay)",rent:"İcarə müqaviləsi",property:"Əmlak sənədi (çıxarış)",guarantor_id:"Zaminin şəxsiyyət vəsiqəsi",guarantor_income:"Zaminin gəlir sənədi"};
@@ -577,11 +580,11 @@ document.addEventListener("dragstart",e=>{const c=e.target.closest?.(".dchip");i
 document.addEventListener("dragover",e=>{const z=e.target.closest?.("#docZone");if(z){e.preventDefault();z.classList.add("over")}});
 document.addEventListener("dragleave",e=>{const z=e.target.closest?.("#docZone");if(z)z.classList.remove("over")});
 document.addEventListener("drop",e=>{const z=e.target.closest?.("#docZone");if(!z)return;e.preventDefault();z.classList.remove("over");const k=e.dataTransfer.getData("text/plain");if(INFO_DOCS[k])addDoc({key:k,label:INFO_DOCS[k]})});
-const ROBO_RESULTS={agrees_will_visit:"Razıdır, salona gələcək",agrees_will_call:"Razıdır, özü zəng edəcək",thinking:"Düşünür",docs_will_send:"Sənədləri göndərəcək",docs_cannot:"Sənədləri təqdim edə bilmir",declined:"İmtina etdi",callback:"Yenidən zəng istədi",wrong_person:"Başqa şəxsdir",other:"Digər"};
+const ROBO_RESULTS={wants_lower_monthly:"Aylıq ödənişi çox hesab edir",wants_lower_down:"İlkin ödənişdə endirim istəyir",wants_other_terms:"Başqa şərt istəyir (müddət, məbləğ)",transferred_to_sales:"Satış təmsilçisinə qoşuldu",agrees_will_visit:"Razıdır, salona gələcək",agrees_will_call:"Razıdır, özü zəng edəcək",thinking:"Düşünür",docs_will_send:"Sənədləri göndərəcək",docs_cannot:"Sənədləri təqdim edə bilmir",declined:"İmtina etdi",callback:"Yenidən zəng istədi",wrong_person:"Başqa şəxsdir",other:"Digər"};
 const CALL_RESULTS={agreed:"Razılaşdı",thinking:"Düşünür",callback:"Yenidən zəng ediləcək",docs:"Sənəd gətirəcək",verified:"Məlumatlar təsdiqləndi",mismatch:"Uyğunsuzluq aşkarlandı",no_answer:"Cavab vermədi",not_interested:"Maraqlanmır",wrong_number:"Nömrə səhvdir"};
-const EVENTS={partner_ref:"Partnyor ref nömrəsi əlavə edildi",webhook:"Partnyora bildiriş göndərildi",info_request:"Müştəridən əlavə məlumat istənildi",info_reply:"Müştəri əlavə məlumat göndərdi",bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",rejected:"Müraciət rədd edildi",note:"Qeyd",
+const EVENTS={partner_ref:"Partnyor ref nömrəsi əlavə edildi",webhook:"Partnyora bildiriş göndərildi",info_request:"Müştəridən əlavə məlumat istənildi",info_reply:"Müştəri əlavə məlumat göndərdi",bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",reoffer:"Müştəri başqa şərt istəyir: təkrar təklif",rejected:"Müraciət rədd edildi",note:"Qeyd",
   accepted:"Müştəri son təklifi təsdiqlədi: anderraytinqə və satışa ötürüldü",declined:"Müştəri təklifdən imtina etdi",cancelled:"Müştəri müraciəti ləğv etdi",sms:"SMS"};
-const FILTERS=[["","Hamısı"],["review","Baxılır"],["info","Məlumat"],["offer","Təklif"],["accepted","Satış"],["rejected","Rədd"],["declined","İmtina"],["cancelled","Ləğv"]];
+const FILTERS=[["","Hamısı"],["review","Baxılır"],["info","Məlumat"],["offer","Təklif"],["reoffer","Təkrar təklif"],["accepted","Satış"],["rejected","Rədd"],["declined","İmtina"],["cancelled","Ləğv"]];
 
 const SVG=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const IC={
@@ -829,9 +832,10 @@ function renderList(){
 }
 $("#statusNav").addEventListener("click",e=>{const b=e.target.closest("[data-st]");if(!b)return;status=b.dataset.st;loadList().catch(err=>toast(err.message))});
 $("#period").addEventListener("click",e=>{const b=e.target.closest("[data-period]");if(!b)return;period=b.dataset.period;
+  seenTotal=null; // counts follow the period, so a period switch is not a new arrival
   try{localStorage.setItem("arzoom-period",period)}catch(e){}
   if(query){query="";$("#q").value=""}loadList().catch(err=>toast(err.message))});
-let qT;$("#q").addEventListener("input",e=>{clearTimeout(qT);qT=setTimeout(()=>{query=e.target.value.trim();loadList().catch(err=>toast(err.message))},250)});
+let qT;$("#q").addEventListener("input",e=>{clearTimeout(qT);qT=setTimeout(()=>{query=e.target.value.trim();seenTotal=null;loadList().catch(err=>toast(err.message))},250)});
 $("#list").addEventListener("click",e=>{const b=e.target.closest("[data-id]");if(b)openApp(b.dataset.id)});
 
 /* ---------- overview ---------- */
@@ -842,7 +846,7 @@ async function renderHome(){
   const P=Scoring.POLICY,total=Object.values(counts).reduce((a,b)=>a+b,0)||1;
   const hour=new Date().getHours(),hi=hour<12?"Sabahınız xeyir":hour<18?"Günortanız xeyir":"Axşamınız xeyir";
   const D=new Date(),today=`${D.getDate()} ${["yanvar","fevral","mart","aprel","may","iyun","iyul","avqust","sentyabr","oktyabr","noyabr","dekabr"][D.getMonth()]}, ${["bazar","bazar ertəsi","çərşənbə axşamı","çərşənbə","cümə axşamı","cümə","şənbə"][D.getDay()]}`;
-  const COL={review:"var(--warn)",offer:"var(--blue)",accepted:"var(--ok)",rejected:"var(--bad)",declined:"var(--bad)",cancelled:"var(--muted)"};
+  const COL={review:"var(--warn)",offer:"var(--blue)",reoffer:"#B98CF5",accepted:"var(--ok)",rejected:"var(--bad)",declined:"var(--bad)",cancelled:"var(--muted)"};
   const queue=items.filter(a=>a.status==="review").slice(0,6);
   $("#detail").innerHTML=`<div class="welcome"><div><span class="eyebrow">Ümumi baxış · ${esc(today)}</span><h2>${hi}, ${esc(staff.split(" ")[0])}</h2></div>
       <button class="btn" type="button" data-st-go="review">${k.waiting?k.waiting+" müraciət baxılmağı gözləyir":"Gözləyən müraciətlər"}</button></div>
@@ -958,7 +962,7 @@ async function openApp(id){
 }
 const val=(a,k,d="")=>a.assessment?.inputs?.[k]??a.offer?.[k]??d;
 function steps(a){
-  const st=a.status,offered=["offer","accepted","declined"].includes(st);
+  const st=a.status,offered=["offer","reoffer","accepted","declined"].includes(st);
   const S=[["Daxil oldu",1],[st==="info"?"Əlavə məlumat gözlənilir":"Qiymətləndirmə",st==="info"?"now":a.assessment||st!=="review"?1:"now"],
     ["Təklif",st==="rejected"?"bad":offered?1:a.assessment?"now":0],
     ["Müştəri təsdiqi",st==="accepted"?1:st==="declined"||st==="cancelled"?"bad":st==="offer"?"now":0],
@@ -1002,7 +1006,7 @@ function akbHtml(a){
   </section>`;
 }
 function renderDetail(){
-  const a=cur,open=["review","info","offer","rejected"].includes(a.status);
+  const a=cur,open=["review","info","offer","reoffer","rejected"].includes(a.status);
   const bySrc={};a.files.forEach(f=>(bySrc[f.income_source]??=[]).push(f));
   const res=a.assessment?.result,o=a.offer,fin=o?.final;
   const dp=fin?.downPct??o?.downPct,pay=o?Scoring.pmt(o.price*(1-dp/100),o.rate,o.months):res?.pay;
@@ -1041,6 +1045,7 @@ function renderDetail(){
         ${o?`<dt>Təklif</dt><dd>${azn(o.price)}, ilkin ${o.downPct}%, ${o.months} ay, illik ${o.rate}%</dd>`:""}
       </dl>
       ${fin?`<div class="callout">Müştəri son təklifi təsdiqlədi<small>İlkin ödəniş ${fin.downPct}% · ${azn(o.price*fin.downPct/100)} · kredit ${azn(o.price*(1-fin.downPct/100))} · aylıq ${azn(pay)} · ${dt(fin.at)}</small></div>`:""}
+      ${a.status==="reoffer"&&a.reoffer?`<div class="reoffer-box"><b>Təkrar təklif lazımdır.</b> Müştəri: ${esc(a.reoffer.label||"")}${a.reoffer.reason?` · „${esc(a.reoffer.reason)}“`:""}<br><small class="muted">${a.reoffer.source==="robocall"?"Robocall zəngi":"Qeyd"}, ${dt(a.reoffer.at)}. Şərtləri dəyişib yeni təklif göndərin və ya rədd edin.</small></div>`:""}
       ${a.info_request?`<div class="callout">${a.status==="info"?"Müştəridən əlavə məlumat gözlənilir":"Əlavə məlumat sorğusu"}<small>Sorğu: ${esc(a.info_request.text)} · ${esc(a.info_request.by||"")}, ${dt(a.info_request.at)}${a.info_request.answeredAt?`<br>Cavab: ${esc(a.info_request.answer||"—")}${a.info_request.files?` · ${a.info_request.files} sənəd`:""} · ${dt(a.info_request.answeredAt)}`:""}</small></div>`:""}
       ${a.reject_reason?`<div class="callout bad">İmtina səbəbi<small>${a.reject_public?`Müştəriyə: ${esc(a.reject_public)}<br>`:""}Daxili: ${esc(a.reject_reason)}</small></div>`:""}
     </section>
@@ -1094,7 +1099,7 @@ function renderDetail(){
             <div class="or">və ya</div>
             <label class="f">Müştəriyə göstəriləcək səbəb (SMS və kabinet)<select id="rejectCode"><option value="">Seç…</option>${Object.entries(REJECT_CODES).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></label>
             <label class="f">Daxili qeyd, müştəriyə göstərilmir<textarea id="reason" placeholder="Məs. AKB-də aktiv gecikmə, borc yükü 64%"></textarea></label>
-            <div class="actions"><button class="btn danger" type="button" id="reject" ${["review","info","offer"].includes(a.status)?"":"disabled"}>Müraciəti rədd et</button></div>
+            <div class="actions"><button class="btn danger" type="button" id="reject" ${["review","info","offer","reoffer"].includes(a.status)?"":"disabled"}>Müraciəti rədd et</button></div>
             ${open?"":`<p class="muted" style="margin:10px 0 0;font-size:12.5px">Müraciət bağlanıb, qərar dəyişdirilə bilməz.</p>`}
           </div>
         </div>
@@ -1125,12 +1130,12 @@ function renderDetail(){
   if(!has("docs.view"))document.querySelectorAll("[data-file]").forEach(b=>{b.disabled=true;b.title="Sənədləri açmaq üçün icazən yoxdur"});
   if($("#akbBox"))tipOn($("#akbBox"));
 }
-const EV_IC={webhook:["send",""],info_request:["msg",""],info_reply:["inbox","k-ok"],bureau:["shield",""],created:["inbox",""],assessed:["gauge",""],offer:["send",""],rejected:["x","k-bad"],note:["pen",""],accepted:["check","k-ok"],declined:["x","k-bad"],cancelled:["x","k-bad"],sms:["msg","k-sms"]};
+const EV_IC={reoffer:["send","k-bad"],webhook:["send",""],info_request:["msg",""],info_reply:["inbox","k-ok"],bureau:["shield",""],created:["inbox",""],assessed:["gauge",""],offer:["send",""],rejected:["x","k-bad"],note:["pen",""],accepted:["check","k-ok"],declined:["x","k-bad"],cancelled:["x","k-bad"],sms:["msg","k-sms"]};
 function evHtml(e){
   const d=e.details||{};
   const extra=e.kind==="bureau"?`${d.score} bal, ${d.grade} · ${Scoring.VERDICTS[d.verdict]||""} · aylıq borc ${azn(d.debtMonthly||0)}${d.flags?` · ${d.flags} xəbərdarlıq`:""}`:e.kind==="assessed"?`${d.score} bal, ${d.grade} · ${Scoring.VERDICTS[d.verdict]||""}`:
     e.kind==="offer"?`${azn(d.price)}, ilkin ${d.downPct}%, ${d.months} ay, illik ${d.rate}%`:
-    e.kind==="rejected"?d.reason:e.kind==="note"?[d.channel==="robocall"?(d.outcome_label||ROBO_RESULTS[d.outcome]):CALL_RESULTS[d.outcome],d.text].filter(Boolean).join(" · "):e.kind==="webhook"?`ref № ${d.ref||"—"} · ${d.result||""}${d.error?" · Göndərilmədi: "+d.error:""}`:e.kind==="sms"?(d.error?"Göndərilmədi: "+d.error:d.text)+(d.demo?" (SMS provayderi qoşulmayıb, göndərilmədi)":""):
+    e.kind==="reoffer"?[d.label,d.reason].filter(Boolean).join(" · "):e.kind==="rejected"?d.reason:e.kind==="note"?[d.channel==="robocall"?(d.outcome_label||ROBO_RESULTS[d.outcome]):CALL_RESULTS[d.outcome],d.text].filter(Boolean).join(" · "):e.kind==="webhook"?`ref № ${d.ref||"—"} · ${d.result||""}${d.error?" · Göndərilmədi: "+d.error:""}`:e.kind==="sms"?(d.error?"Göndərilmədi: "+d.error:d.text)+(d.demo?" (SMS provayderi qoşulmayıb, göndərilmədi)":""):
     e.kind==="info_request"?d.text:e.kind==="info_reply"?[d.text,d.files?`${d.files} sənəd`:""].filter(Boolean).join(" · "):
     e.kind==="created"?`${d.files||0} sənəd`:e.kind==="accepted"&&d.downPct!=null?`ilkin ödəniş ${d.downPct}%`:"";
   const [ic,cls]=EV_IC[e.kind]||["clock",""];

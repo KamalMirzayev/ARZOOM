@@ -378,7 +378,7 @@ app.post("/api/applications/:id/info", lookupLimit, upload.any(), async (req, re
 app.post("/api/applications/:id/cancel", lookupLimit, async (req, res) => {
   if (!(await tokenApp(req))) return bad(res, "İcazə yoxdur.", 401);
   const r = await pool.query(
-    "UPDATE applications SET status = 'cancelled', updated_at = now() WHERE id = $1 AND status IN ('review','info','offer') RETURNING id, phone",
+    "UPDATE applications SET status = 'cancelled', updated_at = now() WHERE id = $1 AND status IN ('review','info','offer','reoffer') RETURNING id, phone",
     [req.params.id]);
   if (!r.rowCount) return bad(res, "Müraciət tapılmadı.", 404);
   await logEvent(pool, req.params.id, "Müştəri", "cancelled");
@@ -629,7 +629,7 @@ app.post("/api/admin/settings/robocall", admin, adminOnly, async (req, res) => {
   audit(req, req.user.username, "settings.robocall", "yeni token");
   res.json({ ...rcState(), token });
 });
-const RC_STATUS = { review: "Baxılır", info: "Əlavə sənəd gözlənilir", offer: "Təklif göndərilib", rejected: "Rədd edilib",
+const RC_STATUS = { review: "Baxılır", info: "Əlavə sənəd gözlənilir", offer: "Təklif göndərilib", reoffer: "Təklif yenidən hazırlanır", rejected: "Rədd edilib",
                     accepted: "Satışa ötürülüb", declined: "Müştəri imtina etdi", cancelled: "Müştəri ləğv etdi" };
 const rcFail = rateLimit({ windowMs: 15 * 60e3, max: 20, message: "Çox sayda uğursuz sorğu." });
 // Changes in order of (changed_at, id): changed_at is the later of the row's update and its last event (notes, replies),
@@ -643,7 +643,11 @@ const rcAuth = (req, res, next) => {
 // timeline and comes back in last_call. feedback_id makes repeats harmless: robocall retries until it gets 200.
 const ROBO_RESULTS = { agrees_will_visit: "Razıdır, salona gələcək", agrees_will_call: "Razıdır, özü zəng edəcək", thinking: "Düşünür",
   docs_will_send: "Sənədləri göndərəcək", docs_cannot: "Sənədləri təqdim edə bilmir", declined: "İmtina etdi",
-  callback: "Yenidən zəng istədi", wrong_person: "Başqa şəxsdir", other: "Digər" };
+  callback: "Yenidən zəng istədi", wrong_person: "Başqa şəxsdir", other: "Digər",
+  wants_lower_monthly: "Aylıq ödənişi çox hesab edir", wants_lower_down: "İlkin ödənişdə endirim istəyir",
+  wants_other_terms: "Başqa şərt istəyir (müddət, məbləğ)", transferred_to_sales: "Satış təmsilçisinə qoşuldu" };
+// The customer is interested but not with these terms: the application goes to "Təkrar təklif" for staff to rework the offer.
+const REOFFER_OUTCOMES = new Set(["wants_lower_monthly", "wants_lower_down", "wants_other_terms"]);
 app.post("/api/integrations/robocall/applications/:id/feedback", rcAuth, async (req, res) => {
   const b = req.body || {};
   const feedback_id = String(b.feedback_id || "").trim().slice(0, 120);
@@ -655,11 +659,21 @@ app.post("/api/integrations/robocall/applications/:id/feedback", rcAuth, async (
   const label = String(b.outcome_label || "").trim().slice(0, 120) || ROBO_RESULTS[outcome];
   const details = { outcome, outcome_label: label, channel: "robocall", text: b.reason ? String(b.reason).trim().slice(0, 2000) : "",
                     feedback_id, call_ref: b.call_ref ? String(b.call_ref).slice(0, 120) : null,
-                    call_at: !isNaN(Date.parse(b.at)) ? new Date(b.at).toISOString() : null };
+                    call_at: !isNaN(Date.parse(b.at)) ? new Date(b.at).toISOString() : null,
+                    // amounts the customer asked for, if robocall caught them (e.g. monthly payment, down payment %)
+                    requested_terms: b.requested_terms && typeof b.requested_terms === "object" && !Array.isArray(b.requested_terms)
+                      && JSON.stringify(b.requested_terms).length <= 500 ? b.requested_terms : null };
   const ins = await pool.query(
     `INSERT INTO application_events (application_id, actor, kind, details) VALUES ($1, 'Robocall', 'note', $2)
      ON CONFLICT ((details->>'feedback_id')) WHERE kind = 'note' AND details ? 'feedback_id' DO NOTHING`, [req.params.id, details]);
-  res.json({ ok: true, duplicate: !ins.rowCount });
+  let reoffer = false;
+  if (ins.rowCount && REOFFER_OUTCOMES.has(outcome)) {
+    const request = { outcome, label, reason: details.text || null, requested_terms: details.requested_terms, at: new Date().toISOString(), source: "robocall" };
+    const u = await pool.query(`UPDATE applications SET status = 'reoffer', reoffer = $2, updated_at = now()
+                                WHERE id = $1 AND status IN ('offer','declined') RETURNING id`, [req.params.id, request]);
+    if (u.rowCount) { reoffer = true; await logEvent(pool, req.params.id, "Robocall", "reoffer", request); }
+  }
+  res.json({ ok: true, duplicate: !ins.rowCount, reoffer });
 });
 app.get("/api/integrations/robocall/applications", rcAuth, async (req, res) => {
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 200, 1), 500);
@@ -699,7 +713,7 @@ app.get("/api/integrations/robocall/applications", rcAuth, async (req, res) => {
       fin_masked: "***" + String(a.fin || "").trim().slice(-4), birth_date: a.birth_date ? (a.birth_date instanceof Date ? a.birth_date.toISOString() : String(a.birth_date)).slice(0, 10) : null,
       guarantor: a.guarantor, brand: a.brand, model: a.model, car_price: a.car_price != null ? +a.car_price : (o?.price ?? null),
       income_sources: a.income_sources, partner: a.partner || null, partner_ref: a.partner_ref || null,
-      offer: o && ["offer", "accepted", "declined"].includes(a.status) ? terms(o.downPct) : null,
+      offer: o && ["offer", "reoffer", "accepted", "declined"].includes(a.status) ? terms(o.downPct) : null,
       final_terms: o?.final && a.status === "accepted" ? terms(o.final.downPct) : null,
       info_docs: info ? (info.docs || []).map(d => d.label) : [], info_text: info?.text || null,
       reject_reason: a.status === "rejected" ? a.reject_public || null : null,
@@ -795,7 +809,7 @@ app.get("/api/admin/applications", admin, async (req, res) => {
 
 /* ---------- Excel export ---------- */
 // All applications (or the current filter) as .xlsx. Holds personal data, so it needs its own permission and is audited.
-const EXPORT_STATUS = { review: "Baxılır", info: "Əlavə məlumat gözlənilir", offer: "Təklif göndərilib", rejected: "Rədd edilib", accepted: "Satışa ötürülüb", declined: "Müştəri imtina etdi", cancelled: "Ləğv edilib" };
+const EXPORT_STATUS = { review: "Baxılır", info: "Əlavə məlumat gözlənilir", offer: "Təklif göndərilib", reoffer: "Təkrar təklif", rejected: "Rədd edilib", accepted: "Satışa ötürülüb", declined: "Müştəri imtina etdi", cancelled: "Ləğv edilib" };
 app.get("/api/admin/export.xlsx", admin, async (req, res) => {
   if (!req.perms.includes("apps.export")) return bad(res, "Excel-ə çıxarmaq üçün icazən yoxdur.", 403);
   const q = String(req.query.q || "").trim().toUpperCase().slice(0, 64);
@@ -837,8 +851,8 @@ app.get("/api/admin/stats", admin, async (req, res) => {
     SELECT count(*) FILTER (WHERE created_at >= date_trunc('day', now()))::int AS today,
            count(*) FILTER (WHERE status = 'review')::int AS waiting,
            count(*) FILTER (WHERE status = 'review' AND created_at < now() - interval '24 hours')::int AS overdue,
-           count(*) FILTER (WHERE created_at >= now() - interval '30 days' AND status IN ('offer','accepted','declined'))::int AS approved30,
-           count(*) FILTER (WHERE created_at >= now() - interval '30 days' AND status IN ('offer','accepted','declined','rejected'))::int AS decided30,
+           count(*) FILTER (WHERE created_at >= now() - interval '30 days' AND status IN ('offer','reoffer','accepted','declined'))::int AS approved30,
+           count(*) FILTER (WHERE created_at >= now() - interval '30 days' AND status IN ('offer','reoffer','accepted','declined','rejected'))::int AS decided30,
            count(*) FILTER (WHERE status = 'accepted')::int AS accepted,
            round(avg((assessment->'result'->>'score')::int))::int AS avg_score
     FROM applications WHERE ($1::text[] IS NULL OR brand = ANY($1))`, [req.user.brands]);
@@ -888,7 +902,7 @@ app.post("/api/admin/applications/:id/offer", admin, brandGate, can("apps.offer"
   if (Object.values(offer).some(v => v == null)) return bad(res, "Təklif şərtləri düzgün deyil.");
   const r = await pool.query(
     `UPDATE applications SET status = 'offer', offer = $2, reject_reason = NULL, reject_public = NULL, decided_by = $3, updated_at = now()
-     WHERE id = $1 AND status IN ('review','info','offer','rejected') RETURNING id, phone, brand, model`, [req.params.id, offer, req.staff]);
+     WHERE id = $1 AND status IN ('review','info','offer','reoffer','rejected') RETURNING id, phone, brand, model`, [req.params.id, offer, req.staff]);
   if (!r.rowCount) return bad(res, "Bu müraciətə təklif göndərmək olmur.", 409);
   await logEvent(pool, req.params.id, req.staff, "offer", offer);
   sendResult(req.params.id);
@@ -970,7 +984,7 @@ app.post("/api/admin/applications/:id/reject", admin, brandGate, can("apps.rejec
   const pub = REJECT_REASONS[code];
   const r = await pool.query(
     `UPDATE applications SET status = 'rejected', reject_reason = $2, reject_public = $4, decided_by = $3, updated_at = now()
-     WHERE id = $1 AND status IN ('review','info','offer') RETURNING id, phone`, [req.params.id, reason, req.staff, pub]);
+     WHERE id = $1 AND status IN ('review','info','offer','reoffer') RETURNING id, phone`, [req.params.id, reason, req.staff, pub]);
   if (!r.rowCount) return bad(res, "Bu müraciəti rədd etmək olmur.", 409);
   await logEvent(pool, req.params.id, req.staff, "rejected", { reason, code });
   sendResult(req.params.id);
@@ -1060,7 +1074,7 @@ app.post("/api/integrations/akb", xmlBody, async (req, res) => {
   let fin;
   try { fin = String(Akb.parse(xmlFrom(req)).borrower?.fin || "").trim().toUpperCase(); } catch (e) { return bad(res, e.message); }
   const { rows } = await pool.query(
-    "SELECT id FROM applications WHERE upper(fin) = $1 AND status IN ('review','info','offer') ORDER BY created_at DESC LIMIT 1", [fin]);
+    "SELECT id FROM applications WHERE upper(fin) = $1 AND status IN ('review','info','offer','reoffer') ORDER BY created_at DESC LIMIT 1", [fin]);
   if (!rows[0]) return bad(res, "Bu FİN üzrə açıq müraciət yoxdur.", 404);
   const out = await applyBureau(rows[0].id, xmlFrom(req), "AKB inteqrasiyası");
   res.json({ applicationId: rows[0].id, score: out.assessment.result.score, grade: out.assessment.result.grade,

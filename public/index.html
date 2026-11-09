@@ -724,7 +724,9 @@ async function syncApps(){
   await Promise.all(apps.map(async a=>{if(!a.token)return;try{const r=await fetch(`/api/applications/${encodeURIComponent(a.id)}`,{headers:{"x-app-token":a.token}});if(r.status===401){a.gone=true;return}if(!r.ok)return;const j=await r.json();
     if(j.status==="cancelled"){a.gone=true;return}
     if(j.offer&&(!a.offer||a.offer.at!==j.offer.at||!!a.offer.final!==!!j.offer.final))a.offer=offerFromServer(j.offer);
-    if(j.status==="offer"&&["review","info"].includes(a.state))a.state="offer";
+    // "Təkrar təklif" shows to the customer as being reviewed again, until the new offer arrives.
+    a.reoffer=j.status==="reoffer";if(a.reoffer)a.state="review";
+    if(j.status==="offer"&&["review","info","declined"].includes(a.state))a.state="offer";
     if(["review","info"].includes(j.status)&&["review","info"].includes(a.state))a.state=j.status;
     a.info=j.info_request||null;a.docs=j.files;
     if(["accepted","declined","rejected"].includes(j.status))a.state=j.status;
@@ -802,7 +804,7 @@ function renderApps(){
     // The decision step turns green when approved and red when not; after a "no" nothing further is shown.
     const stopped=["declined","rejected"].includes(a.state), shown=stopped?steps.slice(0,5):steps;
     const stepCls=i=>i===4&&stopped?"bad":i===4&&!["review","info"].includes(a.state)||i===5&&a.state==="accepted"?"ok":i<lvl?"done":i===lvl?"now":"";
-    const [cls,txt]=ST[a.state];
+    const [cls,txt]=a.state==="review"&&a.reoffer?["st-warn","Təklif yenidən hazırlanır"]:ST[a.state];
     return `<article class="panel">
       <div class="app-head"><div><span class="eyebrow mono">${a.id}</span><h3>${esc(a.brand)} ${esc(a.model)}</h3></div><span class="status ${cls}">${txt}</span></div>
       <div class="app-grid">

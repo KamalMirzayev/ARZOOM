@@ -211,8 +211,8 @@ RC2=$(curl -fsS -H "x-integration-token: $RCT" --get --data-urlencode "since=$NS
 RCA=$(curl -fsS -H "x-integration-token: $RCT" "$RCU?limit=500")
 echo "$RCA" | grep -q '"rate"\|interest\|commission\|"fin":' && fail
 echo "$RCA" | grep -q "\"id\":\"$ID2\",\"deleted\":true" || fail
-echo "$RCA" | grep -q '"status_label":"Təklif göndərilib"' || fail
-echo "$RCA" | grep -q '"monthly_payment":' || fail
+echo "$RCA" | grep -q "\"status\":\"accepted\",\"status_label\":\"Satışa ötürülüb\"" || fail
+echo "$RCA" | grep -q '"final_terms":{[^}]*"monthly_payment":' || fail
 echo "$RCA" | grep -q '"fin_masked":"\*\*\*' || fail
 curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/robocall" -d '{"clear":true}' >/dev/null || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-integration-token: $RCT" "$RCU")" = 401 ] || fail

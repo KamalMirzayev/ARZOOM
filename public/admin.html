@@ -1117,7 +1117,7 @@ document.addEventListener("click",async e=>{
   if(p){p.disabled=true;p.textContent="Yüklənir…";
     try{const r=await fetch(`/api/admin/call-analytics/calls/${encodeURIComponent(p.dataset.play)}/recording`,{headers:{"x-admin-token":token}});
       if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||"Səs yazısı açılmadı.")}
-      const url=URL.createObjectURL(await r.blob()),au=document.createElement("audio");au.controls=true;au.autoplay=true;au.src=url;au.style.cssText="width:280px;max-width:100%;height:34px";
+      const url=URL.createObjectURL(await r.blob()),au=document.createElement("audio");au.controls=true;au.autoplay=true;au.src=url;au.style.cssText="width:280px;max-width:100%;height:34px";au.onerror=()=>toast("Səs yazısı oxunmadı.");
       p.replaceWith(au)}catch(err){toast(err.message);p.disabled=false;p.textContent="▶ Dinlə"}}
   const q=e.target.closest("[data-requeue]");
   if(q){if(!confirmInline(q,"Təsdiqlə: zəng edilsin"))return;q.disabled=true;

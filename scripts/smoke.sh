@@ -295,6 +295,7 @@ curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/robocall/api" -d '{"base":"ht
 curl -fsS "${H[@]}" "$B/api/admin/settings/robocall" | grep -q '"keySet":true' && ! curl -fsS "${H[@]}" "$B/api/admin/settings/robocall" | grep -q 0123456789abcdef0123 || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$RLIVE/requeue-call" -d '{}')" = 502 ] || fail
 curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/robocall/api" -d '{"base":""}' | grep -q '"keySet":false' || fail
+curl -fsSI "$B/admin" | grep -i '^content-security-policy' | grep -q "media-src 'self' blob:" || fail
 echo "✓ ArzoomCall: nəticəsiz zənglər filtri, yenidən zəng və səs yazısı API ayarı (açar geri qaytarılmır)"
 curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$CA" -d '{"periods":{"today":{"kpi":{"attempts":7,"answered":4}}},"recent_calls":[{"id":1}]}' >/dev/null || fail
 CAG=$(curl -fsS "${H[@]}" "$B/api/admin/call-analytics")

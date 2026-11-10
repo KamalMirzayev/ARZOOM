@@ -189,6 +189,7 @@ main{padding:26px clamp(18px,2.4vw,34px) 40px;min-width:0;max-width:1240px}
 .stat{background:var(--raised);border-radius:12px;padding:12px 14px;border:1px solid var(--line)}
 .stat small{color:var(--muted);font-size:11.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stat b{font-family:var(--f-display);font-stretch:100%;font-size:clamp(17px,1.5vw,20px);font-weight:800;display:block;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.callrow.noterow .ci{background:var(--warn-soft);color:var(--warn)}
 .callrow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 14px;align-items:center;margin-top:14px;padding:12px 14px;border-radius:12px;background:var(--raised);border:1px solid var(--line)}
 .callrow .ci{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--blue) 14%,transparent);color:var(--blue);grid-row:span 2}
 .callrow .ci svg{width:17px;height:17px}
@@ -1031,6 +1032,18 @@ function dailyChart(rows){
 const hbars=(rows,label,val,tip)=>{const max=Math.max(1,...rows.map(val));
   return rows.length?`<div class="hbars">${rows.map(r=>`<div data-tip="${esc(tip(r))}"><span>${esc(label(r))}</span><i style="--w:${Math.round(val(r)/max*100)}%"></i><em>${val(r)}</em></div>`).join("")}</div>`:`<p class="muted" style="margin:0">Bu dövrdə məlumat yoxdur.</p>`};
 // The application's ArzoomCall calls in one line: how many, the last result and what the customer said.
+// Staff notes are shown at the top of the application, so a colleague's note is seen as soon as it is opened.
+function noteRow(a){
+  const notes=(a.events||[]).filter(e=>e.kind==="note"&&e.details?.channel!=="robocall"&&!["Müştəri","Sistem"].includes(e.actor)&&(e.details?.text||e.details?.outcome));
+  if(!notes.length)return"";
+  const last=notes.slice(-2).reverse();
+  return `<div class="callrow noterow"><span class="ci">${IC.pen}</span>
+    <div class="cm"><b>Qeydlər</b><span class="muted">${notes.length} qeyd</span></div>
+    <span class="cl">${notes.length>2?`<button type="button" class="btn ghost sm" data-gonotes>Hamısı ↓</button>`:""}</span>
+    <div class="ct" style="-webkit-line-clamp:unset;display:grid;gap:6px">${last.map(e=>{const d=e.details||{};
+      return `<div><b style="color:var(--ink);font-weight:600">${esc([CALL_RESULTS[d.outcome],d.text].filter(Boolean).join(" · "))}</b><br><small>${esc(actorName(e.actor))} · ${dt(e.at)}</small></div>`}).join("")}</div></div>`;
+}
+document.addEventListener("click",e=>{if(e.target.closest("[data-gonotes]"))document.querySelector("#tlPanel")?.scrollIntoView({behavior:"smooth",block:"start"})});
 function callRow(a){
   const calls=a.calls||[],notes=(a.events||[]).filter(e=>e.kind==="note"&&e.details?.channel==="robocall");
   if(!calls.length&&!notes.length)return"";
@@ -1269,6 +1282,7 @@ function renderDetail(){
       <div class="stat"><small>Aylıq ödəniş</small><b>${pay?azn(pay):"—"}</b></div>
     </div>
     ${callRow(a)}
+    ${noteRow(a)}
     ${steps(a)}
   </section>
   <div class="grid">
@@ -1352,7 +1366,7 @@ function renderDetail(){
       <p class="muted" style="margin:0 0 12px;font-size:13px">Müraciət, sənədləri və tarixçəsi birdəfəlik silinir. Kimin, nə vaxt və hansı səbəblə sildiyi ayrıca jurnalda qalır.</p>
       <div class="noteform"><input id="delReason" placeholder="Silmə səbəbi, məs. test müraciəti, təkrar müraciət"><button class="btn danger" type="button" id="delApp">Sil</button></div>
     </section>`:""}
-    <section class="panel span2">${ph("clock","Tarixçə və qeydlər")}
+    <section class="panel span2" id="tlPanel">${ph("clock","Tarixçə və qeydlər")}
       <ol class="tl">${a.events.map(evHtml).join("")||`<li class="muted" style="display:block">Hələ hadisə yoxdur.</li>`}</ol>
       <form id="nForm" class="noteform"><select id="noteChannel" aria-label="Danışıq növü" style="max-width:150px"><option value="phone">Telefon danışığı</option><option value="meeting">Fiziki görüş</option></select><select id="noteOutcome" aria-label="Danışığın nəticəsi" style="max-width:190px"><option value="">Danışığın nəticəsi…</option>${Object.entries(CALL_RESULTS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select><input id="note" placeholder="Qeyd, məs. sabah 11-də yenidən zəng"><button class="btn ghost" type="submit">Əlavə et</button></form>
     </section>

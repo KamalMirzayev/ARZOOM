@@ -796,18 +796,21 @@ function aiFill(inc,ten){
   f.incomeMonthly.dispatchEvent(new Event("input",{bubbles:true}));
   toast("Gəlir (12 ayın medianı) və staj formaya yazıldı, yoxlayıb saxlayın");return true;
 }
-// An analysed income document the system trusts (high confidence, FİN matches) fills empty income and tenure by itself.
-// A value already in the form (saved or typed by staff) is never overwritten; staff can change the filled values by hand.
+// An analysed income document the system trusts (FİN matches, confidence not low) fills income and tenure by itself:
+// empty fields always, and saved ones when the analysis is newer than the last saved assessment.
+// A value typed after the analysis is kept; staff can change the filled values by hand.
+const aiTouched=new Set();
+document.addEventListener("input",e=>{if(e.isTrusted&&cur&&e.target.closest?.("#aForm")&&["incomeMonthly","tenureMonths"].includes(e.target.name))aiTouched.add(cur.id+":"+e.target.name)});
 function aiAutoFill(a){
   const f=$("#aForm");if(!f||!has("apps.assess")||f.incomeMonthly.disabled)return;
-  const x=(a.files||[]).map(d=>d.analysis).filter(x=>x&&x.confidence==="high"&&x.fin_match==="match"&&aiIncome(x)!=null)
+  const x=(a.files||[]).map(d=>d.analysis).filter(x=>x&&["high","medium"].includes(x.confidence)&&x.fin_match==="match"&&aiIncome(x)!=null)
     .sort((p,q)=>String(q.at||"").localeCompare(String(p.at||"")))[0];
   if(!x)return;
-  const filled=[];
-  if(f.incomeMonthly.value===""){f.incomeMonthly.value=Math.round(+aiIncome(x));filled.push("gəlir")}
-  if(f.tenureMonths.value===""&&x.tenure_months!=null){f.tenureMonths.value=+x.tenure_months;filled.push("staj")}
+  const newer=!a.assessment?.at||String(x.at||"")>String(a.assessment.at),inc=Math.round(+aiIncome(x)),filled=[];
+  const put=(el,v,name)=>{if(v==null||v===""||aiTouched.has(a.id+":"+el.name))return;if(el.value===""||(newer&&+el.value!==+v)){el.value=v;filled.push(name)}};
+  put(f.incomeMonthly,inc,"gəlir");put(f.tenureMonths,x.tenure_months,"staj");
   if(!filled.length)return;
-  f.incomeMonthly.closest("label").insertAdjacentHTML("afterend",`<p class="muted aiauto" style="grid-column:1/-1;margin:-4px 0 0;font-size:12px">✓ ${filled.join(" və ")} sənəd analizindən avtomatik yazıldı (${esc(x.doc_type_label||"sənəd")}). Lazım olsa əl ilə dəyişin.</p>`);
+  f.incomeMonthly.closest("label").insertAdjacentHTML("afterend",`<p class="muted aiauto" style="grid-column:1/-1;margin:-4px 0 0;font-size:12px">✓ ${filled.join(" və ")} sənəd analizindən avtomatik yazıldı (${esc(x.doc_type_label||"sənəd")}). Yoxlayıb saxlayın, lazım olsa əl ilə dəyişin.</p>`);
   f.incomeMonthly.dispatchEvent(new Event("input",{bubbles:true}));
 }
 async function aiRun(id,b){

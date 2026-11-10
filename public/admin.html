@@ -906,7 +906,8 @@ function renderList(){
       <span class="car">${esc(a.brand)} ${esc(a.model)} <em>· ${esc(a.fin)}</em></span>
       <span class="tags">${a.grade?`<span class="grade g-${a.grade}">${a.score} · ${a.grade}</span>`:""}<span class="ago">${ago(a.created_at)}</span></span></button>`).join(""):`<div class="empty">${IC.inbox}Bu filtrdə müraciət yoxdur.</div>`;
 }
-$("#statusNav").addEventListener("click",e=>{const b=e.target.closest("[data-st]");if(!b)return;status=b.dataset.st;loadList().catch(err=>toast(err.message))});
+// On a phone the list and an open application share the screen: picking a status always goes back to the list.
+$("#statusNav").addEventListener("click",e=>{const b=e.target.closest("[data-st]");if(!b)return;status=b.dataset.st;$("#shell").classList.remove("open");if(matchMedia("(max-width:900px)").matches)scrollTo({top:0});loadList().catch(err=>toast(err.message))});
 $("#period").addEventListener("click",e=>{const b=e.target.closest("[data-period]");if(!b)return;period=b.dataset.period;
   seenTotal=null; // counts follow the period, so a period switch is not a new arrival
   try{localStorage.setItem("arzoom-period",period)}catch(e){}

@@ -75,6 +75,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "blob:"],
+      mediaSrc: ["'self'", "blob:"], // call recordings play from a blob fetched through the panel
       connectSrc: ["'self'"],
       frameSrc: ["'self'", "blob:"],
       objectSrc: ["'none'"],

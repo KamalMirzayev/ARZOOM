@@ -81,6 +81,7 @@ docker compose up -d --build
 - Yeni müraciət bildirişi: müraciət daxil olan kimi mobil nömrəsi yazılmış bütün aktiv **Kredit eksperti** və **Satış mütəxəssisi** hesablarına SMS gedir (müraciət nömrəsi, avtomobil, gəlir mənbəyi, panel linki; FİN və müştəri nömrəsi SMS-ə yazılmır). Panel açıqdırsa, yeni müraciət gələndə bildiriş çıxır, tabın başlığında say görünür, brauzer icazə veribsə masaüstü bildirişi də gəlir.
 - Parollar scrypt ilə saxlanılır, sessiya 12 saatdır, 15 dəqiqədə 10 uğursuz girişdən sonra IP bloklanır.
 - Admin parolu unudulsa: `cd /opt/arzoom && sudo docker compose exec app node reset-password.js admin 'YeniParol123'`
+- Softline "xəta 20" ilə getməyən müştəri SMS-lərini təkrar göndərmək (hər müştəriyə sonuncu SMS, aralarında 1 dəqiqə): əvvəl siyahıya baxın `cd /opt/arzoom && sudo docker compose exec app node resend-sms.js`, sonra `... node resend-sms.js --send`.
 
 Axın: müraciəti aç → sənədlərə bax → AKB hesabatından gecikmələri və aylıq borcları, sənədlərdən xalis gəliri və stajı yaz → qiymət və şərtləri daxil et → skor və borc yükü canlı hesablanır → "Təklifi müştəriyə göndər" və ya səbəb yazıb "Müraciəti rədd et". Müştəri nəticəni "Müraciətlərim" bölməsində görür, SMS qoşulubsa, bildiriş də gedir.
 

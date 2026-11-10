@@ -5,7 +5,7 @@ RUN apk add --no-cache poppler-utils tesseract-ocr tesseract-ocr-data-aze tesser
 ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
-COPY server.js reset-password.js ./
+COPY server.js reset-password.js resend-sms.js ./
 COPY lib ./lib
 COPY db ./db
 COPY public ./public

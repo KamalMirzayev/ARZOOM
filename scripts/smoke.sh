@@ -281,6 +281,21 @@ echo "$CL" | grep -q '"total":1000,"page":40,"pages":40' && ! echo "$CL" | grep 
 curl -fsS "${H[@]}" "$B/api/admin/call-analytics/calls?q=s%C9%99bin%C9%99" | grep -q '"total":1,' || fail
 curl -fsS "${H[@]}" "$B/api/admin/call-analytics/calls?answered=0&outcome=declined" | grep -q '"total":167,' || fail
 curl -fsS "${H[@]}" "$B/api/admin/call-analytics" | grep -q '"calls_total":1000' || fail
+# Calls the bot ended without a result can be found with their own filter
+curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$CA" -d '{"periods":{"today":{}},"recent_calls":[{"id":"u1","outcome":"other","reason":"Zəngdən avtomatik çıxarılıb"},{"id":"u2","outcome":"other","reason":"Bot zəng zamanı nəticəni qeyd etməyib"},{"id":"u3","outcome":"other","reason":"Başqa səbəb"}]}' >/dev/null || fail
+curl -fsS "${H[@]}" "$B/api/admin/call-analytics/calls?outcome=unrecorded" | grep -q '"total":2,' || fail
+curl -fsS "${H[@]}" "$B/api/admin/call-analytics/calls" | grep -q '"unrecorded":2' || fail
+# Call again and recordings need the ArzoomCall API; until it is set they answer 409, and settings are validated
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$RLIVE/requeue-call" -d '{}')" = 409 ] || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' "${H[@]}" "$B/api/admin/call-analytics/calls/u1/recording")" = 409 ] || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' "${H[@]}" "$B/api/admin/call-analytics/calls/a%20b/recording")" = 404 ] || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/robocall/api" -d '{"base":"ftp://x","key":"0123456789abcdef"}')" = 400 ] || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/robocall/api" -d '{"base":"http://172.17.0.1:4000","key":"short"}')" = 400 ] || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/robocall/api" -d '{"base":"http://127.0.0.1:9","key":"0123456789abcdef0123"}' >/dev/null || fail
+curl -fsS "${H[@]}" "$B/api/admin/settings/robocall" | grep -q '"keySet":true' && ! curl -fsS "${H[@]}" "$B/api/admin/settings/robocall" | grep -q 0123456789abcdef0123 || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$RLIVE/requeue-call" -d '{}')" = 502 ] || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/robocall/api" -d '{"base":""}' | grep -q '"keySet":false' || fail
+echo "✓ ArzoomCall: nəticəsiz zənglər filtri, yenidən zəng və səs yazısı API ayarı (açar geri qaytarılmır)"
 curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$CA" -d '{"periods":{"today":{"kpi":{"attempts":7,"answered":4}}},"recent_calls":[{"id":1}]}' >/dev/null || fail
 CAG=$(curl -fsS "${H[@]}" "$B/api/admin/call-analytics")
 echo "$CAG" | grep -q '"attempts":7' && ! echo "$CAG" | grep -q '"attempts":40' || fail

@@ -624,7 +624,32 @@ async function loadRobocallSettings() {
   const { rows } = await pool.query("SELECT value FROM settings WHERE key = 'robocall_token_hash'");
   RC.hash = rows[0]?.value || "";
 }
-const rcState = () => ({ tokenSet: !!RC.hash, lastPull: RC.lastPull, endpoint: (SITE_URL || "") + "/api/integrations/robocall/applications" });
+// The other direction: ARZOOM calls ArzoomCall's external API (re-queue a customer, fetch a recording) with an API key
+// created in the ArzoomCall panel. The key is stored here, used only server-side and never sent back or logged.
+const RCAPI = { base: "", key: "" };
+async function loadRcApi() {
+  const { rows } = await pool.query("SELECT key, value FROM settings WHERE key IN ('arzoomcall_api_base','arzoomcall_api_key')");
+  for (const r of rows) RCAPI[r.key === "arzoomcall_api_base" ? "base" : "key"] = r.value;
+}
+const rcApi = (path, opts = {}) => {
+  if (!RCAPI.base || !RCAPI.key) throw Object.assign(new Error("ArzoomCall API qoşulmayıb: İstifadəçilər → ArzoomCall inteqrasiyası bölməsində ünvanı və API açarını yazın."), { status: 409 });
+  return fetch(RCAPI.base.replace(/\/+$/, "") + path, { ...opts, signal: AbortSignal.timeout(opts.timeout || 15000),
+    headers: { Authorization: `Bearer ${RCAPI.key}`, ...(opts.headers || {}) } });
+};
+const rcState = () => ({ tokenSet: !!RC.hash, lastPull: RC.lastPull, endpoint: (SITE_URL || "") + "/api/integrations/robocall/applications",
+                         api: { base: RCAPI.base, keySet: !!RCAPI.key } });
+app.post("/api/admin/settings/robocall/api", admin, adminOnly, async (req, res) => {
+  const base = String(req.body?.base || "").trim(), key = String(req.body?.key || "").trim();
+  if (base && !/^https?:\/\/[^\s/?#]+(:\d+)?\/?$/.test(base)) return bad(res, "Ünvan http(s)://host:port formasında olmalıdır, məs. http://172.17.0.1:4000");
+  if (key && key.length < 16) return bad(res, "API açarı çox qısadır.");
+  const set = (k, v) => v ? pool.query("INSERT INTO settings (key, value, updated_by) VALUES ($1,$2,$3) ON CONFLICT (key) DO UPDATE SET value = $2, updated_by = $3, updated_at = now()", [k, v, req.user.username])
+                          : pool.query("DELETE FROM settings WHERE key = $1", [k]);
+  await set("arzoomcall_api_base", base);
+  if (key || !base) await set("arzoomcall_api_key", base ? key : "");
+  RCAPI.base = base; if (key || !base) RCAPI.key = base ? key : "";
+  audit(req, req.user.username, "settings.robocall", base ? "API ünvanı və açarı" : "API söndürüldü");
+  res.json(rcState());
+});
 app.get("/api/admin/settings/robocall", admin, adminOnly, (_req, res) => res.json(rcState()));
 app.post("/api/admin/settings/robocall", admin, adminOnly, async (req, res) => {
   if (req.body?.clear) {
@@ -744,16 +769,48 @@ app.get("/api/admin/call-analytics", admin, can("analytics.view"), async (_req, 
   const { recent_calls, ...rest } = s;
   res.json({ ...rest, calls_total: (recent_calls || []).length });
 });
+// The bot hung up without recording a result; ArzoomCall inferred "other" afterwards. These customers need another call.
+const unrecorded = c => c.outcome === "other" && /^(Zəngdən avtomatik çıxarılıb|Bot zəng zamanı nəticəni qeyd etməyib)/.test(String(c.reason || ""));
 // The conversations of the snapshot (up to 90 days), filtered and paged (25 a page) on the server; phone numbers are not sent.
 app.get("/api/admin/call-analytics/calls", admin, can("analytics.view"), async (req, res) => {
   const all = (await loadCallStats())?.recent_calls || [];
   const q = String(req.query.q || "").trim().toLocaleLowerCase("az").slice(0, 80), outcome = String(req.query.outcome || ""), ans = String(req.query.answered || "");
   const per = 25, page = Math.max(1, parseInt(req.query.page, 10) || 1);
   const rows = all.filter(c => (!q || `${c.customer_name || ""} ${c.application_id || ""}`.toLocaleLowerCase("az").includes(q))
-    && (!outcome || c.outcome === outcome) && (ans === "" || !!c.answered === (ans === "1")));
+    && (outcome === "unrecorded" ? unrecorded(c) : !outcome || c.outcome === outcome) && (ans === "" || !!c.answered === (ans === "1")));
   const outcomes = [...new Map(all.filter(c => c.outcome).map(c => [c.outcome, c.outcome_label || c.outcome])).entries()].map(([outcome, label]) => ({ outcome, label }));
-  res.json({ total: rows.length, page, pages: Math.max(1, Math.ceil(rows.length / per)), outcomes,
+  res.json({ total: rows.length, page, pages: Math.max(1, Math.ceil(rows.length / per)), outcomes, unrecorded: all.filter(unrecorded).length,
              items: rows.slice((page - 1) * per, page * per).map(({ phone, ...c }) => c) });
+});
+// "Yenidən zəng et": ArzoomCall puts the customer back in its queue; the call starts within about a minute.
+app.post("/api/admin/applications/:id/requeue-call", admin, brandGate, can("apps.assess"), async (req, res) => {
+  const { rows } = await pool.query("SELECT id FROM applications WHERE id = $1", [req.params.id]);
+  if (!rows[0]) return bad(res, "Müraciət tapılmadı.", 404);
+  let r, body = {};
+  try {
+    r = await rcApi("/api/external/v1/arzoom/requeue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ application_id: req.params.id }) });
+    body = await r.json().catch(() => ({}));
+  } catch (e) { return bad(res, e.status ? e.message : "ArzoomCall cavab vermədi.", e.status || 502); }
+  const MSG = { 404: "ArzoomCall bu müraciəti tanımır.", 409: "Bu statusda və ya kampaniyasız müştəriyə zəng edilmir.", 401: "ArzoomCall API açarı yanlışdır.", 400: "Sorğu düzgün deyil." };
+  if (!r.ok) return bad(res, MSG[r.status] || `ArzoomCall xətası (${r.status}).`, r.status === 401 ? 502 : r.status >= 500 ? 502 : r.status);
+  await logEvent(pool, req.params.id, req.staff, "call_requeue", { queued: body.queued ?? null, note: body.note ? String(body.note).slice(0, 200) : null });
+  res.json({ ok: true, queued: body.queued ?? 0, note: body.note || null });
+});
+// A call recording, fetched from ArzoomCall on the server so the recording never needs a public address.
+app.get("/api/admin/call-analytics/calls/:callId/recording", admin, can("analytics.view"), async (req, res) => {
+  const id = String(req.params.callId);
+  if (!/^[\w-]{1,64}$/.test(id)) return bad(res, "Zəng tapılmadı.", 404);
+  let r;
+  try { r = await rcApi(`/api/external/v1/arzoom/recordings/${encodeURIComponent(id)}`, { timeout: 30000, headers: req.get("range") ? { Range: req.get("range") } : {} }); }
+  catch (e) { return bad(res, e.status ? e.message : "ArzoomCall cavab vermədi.", e.status || 502); }
+  if (r.status === 404) return bad(res, "Bu zəngin səs yazısı yoxdur.", 404);
+  if (!r.ok && r.status !== 206) return bad(res, `Səs yazısı alınmadı (${r.status}).`, 502);
+  const type = r.headers.get("content-type") || "";
+  if (!/^audio\//.test(type)) return bad(res, "Səs yazısı alınmadı.", 502);
+  res.status(r.status);
+  for (const h of ["content-type", "content-length", "content-range", "accept-ranges"]) if (r.headers.get(h)) res.set(h, r.headers.get(h));
+  audit(req, req.user.username, "call.recording", id);
+  require("stream").Readable.fromWeb(r.body).pipe(res);
 });
 app.get("/api/integrations/robocall/applications", rcAuth, async (req, res) => {
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 200, 1), 500);
@@ -1244,6 +1301,7 @@ async function start() {
   await loadSmsSettings();
   await loadWebhookSettings();
   await loadRobocallSettings();
+  await loadRcApi();
   Ocr.available().then(t => { if (!t.tesseract || !t.pdftotext) console.warn("Sənəd analizi üçün tesseract və poppler-utils quraşdırılmayıb."); });
   loadStock(); setInterval(loadStock, 15 * 60 * 1000).unref();
   // First start: the "admin" account gets ADMIN_TOKEN from .env as its password; change it after signing in.

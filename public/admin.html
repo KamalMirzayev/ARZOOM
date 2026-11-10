@@ -444,6 +444,7 @@ details.inq summary{cursor:pointer;font-weight:600;font-size:13px;margin-top:14p
 @media (max-width:1600px){.tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:1280px){.ugrid{grid-template-columns:1fr}.agrid .w2,.agrid .w3,.agrid .w4{grid-column:span 6}.akb-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:900px){.tiles{grid-template-columns:1fr 1fr}}
+.cacts{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
 </style>
 </head>
 <body>
@@ -606,7 +607,7 @@ document.addEventListener("dragleave",e=>{const z=e.target.closest?.("#docZone")
 document.addEventListener("drop",e=>{const z=e.target.closest?.("#docZone");if(!z)return;e.preventDefault();z.classList.remove("over");const k=e.dataTransfer.getData("text/plain");if(INFO_DOCS[k])addDoc({key:k,label:INFO_DOCS[k]})});
 const ROBO_RESULTS={wants_lower_monthly:"Aylıq ödənişi çox hesab edir",wants_lower_down:"İlkin ödənişdə endirim istəyir",wants_other_terms:"Başqa şərt istəyir (müddət, məbləğ)",transferred_to_sales:"Satış təmsilçisinə qoşuldu",agrees_will_visit:"Razıdır, salona gələcək",agrees_will_call:"Razıdır, özü zəng edəcək",thinking:"Düşünür",docs_will_send:"Sənədləri göndərəcək",docs_cannot:"Sənədləri təqdim edə bilmir",declined:"İmtina etdi",callback:"Yenidən zəng istədi",wrong_person:"Başqa şəxsdir",other:"Digər"};
 const CALL_RESULTS={agreed:"Razılaşdı",thinking:"Düşünür",callback:"Yenidən zəng ediləcək",docs:"Sənəd gətirəcək",verified:"Məlumatlar təsdiqləndi",mismatch:"Uyğunsuzluq aşkarlandı",no_answer:"Cavab vermədi",not_interested:"Maraqlanmır",wrong_number:"Nömrə səhvdir"};
-const EVENTS={partner_ref:"Partnyor ref nömrəsi əlavə edildi",webhook:"Partnyora bildiriş göndərildi",info_request:"Müştəridən əlavə məlumat istənildi",info_reply:"Müştəri əlavə məlumat göndərdi",bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",reoffer:"Müştəri başqa şərt istəyir: təkrar təklif",doc_analysis:"Gəlir sənədi avtomatik oxundu",rejected:"Müraciət rədd edildi",note:"Qeyd",
+const EVENTS={call_requeue:"ArzoomCall-a yenidən zəng sifariş edildi",partner_ref:"Partnyor ref nömrəsi əlavə edildi",webhook:"Partnyora bildiriş göndərildi",info_request:"Müştəridən əlavə məlumat istənildi",info_reply:"Müştəri əlavə məlumat göndərdi",bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",reoffer:"Müştəri başqa şərt istəyir: təkrar təklif",doc_analysis:"Gəlir sənədi avtomatik oxundu",rejected:"Müraciət rədd edildi",note:"Qeyd",
   accepted:"Müştəri son təklifi təsdiqlədi: anderraytinqə və satışa ötürüldü",declined:"Müştəri təklifdən imtina etdi",cancelled:"Müştəri müraciəti ləğv etdi",sms:"SMS"};
 const FILTERS=[["","Hamısı"],["review","Baxılır"],["info","Məlumat"],["offer","Təklif"],["reoffer","Təkrar təklif"],["accepted","Satış"],["rejected","Rədd"],["declined","İmtina"],["cancelled","Ləğv"]];
 
@@ -819,13 +820,24 @@ async function renderRc(st){
     <p style="margin:0">${st.tokenSet?`<span class="st sm s-accepted">Qoşulub</span> <span class="muted">${st.lastPull?"Son sorğu: "+dt(st.lastPull):"ArzoomCall hələ məlumat çəkməyib."}</span>`:`<span class="st sm s-rejected">Qoşulmayıb</span> <span class="muted">Robocall müraciətləri görmür.</span>`}</p>
     <label class="f">ArzoomCall-un İnteqrasiyalar səhifəsinə yazılacaq ünvan<input readonly value="${esc(st.endpoint)}" class="mono" data-sel></label>
     ${st.token?`<label class="f">Token (yalnız indi görünür, kopyalayıb ArzoomCall panelinə yazın)<input id="rcToken" readonly value="${esc(st.token)}" class="mono" data-sel></label>`:""}
-    <div class="pbar"><small class="muted">ArzoomCall bu ünvandan müraciətləri, statusu, təklif şərtlərini, istənilən sənədləri və son danışığın nəticəsini çəkir. Faiz dərəcəsi və komissiya göndərilmir, FİN gizlədilir.</small><span class="sp"></span>${st.tokenSet?`<button class="btn ghost sm" type="button" id="rcOff">Söndür</button>`:""}<button class="btn sm" type="button" id="rcGen">${st.tokenSet?"Yeni token yarat":"Token yarat"}</button></div>`;
+    <div class="pbar"><small class="muted">ArzoomCall bu ünvandan müraciətləri, statusu, təklif şərtlərini, istənilən sənədləri və son danışığın nəticəsini çəkir. Faiz dərəcəsi və komissiya göndərilmir, FİN gizlədilir.</small><span class="sp"></span>${st.tokenSet?`<button class="btn ghost sm" type="button" id="rcOff">Söndür</button>`:""}<button class="btn sm" type="button" id="rcGen">${st.tokenSet?"Yeni token yarat":"Token yarat"}</button></div>
+    <form id="rcApi" style="display:grid;gap:10px;border-top:1px solid var(--line);padding-top:12px" autocomplete="off">
+      <b style="font-size:13.5px">ARZOOM → ArzoomCall: yenidən zəng və səs yazıları</b>
+      <p style="margin:0;font-size:13px">${st.api?.base&&st.api?.keySet?`<span class="st sm s-accepted">Qoşulub</span> <span class="muted mono">${esc(st.api.base)}</span>`:`<span class="st sm s-rejected">Qoşulmayıb</span> <span class="muted">"Yenidən zəng et" və səs yazıları işləmir.</span>`}</p>
+      <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">
+        <label class="f">ArzoomCall API ünvanı<input id="rcBase" value="${esc(st.api?.base||"")}" placeholder="http://172.17.0.1:4000" spellcheck="false" class="mono"></label>
+        <label class="f">API açarı (Telefoniya → Xarici API girişi)<input id="rcKey" type="password" autocomplete="new-password" placeholder="${st.api?.keySet?"Saxlanılıb, dəyişmək üçün yenisini yaz":"ArzoomCall panelində yaradın"}"></label>
+      </div>
+      <div class="pbar"><small class="muted">Açar yalnız serverdə saxlanılır və ekranda bir daha göstərilmir.</small><span class="sp"></span><button class="btn sm" type="submit">Saxla</button></div>
+    </form>`;
 }
 document.addEventListener("focusin",e=>{if(e.target.matches?.("[data-sel]"))e.target.select()});
 document.addEventListener("click",async e=>{const b=e.target.closest?.("#rcGen,#rcOff");if(!b)return;
   if(b.id==="rcGen"&&b.textContent.startsWith("Yeni")&&!confirmInline(b,"Köhnə token işləməyəcək, təsdiqlə"))return;
   try{const st=await api("/settings/robocall",{method:"POST",body:JSON.stringify(b.id==="rcOff"?{clear:true}:{})});renderRc(st);
     toast(b.id==="rcOff"?"ArzoomCall inteqrasiyası söndürüldü":"Token yaradıldı, ArzoomCall panelinə yazın")}catch(err){toast(err.message)}});
+document.addEventListener("submit",async e=>{if(e.target.id!=="rcApi")return;e.preventDefault();
+  try{const st=await api("/settings/robocall/api",{method:"POST",body:JSON.stringify({base:$("#rcBase").value,key:$("#rcKey").value})});renderRc(st);toast("ArzoomCall API saxlanıldı")}catch(err){toast(err.message)}});
 // Partner webhook: the final credit result of applications that came with a ref number is posted here.
 async function renderWh(st){
   const box=$("#whBox");if(!box)return;
@@ -849,7 +861,7 @@ document.addEventListener("click",async e=>{if(e.target.id!=="whOff")return;
 document.addEventListener("change",async e=>{const c=e.target.closest("[data-ubrand]");if(!c)return;const id=c.dataset.ubrand;
   const brands=[...document.querySelectorAll(`[data-ubrand="${id}"]:checked`)].map(i=>i.value);
   try{await api("/users/"+id,{method:"POST",body:JSON.stringify({brands})});toast(brands.length?"Markalar: "+brands.join(", "):"Bütün markalar")}catch(err){toast(err.message)}renderUsers()});
-const AUDIT={"apps.partner_ref":"Partnyor ref nömrəsi əlavə etdi","apps.export":"Excel-ə çıxardı","settings.sms":"SMS ayarını dəyişdi","settings.webhook":"Webhook ayarını dəyişdi","settings.robocall":"ArzoomCall inteqrasiyasını dəyişdi","settings.ai":"Sənəd analizi açarını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
+const AUDIT={"apps.partner_ref":"Partnyor ref nömrəsi əlavə etdi","apps.export":"Excel-ə çıxardı","settings.sms":"SMS ayarını dəyişdi","settings.webhook":"Webhook ayarını dəyişdi","settings.robocall":"ArzoomCall inteqrasiyasını dəyişdi","call.recording":"Zəng yazısına qulaq asdı","settings.ai":"Sənəd analizi açarını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
   "user.update":"İstifadəçini dəyişdi","file.view":"Sənədə baxdı","app.delete":"Müraciəti sildi"};
 $("#usersBtn").onclick=renderUsers;
 // Excel: downloads what the list shows now (status filter and search), all rows, not only the first 500.
@@ -925,7 +937,7 @@ $("#period").addEventListener("click",e=>{const b=e.target.closest("[data-period
   try{localStorage.setItem("arzoom-period",period)}catch(e){}
   if(query){query="";$("#q").value=""}loadList().catch(err=>toast(err.message))});
 let qT;$("#q").addEventListener("input",e=>{clearTimeout(qT);qT=setTimeout(()=>{query=e.target.value.trim();seenTotal=null;loadList().catch(err=>toast(err.message))},250)});
-$("#list").addEventListener("click",e=>{const b=e.target.closest("[data-id]");if(b)openApp(b.dataset.id)});
+$("#list").addEventListener("click",e=>{const b=e.target.closest("[data-id]");if(b){backToCalls=false;openApp(b.dataset.id)}});
 
 /* ---------- overview ---------- */
 async function renderHome(){
@@ -1014,12 +1026,12 @@ function callRow(a){
   return `<div class="callrow"><span class="ci">${IC_PHONE}</span>
     <div class="cm"><b>ArzoomCall</b><span>${label?`<b class="${last&&!last.answered?"muted":""}">${esc(label)}</b>`:""}</span>
       <span class="muted">son zəng ${dt(when)}${last?.answered&&last.duration_seconds?` · ${secs(last.duration_seconds)}`:""}${calls.length?` · ${calls.length} zəng, ${ans} cavab`:` · ${notes.length} nəticə`}</span></div>
-    ${has("analytics.view")?`<a href="#" class="cl" data-gocalls>Zəng analitikası →</a>`:"<span></span>"}
+    <span class="cl">${last?.has_recording?`<button type="button" class="btn ghost sm" data-play="${esc(last.id)}">▶ Dinlə</button> `:""}${has("apps.assess")?`<button type="button" class="btn ghost sm" data-requeue="${esc(a.id)}">Yenidən zəng et</button> `:""}${has("analytics.view")?`<a href="#" data-gocalls>Zəng analitikası →</a>`:""}</span>
     ${text?`<div class="ct" title="${esc(text)}">${esc(text)}</div>`:""}
     ${calls.length>1?`<details style="grid-column:2/-1"><summary class="muted" style="cursor:pointer;font-size:12.5px">Bütün zənglər (${calls.length})</summary><div style="margin-top:6px">${callTable(calls)}</div></details>`:""}</div>`;
 }
 const IC_PHONE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>';
-document.addEventListener("click",e=>{if(e.target.closest("[data-gocalls]")){e.preventDefault();renderCalls()}});
+document.addEventListener("click",e=>{if(e.target.closest("[data-gocalls]")){e.preventDefault();if(backToCalls)$("#detail").dataset.page="calls";backToCalls=false;renderCalls()}});
 // ArzoomCall call analytics: the latest snapshot ArzoomCall pushed, refreshed every 45 s while this page is open.
 let cPeriod="today";
 const C_FAIL={no_answer:"Cavab vermədi",busy:"Məşğul",congestion:"Xətt yüklüdür",stale:"Zəng yarımçıq qaldı",unknown:"Naməlum",other:"Digər"};
@@ -1037,11 +1049,12 @@ function callBars(rows,lab,aria){
   </svg>`;
 }
 async function renderCalls(quiet){
-  if(!quiet){cur=null;$("#detail").dataset.page="calls";renderList();$("#shell").classList.add("open");
+  if(!quiet){if($("#detail").dataset.page!=="calls")callsPrev=cur?.id||null;cur=null;$("#detail").dataset.page="calls";renderList();$("#shell").classList.add("open");
     $("#homeBtn").setAttribute("aria-pressed","false");$("#analyticsBtn").setAttribute("aria-pressed","false");$("#callsBtn").setAttribute("aria-pressed","true")}
   let d;try{d=await api("/call-analytics")}catch(e){if(!quiet)toast(e.message);return}
   if($("#detail").dataset.page!=="calls")return;
-  const head=`<div class="welcome"><div><span class="eyebrow">ArzoomCall</span><h2>Zəng analitikası</h2></div>
+  const head=`<button type="button" class="btn ghost sm" id="callsBack" style="margin-bottom:12px">← ${callsPrev?"№ "+esc(callsPrev):"Geri"}</button>
+  <div class="welcome"><div><span class="eyebrow">ArzoomCall</span><h2>Zəng analitikası</h2></div>
     <div class="seg" role="group" aria-label="Dövr">${[["today","Bu gün"],["week","7 gün"],["month","30 gün"]].map(([k,t])=>`<button type="button" data-cper="${k}" aria-pressed="${cPeriod===k}">${t}</button>`).join("")}</div></div>`;
   if(d.empty||!d.periods){$("#detail").innerHTML=head+`<section class="panel"><p class="muted" style="margin:0">ArzoomCall hələ məlumat göndərməyib. Zənglər başlayandan sonra burada avtomatik görünəcək.</p></section>`;return}
   const p=d.periods[cPeriod]||d.periods.today||Object.values(d.periods)[0]||{},k=p.kpi||{};
@@ -1075,24 +1088,44 @@ async function renderCalls(quiet){
     <section class="panel w6" id="cList">${ph("doc","Danışıqlar",`<span class="muted" style="font-size:12.5px">son 90 gün · ${d.calls_total||0} zəng</span>`)}
       <div class="pbar" style="margin-bottom:10px"><input id="cq" type="search" placeholder="Müştəri adı və ya müraciət nömrəsi" value="${esc(cF.q)}" style="flex:1;min-width:180px">
         <select id="cAns" style="width:auto"><option value="">Hamısı</option><option value="1" ${cF.answered==="1"?"selected":""}>Cavab verilən</option><option value="0" ${cF.answered==="0"?"selected":""}>Cavabsız</option></select>
-        <select id="cOut" style="width:auto"><option value="">Bütün nəticələr</option></select></div>
+        <select id="cOut" style="width:auto"><option value="">Bütün nəticələr</option><option value="unrecorded" ${cF.outcome==="unrecorded"?"selected":""}>Nəticə qeyd olunmayıb</option></select></div>
       <div id="cRows"><p class="muted" style="margin:0">Yüklənir…</p></div></section>
   </div>`;
   tipOn($("#charts"));
   loadCalls();
 }
+let callsPrev=null,backToCalls=false;
+document.addEventListener("click",e=>{if(e.target.closest("#callsBack")){const id=callsPrev;callsPrev=null;
+  if(id)openApp(id);else{$("#shell").classList.remove("open");cur=null;renderList();renderHome()}}});
 // Conversations: 25 per page, searched and filtered on the server.
 let cF={q:"",answered:"",outcome:"",page:1},cT;
 const callTable=calls=>`<div style="overflow:auto"><table class="dtable ctable"><thead><tr><th>Vaxt</th><th>Müştəri</th><th>Nəticə</th><th>Danışığın analizi</th><th class="n">Müddət</th></tr></thead>
   <tbody>${calls.map(c=>`<tr><td class="mono" style="white-space:nowrap">${dt(c.created_at)}</td>
     <td style="min-width:150px">${esc(c.customer_name||"—")}${c.application_id?`<br><a href="#" data-capp="${esc(c.application_id)}" class="mono">№ ${esc(c.application_id)}</a>`:""}${c.application_status?` <small class="muted">${esc(RC_ST[c.application_status]||c.application_status)}</small>`:""}</td>
     <td style="min-width:150px">${c.answered?esc(c.outcome_label||ROBO_RESULTS[c.outcome]||c.outcome||"Cavab verildi"):`<span class="muted">${esc(C_FAIL[c.last_error]||c.last_error||c.status||"Cavabsız")}</span>`}</td>
-    <td style="min-width:260px;max-width:520px">${esc(c.reason||c.summary||"")||`<span class="muted">—</span>`}</td>
+    <td style="min-width:260px;max-width:520px">${esc(c.reason||c.summary||"")||`<span class="muted">—</span>`}${callActs(c)?`<div class="cacts">${callActs(c)}</div>`:""}</td>
     <td class="n mono" style="white-space:nowrap">${c.answered?secs(c.duration_seconds):"—"}</td></tr>`).join("")}</tbody></table></div>`;
+// Per call: play the recording (fetched through ARZOOM) and ask ArzoomCall to call the customer again.
+const callActs=c=>(c.has_recording?`<button type="button" class="btn ghost sm" data-play="${esc(c.id)}">▶ Dinlə</button>`:"")+
+  (c.application_id&&has("apps.assess")?` <button type="button" class="btn ghost sm" data-requeue="${esc(c.application_id)}">Yenidən zəng et</button>`:"");
+document.addEventListener("click",async e=>{
+  const p=e.target.closest("[data-play]");
+  if(p){p.disabled=true;p.textContent="Yüklənir…";
+    try{const r=await fetch(`/api/admin/call-analytics/calls/${encodeURIComponent(p.dataset.play)}/recording`,{headers:{"x-admin-token":token}});
+      if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||"Səs yazısı açılmadı.")}
+      const url=URL.createObjectURL(await r.blob()),au=document.createElement("audio");au.controls=true;au.autoplay=true;au.src=url;au.style.cssText="width:280px;max-width:100%;height:34px";
+      p.replaceWith(au)}catch(err){toast(err.message);p.disabled=false;p.textContent="▶ Dinlə"}}
+  const q=e.target.closest("[data-requeue]");
+  if(q){if(!confirmInline(q,"Təsdiqlə: zəng edilsin"))return;q.disabled=true;
+    try{const r=await api(`/applications/${encodeURIComponent(q.dataset.requeue)}/requeue-call`,{method:"POST",body:"{}"});
+      q.textContent=r.queued?"Növbəyə qoyuldu":"Zəng artıq gedir";toast(r.queued?"ArzoomCall təxminən 1 dəqiqəyə zəng edəcək":(r.note||"Bu müştəri ilə zəng artıq davam edir"))}
+    catch(err){toast(err.message);q.disabled=false;q.textContent="Yenidən zəng et"}}
+});
 async function loadCalls(){
   const box=$("#cRows");if(!box)return;
   let r;try{r=await api(`/call-analytics/calls?page=${cF.page}&q=${encodeURIComponent(cF.q)}&answered=${cF.answered}&outcome=${encodeURIComponent(cF.outcome)}`)}catch(e){box.innerHTML=`<p class="muted" style="margin:0">${esc(e.message)}</p>`;return}
-  const sel=$("#cOut");if(sel&&sel.options.length<=1)sel.insertAdjacentHTML("beforeend",r.outcomes.map(o=>`<option value="${esc(o.outcome)}" ${cF.outcome===o.outcome?"selected":""}>${esc(o.label)}</option>`).join(""));
+  const uo=$("#cOut")?.querySelector('[value="unrecorded"]');if(uo)uo.textContent=`Nəticə qeyd olunmayıb (${r.unrecorded})`;
+  const sel=$("#cOut");if(sel&&sel.options.length<=2)sel.insertAdjacentHTML("beforeend",r.outcomes.map(o=>`<option value="${esc(o.outcome)}" ${cF.outcome===o.outcome?"selected":""}>${esc(o.label)}</option>`).join(""));
   box.innerHTML=(r.items.length?callTable(r.items):`<p class="muted" style="margin:0">Bu filtrdə danışıq yoxdur.</p>`)+
     (r.pages>1?`<div class="pbar" style="margin-top:10px"><small class="muted">${r.total} danışıq · səhifə ${r.page}/${r.pages}</small><span class="sp"></span><button type="button" class="btn ghost sm" data-cpg="${r.page-1}" ${r.page<=1?"disabled":""}>← Əvvəlki</button><button type="button" class="btn ghost sm" data-cpg="${r.page+1}" ${r.page>=r.pages?"disabled":""}>Növbəti →</button></div>`:"");
 }
@@ -1101,7 +1134,7 @@ document.addEventListener("change",e=>{if(e.target.id==="cAns"||e.target.id==="c
 document.addEventListener("click",e=>{const b=e.target.closest("[data-cpg]");if(b){cF.page=+b.dataset.cpg;loadCalls();$("#cList")?.scrollIntoView({block:"start"})}});
 const RC_ST={review:"Baxılır",info:"Məlumat",offer:"Təklif",reoffer:"Təkrar təklif",rejected:"Rədd",accepted:"Satış",declined:"İmtina",cancelled:"Ləğv"};
 document.addEventListener("click",e=>{const b=e.target.closest("[data-cper]");if(b){cPeriod=b.dataset.cper;renderCalls()}
-  const a=e.target.closest("[data-capp]");if(a){e.preventDefault();openApp(a.dataset.capp)}});
+  const a=e.target.closest("[data-capp]");if(a){e.preventDefault();backToCalls=true;openApp(a.dataset.capp)}});
 setInterval(()=>{if(token&&!$("#app").hidden&&$("#detail").dataset.page==="calls"&&!document.hidden&&!$("#cList")?.contains(document.activeElement))renderCalls(true)},45000);
 async function renderAnalytics(){
   cur=null;$("#detail").dataset.page="analytics";renderList();$("#shell").classList.add("open");
@@ -1203,7 +1236,7 @@ function renderDetail(){
   const price=o?.price??a.assessment?.inputs?.price;
   $("#detail").dataset.page="";
   $("#detail").innerHTML=`
-  <button type="button" class="btn ghost sm back" id="back" style="margin-bottom:12px">← Siyahı</button>
+  ${backToCalls?`<button type="button" class="btn ghost sm" data-gocalls style="margin:0 8px 12px 0">← Zəng analitikası</button>`:""}<button type="button" class="btn ghost sm back" id="back" style="margin-bottom:12px">← Siyahı</button>
   <section class="panel hero">
     <div class="top">
       <div><span class="eyebrow">Müraciət nömrəsi</span><h2 class="appno">№ ${a.id} <button type="button" class="btn ghost sm" data-copy="${a.id}">Kopyala</button></h2><div class="car2">${esc(a.brand)} ${esc(a.model)}${a.car_price!=null?` · <b>${azn(+a.car_price)}</b>`:""}</div>

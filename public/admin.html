@@ -194,9 +194,10 @@ main{padding:26px clamp(18px,2.4vw,34px) 40px;min-width:0;max-width:1240px}
 .callrow .ci svg{width:17px;height:17px}
 .callrow .cm{font-size:13px;display:flex;gap:6px 12px;flex-wrap:wrap;align-items:baseline}
 .callrow .cm b{font-size:14px}
-.callrow .ct{grid-column:2/-1;font-size:13px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.callrow .cl{font-size:12.5px;white-space:nowrap}
-@media (max-width:900px){.callrow{grid-template-columns:auto minmax(0,1fr)}.callrow .cl{grid-column:2}}
+.callrow .ct{grid-column:2;font-size:13px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.callrow .cl{grid-column:3;grid-row:1/span 2;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.callrow .cl .btn{white-space:nowrap}
+@media (max-width:900px){.callrow{grid-template-columns:auto minmax(0,1fr)}.callrow .ct{grid-row:2}.callrow details{grid-row:3}.callrow .cl{grid-column:1/-1;grid-row:4;flex-wrap:nowrap;margin-top:8px}.callrow .cl .btn{flex:1 1 0;justify-content:center;padding-inline:8px}}
 .steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;list-style:none;margin:0;padding:0;counter-reset:s}
 .steps li{position:relative;display:grid;justify-items:center;text-align:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted)}
 .steps li::before{content:"";position:absolute;top:13px;left:calc(-50% + 16px);right:calc(50% + 16px);height:2px;background:var(--line-2)}
@@ -1029,7 +1030,7 @@ function callRow(a){
   return `<div class="callrow"><span class="ci">${IC_PHONE}</span>
     <div class="cm"><b>ArzoomCall</b><span>${label?`<b class="${last&&!last.answered?"muted":""}">${esc(label)}</b>`:""}</span>
       <span class="muted">son zəng ${dt(when)}${last?.answered&&last.duration_seconds?` · ${secs(last.duration_seconds)}`:""}${calls.length?` · ${calls.length} zəng, ${ans} cavab`:` · ${notes.length} nəticə`}</span></div>
-    <span class="cl">${latest?.has_recording?`<button type="button" class="btn ghost sm" data-play="${esc(latest.id)}">▶ Dinlə</button> `:""}${has("apps.assess")?`<button type="button" class="btn ghost sm" data-requeue="${esc(a.id)}">Yenidən zəng et</button> `:""}${has("analytics.view")?`<a href="#" data-gocalls>Zəng analitikası →</a>`:""}</span>
+    <span class="cl">${latest?.has_recording?`<button type="button" class="btn ghost sm" data-play="${esc(latest.id)}">▶ Dinlə</button>`:""}${has("apps.assess")?`<button type="button" class="btn ghost sm" data-requeue="${esc(a.id)}">Yenidən zəng et</button>`:""}${has("analytics.view")?`<button type="button" class="btn ghost sm" data-gocalls>Zəng analitikası →</button>`:""}</span>
     ${text?`<div class="ct" title="${esc(text)}">${esc(text)}</div>`:""}
     ${calls.length>1?`<details style="grid-column:2/-1"><summary class="muted" style="cursor:pointer;font-size:12.5px">Bütün zənglər (${calls.length})</summary><div style="margin-top:6px">${callTable(calls)}</div></details>`:""}</div>`;
 }

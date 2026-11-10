@@ -269,6 +269,17 @@ node -e 'const {Client}=require("pg"),db=new Client({connectionString:process.en
 curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$RCU/$RLIVE/feedback" -d '{"feedback_id":"'"$FBID"'-cx","outcome":"wants_lower_down","reason":"İlkin ödəniş 10% olsa"}' | grep -q '"reoffer":true' || fail
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$RLIVE" | J status)" = reoffer ] || fail
 echo "✓ təkrar təklif: robocall narazılığı (imtina və ləğv edənlərdə də) müraciəti geri qaytarır, yeni təklif göndərilir"
+# ArzoomCall analytics: a large snapshot with the token is stored (newest only) and shown to staff with analytics access
+CA="$B/api/integrations/robocall/analytics"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Content-Type: application/json" "$CA" -d '{"periods":{"today":{}}}')" = 401 ] || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$CA" -d '{"x":1}')" = 400 ] || fail
+node -e 'const calls=Array.from({length:120},(_,i)=>({id:i,created_at:new Date().toISOString(),answered:true,duration_seconds:60,outcome:"thinking",summary:"x".repeat(1500)}));
+  process.stdout.write(JSON.stringify({source:"arzoomcall",generated_at:new Date().toISOString(),periods:{today:{kpi:{attempts:5,answered:3}},week:{kpi:{attempts:40,answered:22}}},recent_calls:calls}))' > "$TMP/ca.json"
+curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$CA" --data-binary @"$TMP/ca.json" | grep -q '"ok":true' || fail
+curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$CA" -d '{"periods":{"today":{"kpi":{"attempts":7,"answered":4}}},"recent_calls":[{"id":1}]}' >/dev/null || fail
+CAG=$(curl -fsS "${H[@]}" "$B/api/admin/call-analytics")
+echo "$CAG" | grep -q '"attempts":7' && ! echo "$CAG" | grep -q '"attempts":40' || fail
+echo "✓ ArzoomCall zəng analitikası: token ilə qəbul olunur, yalnız ən son snapshot saxlanılır, paneldə görünür"
 curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/robocall" -d '{"clear":true}' >/dev/null || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-integration-token: $RCT" "$RCU")" = 401 ] || fail
 echo "✓ robocall inteqrasiyası: token, səhifələmə, faizsiz, silinmişlər, zəng nəticəsi bir dəfə yazılır"

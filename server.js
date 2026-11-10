@@ -88,7 +88,9 @@ app.use(helmet({
   hsts: false // Caddy sets HSTS on HTTPS responses
 }));
 app.use((req, res, next) => { if (req.path.startsWith("/api/")) res.set("Cache-Control", "no-store"); next(); });
-app.use(express.json({ limit: "100kb" }));
+// ArzoomCall's analytics snapshot carries up to 100 recent calls with summaries, so that one path takes a larger body.
+const jsonSmall = express.json({ limit: "100kb" }), jsonLarge = express.json({ limit: "3mb" });
+app.use((req, res, next) => (req.path === "/api/integrations/robocall/analytics" ? jsonLarge : jsonSmall)(req, res, next));
 
 const sha = s => crypto.createHash("sha256").update(s).digest("hex");
 const otpHash = (phone, code) => crypto.createHmac("sha256", OTP_KEY).update(`${phone}:${code}`).digest("hex");
@@ -705,6 +707,31 @@ app.post("/api/integrations/robocall/applications/:id/feedback", rcAuth, async (
     if (u.rowCount) { reoffer = true; await logEvent(pool, req.params.id, "ArzoomCall", "reoffer", request); }
   }
   res.json({ ok: true, duplicate: !ins.rowCount, reoffer });
+});
+// Call analytics from ArzoomCall: a full snapshot after every call and every 5 minutes; only the newest is kept.
+let callStats = null;
+async function loadCallStats() {
+  if (callStats) return callStats;
+  const { rows } = await pool.query("SELECT value, updated_at FROM settings WHERE key = 'arzoomcall_analytics'");
+  if (rows[0]) try { callStats = { ...JSON.parse(rows[0].value), received_at: rows[0].updated_at }; } catch { callStats = null; }
+  return callStats;
+}
+const PERIOD_KEYS = ["today", "week", "month"];
+app.post("/api/integrations/robocall/analytics", rcAuth, async (req, res) => {
+  const b = req.body || {};
+  if (!b.periods || typeof b.periods !== "object" || !PERIOD_KEYS.some(k => b.periods[k] && typeof b.periods[k] === "object"))
+    return bad(res, "periods lazımdır.");
+  const snap = { source: "arzoomcall", generated_at: !isNaN(Date.parse(b.generated_at)) ? new Date(b.generated_at).toISOString() : new Date().toISOString(),
+                 periods: Object.fromEntries(PERIOD_KEYS.filter(k => b.periods[k]).map(k => [k, b.periods[k]])),
+                 recent_calls: Array.isArray(b.recent_calls) ? b.recent_calls.slice(0, 100) : [] };
+  const value = JSON.stringify(snap);
+  await pool.query(`INSERT INTO settings (key, value, updated_by) VALUES ('arzoomcall_analytics', $1, 'ArzoomCall')
+                    ON CONFLICT (key) DO UPDATE SET value = $1, updated_by = 'ArzoomCall', updated_at = now()`, [value]);
+  callStats = { ...snap, received_at: new Date().toISOString() };
+  res.json({ ok: true });
+});
+app.get("/api/admin/call-analytics", admin, can("analytics.view"), async (_req, res) => {
+  res.json((await loadCallStats()) || { empty: true });
 });
 app.get("/api/integrations/robocall/applications", rcAuth, async (req, res) => {
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 200, 1), 500);

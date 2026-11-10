@@ -92,6 +92,14 @@ app.use((req, res, next) => { if (req.path.startsWith("/api/")) res.set("Cache-C
 const jsonSmall = express.json({ limit: "100kb" }), jsonLarge = express.json({ limit: "3mb" });
 app.use((req, res, next) => (req.path === "/api/integrations/robocall/analytics" ? jsonLarge : jsonSmall)(req, res, next));
 
+// Browsers send multipart file names as UTF-8, multer reads them as Latin-1 ("Ã§Ä±xarÄ±Å"): decode them back.
+// Names with characters above U+00FF are already right; Latin-1 bytes that are not valid UTF-8 stay as they are.
+function fixName(n) {
+  n = String(n || "");
+  if (!/[\u0080-\u00ff]/.test(n) || /[^\u0000-\u00ff]/.test(n)) return n;
+  const u = Buffer.from(n, "latin1").toString("utf8");
+  return u.includes("\ufffd") ? n : u;
+}
 const sha = s => crypto.createHash("sha256").update(s).digest("hex");
 const otpHash = (phone, code) => crypto.createHmac("sha256", OTP_KEY).update(`${phone}:${code}`).digest("hex");
 const sameHex = (a, b) => a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
@@ -283,7 +291,7 @@ app.post("/api/applications", submitLimit, upload.any(), async (req, res) => {
       if (!INCOME.includes(src)) continue;
       await client.query(
         `INSERT INTO application_files (application_id, income_source, original_name, stored_name, mime, size_bytes) VALUES ($1,$2,$3,$4,$5,$6)`,
-        [id, src, f.originalname.slice(0, 200), f.filename, sniff(f.path), f.size]
+        [id, src, fixName(f.originalname).slice(0, 200), f.filename, sniff(f.path), f.size]
       );
     }
     const token = await issueToken(client, id);
@@ -361,7 +369,7 @@ app.post("/api/applications/:id/info", lookupLimit, upload.any(), async (req, re
       const label = f.fieldname === "file_extra" ? null : asked[+f.fieldname.slice(6)]?.label || null;
       await client.query(
         `INSERT INTO application_files (application_id, income_source, original_name, stored_name, mime, size_bytes, doc_label) VALUES ($1,'extra',$2,$3,$4,$5,$6)`,
-        [req.params.id, f.originalname.slice(0, 200), f.filename, sniff(f.path), f.size, label]);
+        [req.params.id, fixName(f.originalname).slice(0, 200), f.filename, sniff(f.path), f.size, label]);
     }
     await logEvent(client, req.params.id, "Müştəri", "info_reply", { text, files: files.length });
     await client.query("COMMIT");
@@ -655,7 +663,7 @@ app.post("/api/admin/applications/:id/files/:fileId/analyze", admin, brandGate, 
     const analysis = { ...result, at: new Date().toISOString(), by: req.staff };
     await pool.query("UPDATE application_files SET analysis = $2 WHERE id = $1", [f.id, analysis]);
     await logEvent(pool, req.params.id, req.staff, "doc_analysis",
-      { file: f.original_name, doc: result.doc_type_label, avg: result.avg_monthly_net, flags: result.red_flags.length });
+      { file: fixName(f.original_name), doc: result.doc_type_label, avg: result.avg_monthly_net, flags: result.red_flags.length });
     res.json(analysis);
   } catch (e) {
     if (!e.status) console.error("Sənəd analizi xətası:", e.message);
@@ -723,7 +731,7 @@ app.post("/api/integrations/robocall/analytics", rcAuth, async (req, res) => {
     return bad(res, "periods lazımdır.");
   const snap = { source: "arzoomcall", generated_at: !isNaN(Date.parse(b.generated_at)) ? new Date(b.generated_at).toISOString() : new Date().toISOString(),
                  periods: Object.fromEntries(PERIOD_KEYS.filter(k => b.periods[k]).map(k => [k, b.periods[k]])),
-                 recent_calls: Array.isArray(b.recent_calls) ? b.recent_calls.slice(0, 100) : [] };
+                 recent_calls: Array.isArray(b.recent_calls) ? b.recent_calls.filter(c => c && typeof c === "object").slice(0, 1000) : [] };
   const value = JSON.stringify(snap);
   await pool.query(`INSERT INTO settings (key, value, updated_by) VALUES ('arzoomcall_analytics', $1, 'ArzoomCall')
                     ON CONFLICT (key) DO UPDATE SET value = $1, updated_by = 'ArzoomCall', updated_at = now()`, [value]);
@@ -731,7 +739,21 @@ app.post("/api/integrations/robocall/analytics", rcAuth, async (req, res) => {
   res.json({ ok: true });
 });
 app.get("/api/admin/call-analytics", admin, can("analytics.view"), async (_req, res) => {
-  res.json((await loadCallStats()) || { empty: true });
+  const s = await loadCallStats();
+  if (!s) return res.json({ empty: true });
+  const { recent_calls, ...rest } = s;
+  res.json({ ...rest, calls_total: (recent_calls || []).length });
+});
+// The conversations of the snapshot (up to 90 days), filtered and paged (25 a page) on the server; phone numbers are not sent.
+app.get("/api/admin/call-analytics/calls", admin, can("analytics.view"), async (req, res) => {
+  const all = (await loadCallStats())?.recent_calls || [];
+  const q = String(req.query.q || "").trim().toLocaleLowerCase("az").slice(0, 80), outcome = String(req.query.outcome || ""), ans = String(req.query.answered || "");
+  const per = 25, page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const rows = all.filter(c => (!q || `${c.customer_name || ""} ${c.application_id || ""}`.toLocaleLowerCase("az").includes(q))
+    && (!outcome || c.outcome === outcome) && (ans === "" || !!c.answered === (ans === "1")));
+  const outcomes = [...new Map(all.filter(c => c.outcome).map(c => [c.outcome, c.outcome_label || c.outcome])).entries()].map(([outcome, label]) => ({ outcome, label }));
+  res.json({ total: rows.length, page, pages: Math.max(1, Math.ceil(rows.length / per)), outcomes,
+             items: rows.slice((page - 1) * per, page * per).map(({ phone, ...c }) => c) });
 });
 app.get("/api/integrations/robocall/applications", rcAuth, async (req, res) => {
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 200, 1), 500);
@@ -923,7 +945,10 @@ app.get("/api/admin/applications/:id", admin, brandGate, async (req, res) => {
   const files = await pool.query("SELECT * FROM application_files WHERE application_id = $1 ORDER BY id", [req.params.id]);
   const events = await pool.query("SELECT * FROM application_events WHERE application_id = $1 ORDER BY at, id", [req.params.id]);
   const { bureau_xml, ...app } = rows[0];
-  res.json({ ...app, has_bureau_xml: !!bureau_xml, files: files.rows, events: events.rows });
+  // ArzoomCall calls for this application from the latest analytics snapshot (no phone numbers)
+  const calls = ((await loadCallStats())?.recent_calls || []).filter(c => c && c.application_id === app.id).slice(0, 50)
+    .map(({ phone, ...c }) => c);
+  res.json({ ...app, has_bureau_xml: !!bureau_xml, files: files.rows.map(f => ({ ...f, original_name: fixName(f.original_name) })), events: events.rows, calls });
 });
 
 // Saves the analyst's inputs; the score is always recomputed on the server.
@@ -1187,7 +1212,7 @@ app.get("/api/admin/files/:stored", admin, can("docs.view"), async (req, res) =>
   res.type(safe ? rows[0].mime : "application/octet-stream");
   // A file is shown on its own, in a sandbox, never able to run script in the panel's origin.
   res.set("Content-Security-Policy", "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox");
-  res.set("Content-Disposition", `${safe ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(rows[0].original_name)}`);
+  res.set("Content-Disposition", `${safe ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(fixName(rows[0].original_name))}`);
   audit(req, req.user.username, "file.view", `${rows[0].application_id} · ${rows[0].original_name}`);
   res.sendFile(path.join(UPLOAD_DIR, f), err => err && !res.headersSent && bad(res, "Fayl tapılmadı.", 404));
 });

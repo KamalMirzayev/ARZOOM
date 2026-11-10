@@ -273,9 +273,14 @@ echo "✓ təkrar təklif: robocall narazılığı (imtina və ləğv edənlərd
 CA="$B/api/integrations/robocall/analytics"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Content-Type: application/json" "$CA" -d '{"periods":{"today":{}}}')" = 401 ] || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$CA" -d '{"x":1}')" = 400 ] || fail
-node -e 'const calls=Array.from({length:120},(_,i)=>({id:i,created_at:new Date().toISOString(),answered:true,duration_seconds:60,outcome:"thinking",summary:"x".repeat(1500)}));
+node -e 'const calls=Array.from({length:1000},(_,i)=>({id:i,created_at:new Date().toISOString(),phone:"+994500000000",answered:i%3>0,duration_seconds:60,outcome:i%2?"thinking":"declined",customer_name:i===7?"Səbinə Test":"X",summary:"x".repeat(800)}));
   process.stdout.write(JSON.stringify({source:"arzoomcall",generated_at:new Date().toISOString(),periods:{today:{kpi:{attempts:5,answered:3}},week:{kpi:{attempts:40,answered:22}}},recent_calls:calls}))' > "$TMP/ca.json"
 curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$CA" --data-binary @"$TMP/ca.json" | grep -q '"ok":true' || fail
+CL=$(curl -fsS "${H[@]}" "$B/api/admin/call-analytics/calls?page=40")
+echo "$CL" | grep -q '"total":1000,"page":40,"pages":40' && ! echo "$CL" | grep -q '+99450' || fail
+curl -fsS "${H[@]}" "$B/api/admin/call-analytics/calls?q=s%C9%99bin%C9%99" | grep -q '"total":1,' || fail
+curl -fsS "${H[@]}" "$B/api/admin/call-analytics/calls?answered=0&outcome=declined" | grep -q '"total":167,' || fail
+curl -fsS "${H[@]}" "$B/api/admin/call-analytics" | grep -q '"calls_total":1000' || fail
 curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$CA" -d '{"periods":{"today":{"kpi":{"attempts":7,"answered":4}}},"recent_calls":[{"id":1}]}' >/dev/null || fail
 CAG=$(curl -fsS "${H[@]}" "$B/api/admin/call-analytics")
 echo "$CAG" | grep -q '"attempts":7' && ! echo "$CAG" | grep -q '"attempts":40' || fail

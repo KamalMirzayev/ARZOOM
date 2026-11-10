@@ -301,6 +301,11 @@ curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/j
 CAG=$(curl -fsS "${H[@]}" "$B/api/admin/call-analytics")
 echo "$CAG" | grep -q '"attempts":7' && ! echo "$CAG" | grep -q '"attempts":40' || fail
 echo "✓ ArzoomCall zəng analitikası: token ilə qəbul olunur, yalnız ən son snapshot saxlanılır, paneldə görünür"
+# Security: malformed robocall cursors are refused (not 500); bad session keys never block signed-in staff or sign-in
+[ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-integration-token: $RCT" --get --data-urlencode "since=' OR '1'='1" "$RCU")" = 400 ] || fail
+for i in $(seq 1 15); do curl -s -o /dev/null -H "x-admin-token: forged-key-0123456789abcdef" "$B/api/admin/me"; done
+[ "$(curl -s -o /dev/null -w '%{http_code}' "${H[@]}" "$B/api/admin/me")" = 200 ] || fail
+echo "✓ təhlükəsizlik: səhv kursor 400 qaytarır, saxta açarlar işçiləri bloklamır"
 curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/robocall" -d '{"clear":true}' >/dev/null || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-integration-token: $RCT" "$RCU")" = 401 ] || fail
 echo "✓ robocall inteqrasiyası: token, səhifələmə, faizsiz, silinmişlər, zəng nəticəsi bir dəfə yazılır"

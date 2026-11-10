@@ -174,8 +174,16 @@ const otpLimit = rateLimit({ windowMs: 15 * 60e3, max: 6 });
 const submitLimit = rateLimit({ windowMs: 60 * 60e3, max: 10 });
 const lookupLimit = rateLimit({ windowMs: 60e3, max: 60 });
 const verifyLimit = rateLimit({ windowMs: 15 * 60e3, max: 20 });
-const adminFail = rateLimit({ windowMs: 15 * 60e3, max: 10, message: "Çox sayda uğursuz giriş. 15 dəqiqə sonra yenidən cəhd et." });
+const adminFail = rateLimit({ windowMs: 15 * 60e3, max: 30, message: "Çox sayda uğursuz giriş. 15 dəqiqə sonra yenidən cəhd et." });
+// Expired or forged session tokens are counted apart from logins, so stale tabs in a shared office cannot lock everyone out of signing in.
+const sessionFail = rateLimit({ windowMs: 15 * 60e3, max: 100, message: "Çox sayda uğursuz sorğu. Bir az sonra yenidən cəhd et." });
 // The same limits keyed by the target, so guessing spread over many IPs is stopped too.
+// SMS cost guard: a ceiling on codes sent per hour by the whole server, so numbers rotated over many IPs cannot run up the SMS bill.
+// Counted only when a code is really about to be sent, so invalid requests cannot use up the ceiling.
+const OTP_HOURLY = Number(process.env.OTP_HOURLY_MAX) || 300, otpSent = [];
+const otpBudget = () => { const now = Date.now(); while (otpSent.length && otpSent[0] < now - 3600e3) otpSent.shift();
+  if (otpSent.length >= OTP_HOURLY) return false; otpSent.push(now); return true; };
+const OTP_BUSY = "SMS xidməti hazırda çox yüklənib. Bir az sonra yenidən cəhd et və ya *5665 nömrəsinə zəng et.";
 const phoneOtpLimit = rateLimit({ windowMs: 60 * 60e3, max: 5, key: req => "p" + normPhone(req.body?.phone),
   message: "Bu nömrəyə çox sayda kod göndərilib. 1 saat sonra yenidən cəhd et." });
 const finLimit = rateLimit({ windowMs: 60 * 60e3, max: 10, key: req => "f" + String(req.body?.fin || "").trim().toUpperCase(),
@@ -191,6 +199,7 @@ app.post("/api/otp", otpLimit, phoneOtpLimit, async (req, res) => {
   if (!Sms.configured()) return bad(res, NO_SMS, 503);
   const prev = await pool.query("SELECT 1 FROM otp_codes WHERE phone = $1 AND expires_at > now() + interval '4 minutes'", [phone]);
   if (prev.rowCount) return bad(res, "Kod artıq göndərilib. Yenisini 1 dəqiqədən sonra istəyə bilərsən.", 429);
+  if (!otpBudget()) return bad(res, OTP_BUSY, 429);
   const code = newCode();
   await pool.query(
     `INSERT INTO otp_codes (phone, code_hash, expires_at, attempts) VALUES ($1,$2, now() + interval '5 minutes', 0)
@@ -203,15 +212,13 @@ app.post("/api/otp", otpLimit, phoneOtpLimit, async (req, res) => {
 });
 
 async function checkOtp(phone, code) {
-  const { rows } = await pool.query("SELECT code_hash, expires_at, attempts FROM otp_codes WHERE phone = $1", [phone]);
-  const r = rows[0];
-  if (!r || r.expires_at < new Date() || r.attempts >= 5) return false;
-  if (!sameHex(r.code_hash, otpHash(phone, String(code)))) {
-    await pool.query("UPDATE otp_codes SET attempts = attempts + 1 WHERE phone = $1", [phone]);
-    return false;
-  }
-  await pool.query("DELETE FROM otp_codes WHERE phone = $1", [phone]);
-  return true;
+  // The attempt is counted before the code is compared, in one statement, so parallel guesses cannot
+  // all slip in under the 5-attempt limit.
+  const { rows } = await pool.query(
+    "UPDATE otp_codes SET attempts = attempts + 1 WHERE phone = $1 AND expires_at > now() AND attempts < 5 RETURNING code_hash", [phone]);
+  if (!rows[0] || !sameHex(rows[0].code_hash, otpHash(phone, String(code)))) return false;
+  const del = await pool.query("DELETE FROM otp_codes WHERE phone = $1 AND code_hash = $2", [phone, rows[0].code_hash]);
+  return del.rowCount === 1;
 }
 
 // After an SMS check the browser gets a random key for that one application; only its hash is stored.
@@ -318,6 +325,7 @@ app.post("/api/lookup/otp", otpLimit, finLimit, async (req, res) => {
   if (!Sms.configured()) return bad(res, NO_SMS, 503);
   const prev = await pool.query("SELECT 1 FROM otp_codes WHERE phone = $1 AND expires_at > now() + interval '4 minutes'", [a.phone]);
   if (prev.rowCount) return bad(res, "Kod artıq göndərilib. Yenisini 1 dəqiqədən sonra istəyə bilərsən.", 429);
+  if (!otpBudget()) return bad(res, OTP_BUSY, 429);
   const code = newCode();
   await pool.query(
     `INSERT INTO otp_codes (phone, code_hash, expires_at, attempts) VALUES ($1,$2, now() + interval '5 minutes', 0)
@@ -426,7 +434,7 @@ app.post("/api/applications/:id/decision", lookupLimit, async (req, res) => {
 
 /* ---------- staff ---------- */
 // Staff sign in with their own username and password; the panel then sends a 12-hour session key.
-const admin = (req, res, next) => adminFail(req, res, async () => {
+const admin = async (req, res, next) => {
   const t = String(req.get("x-admin-token") || "");
   // A session ends 12 hours after sign-in, or earlier after STAFF_IDLE_MINUTES without activity.
   const { rows } = t.length < 20 ? { rows: [] } : await pool.query(
@@ -434,15 +442,15 @@ const admin = (req, res, next) => adminFail(req, res, async () => {
      WHERE s.token_hash = $1 AND u.id = s.user_id AND u.active AND s.expires_at > now()
        AND s.last_seen > now() - make_interval(mins => $2::int)
      RETURNING u.id, u.username, u.name, u.role, u.permissions, u.brands`, [sha(t), STAFF_IDLE]);
-  if (!rows[0]) return bad(res, "Sessiya bitib, yenidən daxil ol.", 401);
-  adminFail.forgive(req);
+  // Only failed keys count towards the limit, so expired tabs in a shared office cannot lock out signed-in colleagues.
+  if (!rows[0]) return sessionFail(req, res, () => bad(res, "Sessiya bitib, yenidən daxil ol.", 401));
   req.perms = Perms.effective(rows[0]);
   // Brands: a staff member tied to brands (e.g. a BYD sales specialist) sees and is notified only about those brands. Admins see everything.
   const brands = rows[0].role !== "admin" && rows[0].brands?.length ? rows[0].brands : null;
   req.user = { id: rows[0].id, username: rows[0].username, name: rows[0].name, role: rows[0].role, permissions: req.perms, brands };
   req.staff = rows[0].name;
   next();
-});
+};
 // Per-application routes: a brand-limited user gets 404 for another brand's application.
 const brandGate = async (req, res, next) => {
   if (!req.user.brands) return next();
@@ -468,7 +476,7 @@ app.post("/api/admin/login", adminFail, userFail, async (req, res) => {
   const { rows } = await pool.query("SELECT id, name, role, password_hash, active FROM staff_users WHERE username = $1", [username]);
   const u = rows[0];
   // Same answer, and the same time, for an unknown user and a wrong password.
-  const ok = checkPassword(req.body?.password, u?.password_hash || DUMMY_HASH);
+  const ok = await checkPassword(req.body?.password, u?.password_hash || DUMMY_HASH);
   if (!u || !u.active || !ok) {
     audit(req, username, "login.fail");
     return bad(res, "İstifadəçi adı və ya parol yanlışdır.", 401);
@@ -492,7 +500,7 @@ app.get("/api/admin/me", admin, (req, res) => res.json(req.user));
 
 app.post("/api/admin/me/password", admin, async (req, res) => {
   const { rows } = await pool.query("SELECT password_hash FROM staff_users WHERE id = $1", [req.user.id]);
-  if (!checkPassword(req.body?.current, rows[0].password_hash)) return bad(res, "Hazırkı parol yanlışdır.");
+  if (!(await checkPassword(req.body?.current, rows[0].password_hash))) return bad(res, "Hazırkı parol yanlışdır.");
   const w = weakPassword(req.body?.next, req.user.username); if (w) return bad(res, w);
   await pool.query("UPDATE staff_users SET password_hash = $2 WHERE id = $1", [req.user.id, hashPassword(req.body.next)]);
   audit(req, req.user.username, "password.change");
@@ -821,7 +829,9 @@ app.get("/api/integrations/robocall/applications", rcAuth, async (req, res) => {
   let since = "1970-01-01T00:00:00Z", afterId = "";
   if (req.query.since) {
     const [t, i = ""] = String(req.query.since).split("|");
-    if (isNaN(Date.parse(t))) return bad(res, "since düzgün deyil (ISO tarix və ya next_since).");
+    // Only an ISO time is accepted: Date.parse is lenient and lets text like "' OR '1'='1" through to the database.
+    if (!/^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/.test(t) || isNaN(Date.parse(t)) || !/^[\w-]{0,64}$/.test(i))
+      return bad(res, "since düzgün deyil (ISO tarix və ya next_since).");
     since = t; afterId = i;
   }
   const { rows: page } = await pool.query(
@@ -1314,6 +1324,8 @@ async function start() {
     await pool.query("INSERT INTO staff_users (username, name, password_hash, role) VALUES ('admin', 'Administrator', $1, 'admin')", [hashPassword(ADMIN_TOKEN)]);
     console.log("İlk admin hesabı yaradıldı: istifadəçi adı admin, parol .env-dəki ADMIN_TOKEN.");
   }
-  app.listen(PORT, () => console.log(`Arzoom lizinq: http://localhost:${PORT} (SMS provayderi: ${Sms.configured() ? "qoşulub" : "YOXDUR, müştərilər kod ala bilməz"})`));
+  const srv = app.listen(PORT, () => console.log(`Arzoom lizinq: http://localhost:${PORT} (SMS provayderi: ${Sms.configured() ? "qoşulub" : "YOXDUR, müştərilər kod ala bilməz"})`));
+  // Slow clients (slowloris) cannot hold connections open: headers within 20 s, the whole request (uploads included) within 2 min.
+  srv.headersTimeout = 20e3; srv.requestTimeout = 120e3; srv.keepAliveTimeout = 5e3;
 }
 start().catch(e => { console.error(e); process.exit(1); });

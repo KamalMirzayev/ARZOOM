@@ -771,15 +771,18 @@ app.get("/api/admin/call-analytics", admin, can("analytics.view"), async (_req, 
 });
 // The bot hung up without recording a result; ArzoomCall inferred "other" afterwards. These customers need another call.
 const unrecorded = c => c.outcome === "other" && /^(Zəngdən avtomatik çıxarılıb|Bot zəng zamanı nəticəni qeyd etməyib)/.test(String(c.reason || ""));
+// A customer already talked to (any call with a real result) is not listed for another call, so their answer stands.
+const needsCall = all => { const talked = new Set(all.filter(c => c.application_id && c.outcome && !unrecorded(c)).map(c => c.application_id));
+  return c => unrecorded(c) && !(c.application_id && talked.has(c.application_id)); };
 // The conversations of the snapshot (up to 90 days), filtered and paged (25 a page) on the server; phone numbers are not sent.
 app.get("/api/admin/call-analytics/calls", admin, can("analytics.view"), async (req, res) => {
   const all = (await loadCallStats())?.recent_calls || [];
   const q = String(req.query.q || "").trim().toLocaleLowerCase("az").slice(0, 80), outcome = String(req.query.outcome || ""), ans = String(req.query.answered || "");
-  const per = 25, page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const per = 25, page = Math.max(1, parseInt(req.query.page, 10) || 1), need = needsCall(all);
   const rows = all.filter(c => (!q || `${c.customer_name || ""} ${c.application_id || ""}`.toLocaleLowerCase("az").includes(q))
-    && (outcome === "unrecorded" ? unrecorded(c) : !outcome || c.outcome === outcome) && (ans === "" || !!c.answered === (ans === "1")));
+    && (outcome === "unrecorded" ? need(c) : !outcome || c.outcome === outcome) && (ans === "" || !!c.answered === (ans === "1")));
   const outcomes = [...new Map(all.filter(c => c.outcome).map(c => [c.outcome, c.outcome_label || c.outcome])).entries()].map(([outcome, label]) => ({ outcome, label }));
-  res.json({ total: rows.length, page, pages: Math.max(1, Math.ceil(rows.length / per)), outcomes, unrecorded: all.filter(unrecorded).length,
+  res.json({ total: rows.length, page, pages: Math.max(1, Math.ceil(rows.length / per)), outcomes, unrecorded: all.filter(need).length,
              items: rows.slice((page - 1) * per, page * per).map(({ phone, ...c }) => c) });
 });
 // "Yenidən zəng et": ArzoomCall puts the customer back in its queue; the call starts within about a minute.

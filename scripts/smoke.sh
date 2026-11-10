@@ -281,8 +281,8 @@ echo "$CL" | grep -q '"total":1000,"page":40,"pages":40' && ! echo "$CL" | grep 
 curl -fsS "${H[@]}" "$B/api/admin/call-analytics/calls?q=s%C9%99bin%C9%99" | grep -q '"total":1,' || fail
 curl -fsS "${H[@]}" "$B/api/admin/call-analytics/calls?answered=0&outcome=declined" | grep -q '"total":167,' || fail
 curl -fsS "${H[@]}" "$B/api/admin/call-analytics" | grep -q '"calls_total":1000' || fail
-# Calls the bot ended without a result can be found with their own filter
-curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$CA" -d '{"periods":{"today":{}},"recent_calls":[{"id":"u1","outcome":"other","reason":"Zəngdən avtomatik çıxarılıb"},{"id":"u2","outcome":"other","reason":"Bot zəng zamanı nəticəni qeyd etməyib"},{"id":"u3","outcome":"other","reason":"Başqa səbəb"}]}' >/dev/null || fail
+# Calls the bot ended without a result can be found with their own filter; customers already talked to are left out
+curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$CA" -d '{"periods":{"today":{}},"recent_calls":[{"id":"u1","outcome":"other","reason":"Zəngdən avtomatik çıxarılıb"},{"id":"u2","outcome":"other","reason":"Bot zəng zamanı nəticəni qeyd etməyib"},{"id":"u3","outcome":"other","reason":"Başqa səbəb"},{"id":"u4","application_id":"T-1","outcome":"other","reason":"Zəngdən avtomatik çıxarılıb"},{"id":"u5","application_id":"T-1","outcome":"thinking"}]}' >/dev/null || fail
 curl -fsS "${H[@]}" "$B/api/admin/call-analytics/calls?outcome=unrecorded" | grep -q '"total":2,' || fail
 curl -fsS "${H[@]}" "$B/api/admin/call-analytics/calls" | grep -q '"unrecorded":2' || fail
 # Call again and recordings need the ArzoomCall API; until it is set they answer 409, and settings are validated

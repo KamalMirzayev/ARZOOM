@@ -185,10 +185,18 @@ main{padding:26px clamp(18px,2.4vw,34px) 40px;min-width:0;max-width:1240px}
 .appno .btn{font-family:var(--f-body)}
 .car2{font-family:var(--f-display);font-stretch:100%;font-weight:700;font-size:17px;margin-top:4px}
 .hero .sub{color:var(--muted);font-size:13px;margin-top:4px}
-.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px}
 .stat{background:var(--raised);border-radius:12px;padding:12px 14px;border:1px solid var(--line)}
-.stat small{color:var(--muted);font-size:11.5px;display:block}
-.stat b{font-family:var(--f-display);font-stretch:100%;font-size:20px;font-weight:800;display:block;margin-top:2px;white-space:nowrap}
+.stat small{color:var(--muted);font-size:11.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat b{font-family:var(--f-display);font-stretch:100%;font-size:clamp(17px,1.5vw,20px);font-weight:800;display:block;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.callrow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 14px;align-items:center;margin-top:14px;padding:12px 14px;border-radius:12px;background:var(--raised);border:1px solid var(--line)}
+.callrow .ci{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--blue) 14%,transparent);color:var(--blue);grid-row:span 2}
+.callrow .ci svg{width:17px;height:17px}
+.callrow .cm{font-size:13px;display:flex;gap:6px 12px;flex-wrap:wrap;align-items:baseline}
+.callrow .cm b{font-size:14px}
+.callrow .ct{grid-column:2/-1;font-size:13px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.callrow .cl{font-size:12.5px;white-space:nowrap}
+@media (max-width:900px){.callrow{grid-template-columns:auto minmax(0,1fr)}.callrow .cl{grid-column:2}}
 .steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;list-style:none;margin:0;padding:0;counter-reset:s}
 .steps li{position:relative;display:grid;justify-items:center;text-align:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted)}
 .steps li::before{content:"";position:absolute;top:13px;left:calc(-50% + 16px);right:calc(50% + 16px);height:2px;background:var(--line-2)}
@@ -398,6 +406,8 @@ ul.r li.stop{color:#FFB4AC;font-weight:700} ul.r li.stop::before{background:#F08
 .funnel2 div>*{position:relative}
 .funnel2 small{color:var(--muted);font-weight:500;margin-left:8px}
 .dtable{width:100%;border-collapse:collapse;font-size:13px}
+@media (max-width:900px){.ctable thead{display:none}.ctable tbody tr{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .dtable.ctable td{border:0;padding:0;min-width:0!important;max-width:none!important}.ctable td:nth-child(4){grid-column:1/-1}.ctable td:nth-child(5){grid-row:1;grid-column:2}}
 .dtable th{text-align:left;font-size:11.5px;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line)}
 .dtable td{padding:9px 10px;border-bottom:1px solid var(--line)}
 .dtable td.n,.dtable th.n{text-align:right;font-family:var(--f-mono)}
@@ -512,6 +522,7 @@ details.inq summary{cursor:pointer;font-weight:600;font-size:13px;margin-top:14p
     <div class="nav"><h6>Panel</h6>
       <button type="button" id="homeBtn" title="Ümumi baxış" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span class="t">Ümumi baxış</span></button>
       <button type="button" id="analyticsBtn" title="Analitika" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span class="t">Analitika</span></button>
+      <button type="button" id="callsBtn" title="Zəng analitikası" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg><span class="t">Zəng analitikası</span></button>
     </div>
     <div class="nav" id="statusNav"><h6>Müraciətlər</h6></div>
     <div class="nav"><h6>Hesab</h6>
@@ -655,7 +666,7 @@ $("#logout").onclick=()=>logout();
 async function start(){me=await api("/me");staff=me.name;await loadList();enter()}
 function enter(){$("#login").hidden=true;$("#app").hidden=false;
   $("#who").innerHTML=`<b>${esc(me.name)}</b><span>${ROLES[me.role]}</span>`;$("#av").textContent=me.name.split(/\s+/).map(w=>w[0]).join("").slice(0,2).toUpperCase();
-  $("#usersBtn").hidden=me.role!=="admin";$("#exportBtn").hidden=!has("apps.export");$("#analyticsBtn").hidden=!has("analytics.view");
+  $("#usersBtn").hidden=me.role!=="admin";$("#exportBtn").hidden=!has("apps.export");$("#analyticsBtn").hidden=!has("analytics.view");$("#callsBtn").hidden=!has("analytics.view");
   if(!cur)renderHome()}
 
 /* ---------- account: password and staff users ---------- */
@@ -900,6 +911,7 @@ function renderList(){
   pe.innerHTML=PERIODS.map(([k,t])=>`<button type="button" data-period="${k}" aria-pressed="${!query&&period===k}">${t}</button>`).join("");
   $("#homeBtn").setAttribute("aria-pressed",String(!cur&&!$("#detail").dataset.page));
   $("#analyticsBtn").setAttribute("aria-pressed",String(!cur&&$("#detail").dataset.page==="analytics"));
+  $("#callsBtn").setAttribute("aria-pressed",String(!cur&&$("#detail").dataset.page==="calls"));
   $("#list").innerHTML=items.length?items.map(a=>`<button type="button" class="item" data-id="${a.id}" aria-current="${cur&&cur.id===a.id}">
       <span class="tile s-${a.status}">${esc(initials(a))}</span>
       <span class="no">№ ${a.id}</span><span class="st sm s-${a.status}" title="${STATUS[a.status]}">${STATUS_SHORT[a.status]||STATUS[a.status]}</span>
@@ -957,6 +969,7 @@ async function renderHome(){
     </section>`;
 }
 $("#analyticsBtn").onclick=renderAnalytics;
+$("#callsBtn").onclick=()=>renderCalls();
 $("#homeBtn").onclick=()=>{$("#shell").classList.add("open");renderHome()};
 $("#logoHome").onclick=e=>{e.preventDefault();$("#homeBtn").click()};
 document.addEventListener("click",e=>{const b=e.target.closest("[data-st-go]");if(b){status=b.dataset.stGo;$("#shell").classList.remove("open");loadList().catch(err=>toast(err.message))}});
@@ -990,9 +1003,109 @@ function dailyChart(rows){
 }
 const hbars=(rows,label,val,tip)=>{const max=Math.max(1,...rows.map(val));
   return rows.length?`<div class="hbars">${rows.map(r=>`<div data-tip="${esc(tip(r))}"><span>${esc(label(r))}</span><i style="--w:${Math.round(val(r)/max*100)}%"></i><em>${val(r)}</em></div>`).join("")}</div>`:`<p class="muted" style="margin:0">Bu dövrdə məlumat yoxdur.</p>`};
+// The application's ArzoomCall calls in one line: how many, the last result and what the customer said.
+function callRow(a){
+  const calls=a.calls||[],notes=(a.events||[]).filter(e=>e.kind==="note"&&e.details?.channel==="robocall");
+  if(!calls.length&&!notes.length)return"";
+  const last=calls[0],note=notes[notes.length-1]?.details,ans=calls.filter(c=>c.answered).length;
+  const when=last?.created_at||notes[notes.length-1]?.at;
+  const label=last?(last.answered?(last.outcome_label||ROBO_RESULTS[last.outcome]||"Cavab verildi"):(C_FAIL[last.last_error]||"Cavab vermədi")):(note.outcome_label||ROBO_RESULTS[note.outcome]||"");
+  const text=(last&&(last.reason||last.summary))||note?.text||"";
+  return `<div class="callrow"><span class="ci">${IC_PHONE}</span>
+    <div class="cm"><b>ArzoomCall</b><span>${label?`<b class="${last&&!last.answered?"muted":""}">${esc(label)}</b>`:""}</span>
+      <span class="muted">son zəng ${dt(when)}${last?.answered&&last.duration_seconds?` · ${secs(last.duration_seconds)}`:""}${calls.length?` · ${calls.length} zəng, ${ans} cavab`:` · ${notes.length} nəticə`}</span></div>
+    ${has("analytics.view")?`<a href="#" class="cl" data-gocalls>Zəng analitikası →</a>`:"<span></span>"}
+    ${text?`<div class="ct" title="${esc(text)}">${esc(text)}</div>`:""}
+    ${calls.length>1?`<details style="grid-column:2/-1"><summary class="muted" style="cursor:pointer;font-size:12.5px">Bütün zənglər (${calls.length})</summary><div style="margin-top:6px">${callTable(calls)}</div></details>`:""}</div>`;
+}
+const IC_PHONE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>';
+document.addEventListener("click",e=>{if(e.target.closest("[data-gocalls]")){e.preventDefault();renderCalls()}});
+// ArzoomCall call analytics: the latest snapshot ArzoomCall pushed, refreshed every 45 s while this page is open.
+let cPeriod="today";
+const C_FAIL={no_answer:"Cavab vermədi",busy:"Məşğul",congestion:"Xətt yüklüdür",stale:"Zəng yarımçıq qaldı",unknown:"Naməlum",other:"Digər"};
+const C_CAMP={active:"Aktiv",paused:"Dayandırılıb",completed:"Bitib",draft:"Qaralama"};
+const secs=n=>{n=Math.round(+n||0);return n<60?n+" san":Math.floor(n/60)+" dəq "+String(n%60).padStart(2,"0")+" san"};
+function callBars(rows,lab,aria){
+  const W=900,H=200,L=30,R=6,T=10,B=24,iw=W-L-R,ih=H-T-B,n=Math.max(1,rows.length);
+  const max=Math.max(4,...rows.map(r=>+r.attempts||0)),step=Math.ceil(max/4),top=step*4,y=v=>T+ih-v/top*ih,bw=iw/n,x=i=>L+i*bw,every=Math.ceil(n/12);
+  const bar=(i,v,f,w)=>v?`<rect x="${(x(i)+bw*(1-w)/2).toFixed(1)}" y="${y(v).toFixed(1)}" width="${(bw*w).toFixed(1)}" height="${(y(0)-y(v)).toFixed(1)}" rx="3" fill="${f}"/>`:"";
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${aria}">
+    <g class="grid">${[0,1,2,3,4].map(k=>`<line x1="${L}" x2="${W-R}" y1="${y(k*step)}" y2="${y(k*step)}"/><text x="${L-8}" y="${y(k*step)+4}" text-anchor="end">${k*step}</text>`).join("")}</g>
+    ${rows.map((r,i)=>bar(i,+r.attempts||0,"var(--c1)",.64)+bar(i,+r.answered||0,"var(--c2)",.34)).join("")}
+    ${rows.map((r,i)=>i%every===0?`<text x="${(x(i)+bw/2).toFixed(1)}" y="${H-6}" text-anchor="middle">${esc(lab(r))}</text>`:"").join("")}
+    ${rows.map((r,i)=>`<rect class="hit" x="${x(i).toFixed(1)}" y="${T}" width="${bw.toFixed(1)}" height="${ih}" data-tip="<b>${esc(lab(r))}</b>Zəng: ${+r.attempts||0}<br>Cavab verildi: ${+r.answered||0}"/>`).join("")}
+  </svg>`;
+}
+async function renderCalls(quiet){
+  if(!quiet){cur=null;$("#detail").dataset.page="calls";renderList();$("#shell").classList.add("open");
+    $("#homeBtn").setAttribute("aria-pressed","false");$("#analyticsBtn").setAttribute("aria-pressed","false");$("#callsBtn").setAttribute("aria-pressed","true")}
+  let d;try{d=await api("/call-analytics")}catch(e){if(!quiet)toast(e.message);return}
+  if($("#detail").dataset.page!=="calls")return;
+  const head=`<div class="welcome"><div><span class="eyebrow">ArzoomCall</span><h2>Zəng analitikası</h2></div>
+    <div class="seg" role="group" aria-label="Dövr">${[["today","Bu gün"],["week","7 gün"],["month","30 gün"]].map(([k,t])=>`<button type="button" data-cper="${k}" aria-pressed="${cPeriod===k}">${t}</button>`).join("")}</div></div>`;
+  if(d.empty||!d.periods){$("#detail").innerHTML=head+`<section class="panel"><p class="muted" style="margin:0">ArzoomCall hələ məlumat göndərməyib. Zənglər başlayandan sonra burada avtomatik görünəcək.</p></section>`;return}
+  const p=d.periods[cPeriod]||d.periods.today||Object.values(d.periods)[0]||{},k=p.kpi||{};
+  const pct=(a,b)=>b?Math.round(a/b*100)+"%":"—";
+  const tr=(p.transfers||[]).reduce((a,t)=>a+(+t.answered||0),0);
+  const out=(p.outcomes||[]).slice().sort((a,b)=>b.count-a.count);
+  const fails=(p.failures||[]).filter(f=>f.count).sort((a,b)=>b.count-a.count);
+  $("#detail").innerHTML=head+`
+  <p class="muted" style="margin:-6px 0 14px;font-size:12.5px">Son yenilənmə: ${dt(d.generated_at)} · səhifə hər 45 saniyədən bir özü yenilənir</p>
+  <div class="tiles" style="margin-bottom:16px">
+    <div class="tile2"><small>Zəng</small><b>${+k.attempts||0}</b><span>${k.in_progress?k.in_progress+" danışıq davam edir":"bütün cəhdlər"}</span></div>
+    <div class="tile2"><small>Cavab verildi</small><b>${+k.answered||0}</b><span>${pct(+k.answered||0,+k.attempts||0)} cavab faizi</span></div>
+    <div class="tile2"><small>Cavabsız</small><b>${+k.unanswered||0}</b><span>${fails[0]?esc(C_FAIL[fails[0].reason]||fails[0].reason)+" əsas səbəbdir":"—"}</span></div>
+    <div class="tile2"><small>Çatılan müştəri</small><b>${+k.reached_customers||0} / ${+k.customers||0}</b><span>${pct(+k.reached_customers||0,+k.customers||0)} müştəri ilə danışılıb</span></div>
+    <div class="tile2"><small>Orta danışıq</small><b>${secs(k.avg_duration)}</b><span>cəmi ${Math.round((+k.total_seconds||0)/60)} dəqiqə</span></div>
+    <div class="tile2"><small>Satışa qoşuldu</small><b>${tr}</b><span>satış təmsilçisinə ötürülən</span></div>
+  </div>
+  <div class="agrid" id="charts">
+    <section class="panel w6">${ph("trend",cPeriod==="today"?"Saatlar üzrə":"Günlər üzrə",`<span class="legend"><span><i style="background:var(--c1)"></i>Zəng</span><span><i style="background:var(--c2)"></i>Cavab verildi</span></span>`)}
+      ${cPeriod==="today"?callBars((p.hourly||[]),r=>String(r.hour).padStart(2,"0")+":00","Saatlar üzrə zənglər"):callBars((p.daily||[]),r=>{const [,mm,dd]=String(r.day).split("-");return `${+dd}.${mm}`},"Günlər üzrə zənglər")}</section>
+    <section class="panel w3">${ph("doc","Danışığın nəticəsi")}${hbars(out,r=>r.label||ROBO_RESULTS[r.outcome]||r.outcome,r=>+r.count||0,r=>`${r.label||r.outcome}: ${r.count}`)}</section>
+    <section class="panel w3">${ph("gauge","Cavabsız zənglərin səbəbi")}${hbars(fails,r=>C_FAIL[r.reason]||r.reason,r=>+r.count||0,r=>`${C_FAIL[r.reason]||r.reason}: ${r.count}`)}</section>
+    <section class="panel w3">${ph("send","Növbə (kampaniyalar)")}
+      ${(p.queue||[]).length?(p.queue||[]).map(q=>{const t=+q.total||0,done=(+q.completed||0)+(+q.failed||0)+(+q.cancelled||0);
+        return `<div style="display:grid;gap:6px;margin-bottom:12px"><div style="display:flex;gap:8px;align-items:baseline"><b>${esc(q.name||"Kampaniya")}</b><span class="muted" style="font-size:12px">${esc(C_CAMP[q.campaign_status]||q.campaign_status||"")}</span><span style="flex:1"></span><span class="mono" style="font-size:12.5px">${done}/${t}</span></div>
+          <div class="hbars"><div style="grid-template-columns:1fr"><i style="--w:${t?Math.round(done/t*100):0}%"></i></div></div>
+          <small class="muted">Gözləyir ${+q.pending||0} · zəng gedir ${+q.attempting||0} · təkrar ${+q.retrying||0} · bitib ${+q.completed||0} · alınmadı ${+q.failed||0}${q.next_call_after?` · növbəti zəng ${dt(q.next_call_after)}`:""}</small></div>`}).join(""):`<p class="muted" style="margin:0">Növbədə kampaniya yoxdur.</p>`}</section>
+    <section class="panel w3">${ph("user","Satış təmsilçilərinə ötürmə")}
+      ${(p.transfers||[]).length?`<table class="dtable"><thead><tr><th>Daxili nömrə</th><th>Marka</th><th class="n">Qoşuldu</th><th class="n">Buraxıldı</th></tr></thead>
+      <tbody>${p.transfers.map(t=>`<tr><td class="mono">${esc(t.extension)}</td><td>${esc(t.brand||"—")}</td><td class="n">${+t.answered||0}</td><td class="n">${+t.missed||0}</td></tr>`).join("")}</tbody></table>`:`<p class="muted" style="margin:0">Bu dövrdə ötürmə yoxdur.</p>`}</section>
+    <section class="panel w6" id="cList">${ph("doc","Danışıqlar",`<span class="muted" style="font-size:12.5px">son 90 gün · ${d.calls_total||0} zəng</span>`)}
+      <div class="pbar" style="margin-bottom:10px"><input id="cq" type="search" placeholder="Müştəri adı və ya müraciət nömrəsi" value="${esc(cF.q)}" style="flex:1;min-width:180px">
+        <select id="cAns" style="width:auto"><option value="">Hamısı</option><option value="1" ${cF.answered==="1"?"selected":""}>Cavab verilən</option><option value="0" ${cF.answered==="0"?"selected":""}>Cavabsız</option></select>
+        <select id="cOut" style="width:auto"><option value="">Bütün nəticələr</option></select></div>
+      <div id="cRows"><p class="muted" style="margin:0">Yüklənir…</p></div></section>
+  </div>`;
+  tipOn($("#charts"));
+  loadCalls();
+}
+// Conversations: 25 per page, searched and filtered on the server.
+let cF={q:"",answered:"",outcome:"",page:1},cT;
+const callTable=calls=>`<div style="overflow:auto"><table class="dtable ctable"><thead><tr><th>Vaxt</th><th>Müştəri</th><th>Nəticə</th><th>Danışığın analizi</th><th class="n">Müddət</th></tr></thead>
+  <tbody>${calls.map(c=>`<tr><td class="mono" style="white-space:nowrap">${dt(c.created_at)}</td>
+    <td style="min-width:150px">${esc(c.customer_name||"—")}${c.application_id?`<br><a href="#" data-capp="${esc(c.application_id)}" class="mono">№ ${esc(c.application_id)}</a>`:""}${c.application_status?` <small class="muted">${esc(RC_ST[c.application_status]||c.application_status)}</small>`:""}</td>
+    <td style="min-width:150px">${c.answered?esc(c.outcome_label||ROBO_RESULTS[c.outcome]||c.outcome||"Cavab verildi"):`<span class="muted">${esc(C_FAIL[c.last_error]||c.last_error||c.status||"Cavabsız")}</span>`}</td>
+    <td style="min-width:260px;max-width:520px">${esc(c.reason||c.summary||"")||`<span class="muted">—</span>`}</td>
+    <td class="n mono" style="white-space:nowrap">${c.answered?secs(c.duration_seconds):"—"}</td></tr>`).join("")}</tbody></table></div>`;
+async function loadCalls(){
+  const box=$("#cRows");if(!box)return;
+  let r;try{r=await api(`/call-analytics/calls?page=${cF.page}&q=${encodeURIComponent(cF.q)}&answered=${cF.answered}&outcome=${encodeURIComponent(cF.outcome)}`)}catch(e){box.innerHTML=`<p class="muted" style="margin:0">${esc(e.message)}</p>`;return}
+  const sel=$("#cOut");if(sel&&sel.options.length<=1)sel.insertAdjacentHTML("beforeend",r.outcomes.map(o=>`<option value="${esc(o.outcome)}" ${cF.outcome===o.outcome?"selected":""}>${esc(o.label)}</option>`).join(""));
+  box.innerHTML=(r.items.length?callTable(r.items):`<p class="muted" style="margin:0">Bu filtrdə danışıq yoxdur.</p>`)+
+    (r.pages>1?`<div class="pbar" style="margin-top:10px"><small class="muted">${r.total} danışıq · səhifə ${r.page}/${r.pages}</small><span class="sp"></span><button type="button" class="btn ghost sm" data-cpg="${r.page-1}" ${r.page<=1?"disabled":""}>← Əvvəlki</button><button type="button" class="btn ghost sm" data-cpg="${r.page+1}" ${r.page>=r.pages?"disabled":""}>Növbəti →</button></div>`:"");
+}
+document.addEventListener("input",e=>{if(e.target.id==="cq"){clearTimeout(cT);cT=setTimeout(()=>{cF.q=e.target.value.trim();cF.page=1;loadCalls()},300)}});
+document.addEventListener("change",e=>{if(e.target.id==="cAns"||e.target.id==="cOut"){cF[e.target.id==="cAns"?"answered":"outcome"]=e.target.value;cF.page=1;loadCalls()}});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-cpg]");if(b){cF.page=+b.dataset.cpg;loadCalls();$("#cList")?.scrollIntoView({block:"start"})}});
+const RC_ST={review:"Baxılır",info:"Məlumat",offer:"Təklif",reoffer:"Təkrar təklif",rejected:"Rədd",accepted:"Satış",declined:"İmtina",cancelled:"Ləğv"};
+document.addEventListener("click",e=>{const b=e.target.closest("[data-cper]");if(b){cPeriod=b.dataset.cper;renderCalls()}
+  const a=e.target.closest("[data-capp]");if(a){e.preventDefault();openApp(a.dataset.capp)}});
+setInterval(()=>{if(token&&!$("#app").hidden&&$("#detail").dataset.page==="calls"&&!document.hidden&&!$("#cList")?.contains(document.activeElement))renderCalls(true)},45000);
 async function renderAnalytics(){
   cur=null;$("#detail").dataset.page="analytics";renderList();$("#shell").classList.add("open");
-  $("#homeBtn").setAttribute("aria-pressed","false");$("#analyticsBtn").setAttribute("aria-pressed","true");
+  $("#homeBtn").setAttribute("aria-pressed","false");$("#analyticsBtn").setAttribute("aria-pressed","true");$("#callsBtn").setAttribute("aria-pressed","false");
   let d;try{d=await api("/analytics?days="+aDays)}catch(e){toast(e.message);return}
   const st=Object.fromEntries(d.status.map(r=>[r.status,r.n])),total=Object.values(st).reduce((a,b)=>a+b,0);
   const offered=(st.offer||0)+(st.accepted||0)+(st.declined||0),decided=offered+(st.rejected||0);
@@ -1100,10 +1213,11 @@ function renderDetail(){
     <div class="stats">
       <div class="stat"><small>Skor</small><b>${res?`${res.score} <span class="grade g-${res.grade}">${res.grade}</span>`:"—"}</b></div>
       <div class="stat"><small>Avtomobilin qiyməti</small><b>${price?azn(price):"—"}</b></div>
-      <div class="stat"><small>İlkin ödəniş${fin?" (son)":""}</small><b>${dp!=null&&price?`${dp}% · ${azn(price*dp/100)}`:"—"}</b></div>
+      <div class="stat"><small>İlkin ödəniş${dp!=null?` · ${dp}%`:""}${fin?" (son)":""}</small><b>${dp!=null&&price?azn(price*dp/100):"—"}</b></div>
       <div class="stat"><small>İlkin kredit məbləği</small><b>${dp!=null&&price?azn(price*(1-dp/100)):"—"}</b></div>
       <div class="stat"><small>Aylıq ödəniş</small><b>${pay?azn(pay):"—"}</b></div>
     </div>
+    ${callRow(a)}
     ${steps(a)}
   </section>
   <div class="grid">

@@ -263,7 +263,12 @@ curl -fsS -H "x-integration-token: $RCT" "$RCU?limit=500" | grep -q '"status":"r
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$RLIVE/offer" -d '{"price":45000,"downPct":20,"months":60,"rate":17,"commissionPct":1.5}' >/dev/null || fail
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$RLIVE" | J status)" = offer ] || fail
 curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$RCU/$RLIVE/feedback" -d '{"feedback_id":"'"$FBID"'-x","outcome":"thinking"}' | grep -q '"reoffer":false' || fail
-curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$RCU/$RLIVE/feedback" -d '{"feedback_id":"'"$FBID"'-ts","outcome":"transferred_to_sales","reason":"Ext 205"}' | grep -q '"ok":true' || fail
+curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$RCU/$RLIVE/feedback" -d '{"feedback_id":"'"$FBID"'-ts","outcome":"transferred_to_sales","reason":"Ext 205"}' | grep -q '"sales":true' || fail
+# Put through to a sales representative -> "Satışa ötürülüb" with the offered down payment as final; a repeat changes nothing
+AS=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$RLIVE")
+[ "$(echo "$AS" | J status)" = accepted ] && echo "$AS" | grep -q '"final":{[^}]*"downPct":20' && echo "$AS" | grep -q '"via":"robocall"' || fail
+curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$RCU/$RLIVE/feedback" -d '{"feedback_id":"'"$FBID"'-ts","outcome":"transferred_to_sales"}' | grep -q '"duplicate":true,"reoffer":false,"sales":false' || fail
+echo "✓ satış təmsilçisinə qoşulan müştəri: status avtomatik Satışa ötürülüb olur"
 # A customer who cancelled is called back too: their wish moves the application to Təkrar təklif as well.
 node -e 'const {Client}=require("pg"),db=new Client({connectionString:process.env.DATABASE_URL});db.connect().then(()=>db.query("UPDATE applications SET status = '"'"'cancelled'"'"' WHERE id = $1",[process.argv[1]])).then(()=>db.end())' "$RLIVE"
 curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$RCU/$RLIVE/feedback" -d '{"feedback_id":"'"$FBID"'-cx","outcome":"wants_lower_down","reason":"İlkin ödəniş 10% olsa"}' | grep -q '"reoffer":true' || fail

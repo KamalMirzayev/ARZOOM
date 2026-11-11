@@ -135,7 +135,7 @@ function finalTerms(o, dp) {
   return { dp, down, credit: F, months: o.months, pay: Scoring.pmt(F, o.rate, o.months) };
 }
 // After the customer confirms, the final offer goes by SMS to the customer, underwriting and sales at once.
-async function announceAccepted(id) {
+async function announceAccepted(id, { customer = true } = {}) {
   const { rows } = await pool.query("SELECT phone, brand, model, offer FROM applications WHERE id = $1", [id]);
   const a = rows[0]; if (!a?.offer?.final) return;
   const t = finalTerms(a.offer, a.offer.final.downPct);
@@ -145,7 +145,7 @@ async function announceAccepted(id) {
   const panel = SITE_URL ? ` Panel: ${SITE_URL}/admin` : "";
   const staff = await pool.query("SELECT name, role, phone FROM staff_users WHERE active AND phone IS NOT NULL AND (role = 'admin' OR cardinality(brands) = 0 OR $1 = ANY(brands))", [a.brand]);
   await Promise.all([
-    notify(id, a.phone, `Arzoom Avto: Müraciət № ${id}. Son təklifi təsdiqlədiniz: ${a.brand} ${a.model}, ${own}. Müqavilə və avtomobilin təhvili üçün satış mütəxəssisi sizinlə əlaqə saxlayacaq.`),
+    customer && notify(id, a.phone, `Arzoom Avto: Müraciət № ${id}. Son təklifi təsdiqlədiniz: ${a.brand} ${a.model}, ${own}. Müqavilə və avtomobilin təhvili üçün satış mütəxəssisi sizinlə əlaqə saxlayacaq.`),
     ...staff.rows.map(u => notify(id, u.phone, u.role === "sales"
       ? `Arzoom Avto: Müraciət № ${id} satışa ötürüldü. Müştəri son təklifi təsdiqlədi: ${a.brand} ${a.model}, ${terms}. Müştəri ilə əlaqə saxlayın.${panel}`
       : `Arzoom Avto: Müraciət № ${id} anderraytinq üçün. Müştəri son təklifi təsdiqlədi: ${a.brand} ${a.model}, ${terms}.${panel}`, u.name))
@@ -748,8 +748,33 @@ app.post("/api/integrations/robocall/applications/:id/feedback", rcAuth, async (
                                 WHERE id = $1 AND status IN ('offer','declined','cancelled') RETURNING id`, [req.params.id, request]);
     if (u.rowCount) { reoffer = true; await logEvent(pool, req.params.id, "ArzoomCall", "reoffer", request); }
   }
-  res.json({ ok: true, duplicate: !ins.rowCount, reoffer });
+  // The bot put the customer through to a sales representative: the application is handed to sales.
+  const sales = ins.rowCount && outcome === "transferred_to_sales" ? await robotToSales(req.params.id) : false;
+  res.json({ ok: true, duplicate: !ins.rowCount, reoffer, sales });
 });
+// An application with an offer goes to "Satışa ötürülüb" once ArzoomCall connected the customer to a sales representative.
+// The offered down payment stands as the final one; staff and the partner are told as when the customer confirms online.
+// The customer gets no "you confirmed" SMS, since they spoke to sales on the line.
+async function robotToSales(id, { announce = true } = {}) {
+  const u = await pool.query(
+    `UPDATE applications SET status = 'accepted', updated_at = now(),
+       offer = jsonb_set(offer, '{final}', jsonb_build_object('downPct', offer->'downPct', 'at', now(), 'source', 'robocall'))
+     WHERE id = $1 AND status IN ('offer','reoffer') AND offer ? 'downPct' RETURNING offer->'final' AS final`, [id]);
+  if (!u.rowCount) return false;
+  await logEvent(pool, id, "ArzoomCall", "accepted", { ...u.rows[0].final, via: "robocall" });
+  sendResult(id);
+  if (announce) announceAccepted(id, { customer: false }).catch(e => console.error(e.message));
+  return true;
+}
+// Applications whose customer was already put through to sales before this rule existed are moved once at start-up (no SMS).
+async function backfillRobotSales() {
+  const { rows } = await pool.query(
+    `SELECT DISTINCT a.id FROM applications a JOIN application_events e ON e.application_id = a.id
+     WHERE a.status IN ('offer','reoffer') AND e.kind = 'note' AND e.details->>'channel' = 'robocall'
+       AND e.details->>'outcome' = 'transferred_to_sales'`);
+  for (const r of rows) await robotToSales(r.id, { announce: false });
+  if (rows.length) console.log(`ArzoomCall: ${rows.length} müraciət satışa ötürüldü (əvvəlki zənglər).`);
+}
 // Call analytics from ArzoomCall: a full snapshot after every call and every 5 minutes; only the newest is kept.
 let callStats = null;
 async function loadCallStats() {
@@ -1316,6 +1341,7 @@ async function start() {
   await loadWebhookSettings();
   await loadRobocallSettings();
   await loadRcApi();
+  await backfillRobotSales().catch(e => console.error(e.message));
   Ocr.available().then(t => { if (!t.tesseract || !t.pdftotext) console.warn("Sənəd analizi üçün tesseract və poppler-utils quraşdırılmayıb."); });
   loadStock(); setInterval(loadStock, 15 * 60 * 1000).unref();
   // First start: the "admin" account gets ADMIN_TOKEN from .env as its password; change it after signing in.

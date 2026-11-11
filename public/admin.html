@@ -412,6 +412,11 @@ ul.r li.stop{color:#FFB4AC;font-weight:700} ul.r li.stop::before{background:#F08
   .dtable.ctable td{border:0;padding:0;min-width:0!important;max-width:none!important}.ctable td:nth-child(4){grid-column:1/-1}.ctable td:nth-child(5){grid-row:1;grid-column:2}}
 .dtable th{text-align:left;font-size:11.5px;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line)}
 .dtable td{padding:9px 10px;border-bottom:1px solid var(--line)}
+.dtable tr.trsub td{padding:0 10px 10px;border-bottom:1px solid var(--line)}
+.dtable tr:has(+tr.trsub) td{border-bottom:0}
+.trapp{display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 8px;width:100%;text-align:left;background:var(--panel-2,rgba(127,127,127,.06));border:1px solid var(--line);border-radius:8px;padding:6px 9px;margin-top:6px;font:inherit;font-size:12.5px;color:inherit;cursor:pointer}
+.trapp:hover{border-color:var(--accent,var(--blue))}
+.trapp small{grid-column:1/-1;font-size:11.5px}.trmiss{color:var(--bad)}
 .dtable td.n,.dtable th.n{text-align:right;font-family:var(--f-mono)}
 .tip{position:fixed;z-index:30;pointer-events:none;background:var(--ink);color:var(--bg);border-radius:10px;padding:8px 11px;font-size:12.5px;line-height:1.45;box-shadow:0 10px 24px -8px rgb(0 0 0 / .4);max-width:240px}
 .tip b{display:block;font-size:12px;opacity:.75;font-weight:600}
@@ -1118,7 +1123,7 @@ async function renderCalls(quiet){
           <small class="muted">Gözləyir ${+q.pending||0} · zəng gedir ${+q.attempting||0} · təkrar ${+q.retrying||0} · bitib ${+q.completed||0} · alınmadı ${+q.failed||0}${q.next_call_after?` · növbəti zəng ${dt(q.next_call_after)}`:""}</small></div>`}).join(""):`<p class="muted" style="margin:0">Növbədə kampaniya yoxdur.</p>`}</section>
     <section class="panel w3">${ph("user","Satış təmsilçilərinə ötürmə")}
       ${(p.transfers||[]).length?`<table class="dtable"><thead><tr><th>Daxili nömrə</th><th>Marka</th><th class="n">Qoşuldu</th><th class="n">Buraxıldı</th></tr></thead>
-      <tbody>${p.transfers.map(t=>`<tr><td class="mono">${esc(t.extension)}</td><td>${esc(t.brand||"—")}</td><td class="n">${+t.answered||0}</td><td class="n">${+t.missed||0}</td></tr>`).join("")}</tbody></table>`:`<p class="muted" style="margin:0">Bu dövrdə ötürmə yoxdur.</p>`}</section>
+      <tbody>${p.transfers.map(t=>`<tr><td class="mono">${esc(t.extension)}</td><td>${esc(t.brand||"—")}</td><td class="n">${+t.answered||0}</td><td class="n">${+t.missed||0}</td></tr>${(t.calls||[]).length?`<tr class="trsub"><td colspan="4">${t.calls.map(c=>`<button type="button" class="trapp" data-capp="${esc(c.application_id)}" title="${c.answered?"Qoşuldu":"Buraxıldı"}${c.status_at?" · status "+dt(c.status_at):""}"><span class="mono">№ ${esc(c.application_id)}</span>${c.status?`<span class="st sm s-${esc(c.status)}">${esc(RC_ST[c.status]||c.status)}</span>`:`<span class="muted">tapılmadı</span>`}<small class="muted">${c.at?dt(c.at):""} · ${c.answered?"qoşuldu":`<span class="trmiss">buraxıldı</span>`}</small></button>`).join("")}</td></tr>`:""}`).join("")}</tbody></table>`:`<p class="muted" style="margin:0">Bu dövrdə ötürmə yoxdur.</p>`}</section>
     <section class="panel w6" id="cList">${ph("doc","Danışıqlar",`<span class="muted" style="font-size:12.5px">son 90 gün · ${d.calls_total||0} zəng</span>`)}
       <div class="pbar" style="margin-bottom:10px"><input id="cq" type="search" placeholder="Müştəri adı və ya müraciət nömrəsi" value="${esc(cF.q)}" style="flex:1;min-width:180px">
         <select id="cAns" style="width:auto"><option value="">Hamısı</option><option value="1" ${cF.answered==="1"?"selected":""}>Cavab verilən</option><option value="0" ${cF.answered==="0"?"selected":""}>Cavabsız</option></select>

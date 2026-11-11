@@ -801,7 +801,25 @@ app.get("/api/admin/call-analytics", admin, can("analytics.view"), async (_req, 
   const s = await loadCallStats();
   if (!s) return res.json({ empty: true });
   const { recent_calls, ...rest } = s;
-  res.json({ ...rest, calls_total: (recent_calls || []).length });
+  // Each extension may list the applications put through to it; their current status comes from ARZOOM. Only ids and times are kept.
+  const periods = {}, ids = new Set();
+  for (const [k, p] of Object.entries(rest.periods || {})) {
+    const transfers = Array.isArray(p?.transfers) ? p.transfers.map(t => {
+      const calls = (Array.isArray(t?.calls) ? t.calls : []).filter(c => c && /^[\w-]{1,40}$/.test(String(c.application_id || ""))).slice(0, 50)
+        .map(c => ({ application_id: String(c.application_id), at: !isNaN(Date.parse(c.at)) ? new Date(c.at).toISOString() : null, answered: c.answered !== false }));
+      calls.forEach(c => ids.add(c.application_id));
+      return { ...t, calls };
+    }) : p?.transfers;
+    periods[k] = { ...p, transfers };
+  }
+  if (ids.size) {
+    const { rows } = await pool.query("SELECT id, status, updated_at FROM applications WHERE id = ANY($1)", [[...ids]]);
+    const st = new Map(rows.map(r => [r.id, r]));
+    for (const p of Object.values(periods)) for (const t of p.transfers || []) for (const c of t.calls || []) {
+      const a = st.get(c.application_id); c.status = a?.status || null; c.status_at = a?.updated_at || null;
+    }
+  }
+  res.json({ ...rest, periods, calls_total: (recent_calls || []).length });
 });
 // The bot hung up without recording a result; ArzoomCall inferred "other" afterwards. These customers need another call.
 const unrecorded = c => c.outcome === "other" && /^(Zəngdən avtomatik çıxarılıb|Bot zəng zamanı nəticəni qeyd etməyib)/.test(String(c.reason || ""));

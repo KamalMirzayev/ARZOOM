@@ -305,6 +305,10 @@ echo "✓ ArzoomCall: nəticəsiz zənglər filtri, yenidən zəng və səs yaz�
 curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$CA" -d '{"periods":{"today":{"kpi":{"attempts":7,"answered":4}}},"recent_calls":[{"id":1}]}' >/dev/null || fail
 CAG=$(curl -fsS "${H[@]}" "$B/api/admin/call-analytics")
 echo "$CAG" | grep -q '"attempts":7' && ! echo "$CAG" | grep -q '"attempts":40' || fail
+# Transfers list the applications put through to each extension with their current ARZOOM status; phone numbers are dropped
+curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$CA" -d '{"periods":{"today":{"transfers":[{"extension":"514","brand":"Mazda","answered":1,"missed":0,"calls":[{"application_id":"'"$RLIVE"'","at":"2026-11-11T08:04:00Z","answered":true,"phone":"+994501112233"},{"application_id":null}]}]}}}' >/dev/null || fail
+CAT=$(curl -fsS "${H[@]}" "$B/api/admin/call-analytics")
+echo "$CAT" | grep -q "\"calls\":\[{\"application_id\":\"$RLIVE\",\"at\":\"2026-11-11T08:04:00.000Z\",\"answered\":true,\"status\":\"" && ! echo "$CAT" | grep -q 994501112233 || fail
 echo "✓ ArzoomCall zəng analitikası: token ilə qəbul olunur, yalnız ən son snapshot saxlanılır, paneldə görünür"
 # Security: malformed robocall cursors are refused (not 500); bad session keys never block signed-in staff or sign-in
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-integration-token: $RCT" --get --data-urlencode "since=' OR '1'='1" "$RCU")" = 400 ] || fail

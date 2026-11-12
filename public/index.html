@@ -718,12 +718,12 @@ async function submitApp(){
   finally{sending=false;$("#nextBtn").disabled=false;$("#nextBtn").textContent=step===4?"Təsdiqlə və göndər":"Davam et"}
 }
 function offerFromServer(o){const F=o.price*(1-o.downPct/100),r=o.rate/100/12;
-  return {price:o.price,downPct:o.downPct,down:Math.round(o.price*o.downPct/100),F,rate:o.rate,n:o.months,pmt:F*r/(1-Math.pow(1+r,-o.months)),at:o.at,final:o.final||null}}
+  return {price:o.price,downPct:o.downPct,down:Math.round(o.price*o.downPct/100),F,rate:o.rate,comm:+o.commissionPct||0,costs:o.costs||{},n:o.months,pmt:F*r/(1-Math.pow(1+r,-o.months)),at:o.at,final:o.final||null}}
 async function syncApps(){
   if(!API||!apps.length)return;
   await Promise.all(apps.map(async a=>{if(!a.token)return;try{const r=await fetch(`/api/applications/${encodeURIComponent(a.id)}`,{headers:{"x-app-token":a.token}});if(r.status===401){a.gone=true;return}if(!r.ok)return;const j=await r.json();
     if(j.status==="cancelled"){a.gone=true;return}
-    if(j.offer&&(!a.offer||a.offer.at!==j.offer.at||!!a.offer.final!==!!j.offer.final))a.offer=offerFromServer(j.offer);
+    if(j.offer&&(!a.offer||a.offer.at!==j.offer.at||!!a.offer.final!==!!j.offer.final||a.offer.costs===undefined))a.offer=offerFromServer(j.offer);
     // "Təkrar təklif" shows to the customer as being reviewed again, until the new offer arrives.
     a.reoffer=j.status==="reoffer";if(a.reoffer)a.state="review";
     if(j.status==="offer"&&["review","info","declined"].includes(a.state))a.state="offer";
@@ -744,7 +744,7 @@ const DP_MAX=70;
 function offerAt(o,dp){
   dp=Math.max(o.downPct??20,Math.min(DP_MAX,dp));
   const down=Math.round(o.price*dp/100),F=o.price-down,r=o.rate/100/12;
-  return {...o,downPct:dp,down,F,pmt:r?F*r/(1-Math.pow(1+r,-o.n)):F/o.n};
+  return {...o,downPct:dp,down,F,fee:F*(o.comm||0)/100,pmt:r?F*r/(1-Math.pow(1+r,-o.n)):F/o.n};
 }
 const chosenDp=a=>a.offer.final?.downPct??a.dp??a.offer.downPct??20;
 function figsHtml(a){
@@ -753,7 +753,15 @@ function figsHtml(a){
     <div class="big">${grp(o.pmt)}<small>₼ / ay</small></div>
     <div class="muted" style="margin-top:6px">${o.n} ay</div>
     ${save>=1?`<span class="save">İlkin təklifdən ${grp(save)} ₼ az</span>`:""}
-    <div class="kv">${kvHtml([["Avtomobilin qiyməti",azn(o.price)],[`İlkin ödəniş, ${o.downPct}%`,azn(o.down)],[`Aylıq ödənişlər cəmi, ${o.n} ay`,azn(o.pmt*o.n)]])}</div>`;
+    <div class="kv">${kvHtml([["Avtomobilin qiyməti",azn(o.price)],[`İlkin ödəniş, ${o.downPct}%`,azn(o.down)],[`Aylıq ödənişlər cəmi, ${o.n} ay`,azn(o.pmt*o.n)]])}</div>${otherHtml(o)}`;
+}
+// "Digər xərclər": DYP, KASKO, GPS and the bank commission, paid on top of the car and the monthly payments.
+function otherHtml(o){
+  const c=o.costs||{},rows=[["DYP",+c.dyp||0],["KASKO sığorta",+c.kasko||0],["GPS",+c.gps||0],["Bank komissiyası",o.fee||0]].filter(r=>r[1]>0);
+  if(!rows.length)return"";
+  const tot=rows.reduce((s,r)=>s+r[1],0);
+  return `<div style="margin-top:14px" class="muted">Digər xərclər</div>
+    <div class="kv">${kvHtml([...rows.map(([k,v])=>[k,azn(v)]),["Cəmi digər xərclər",azn(tot)]])}</div>`;
 }
 // Installment sale: the customer sees each payment and what is left to pay, never a principal/interest split.
 const schedHtml=o=>{let h="";for(let t=1;t<=o.n;t++)h+=`<tr><td>${t}</td><td>${m2(o.pmt)}</td><td>${m2(o.pmt*(o.n-t))}</td></tr>`;return h};

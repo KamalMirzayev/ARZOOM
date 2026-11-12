@@ -1339,7 +1339,10 @@ function renderDetail(){
             <label class="f">Kredit məbləği, ₼<output class="inp calc" id="creditAmt" aria-live="polite">—</output></label>
             <label class="f">Müddət<select name="months">${[12,24,36,48,60].map(m=>`<option value="${m}" ${+val(a,"months",36)===m?"selected":""}>${m} ay</option>`).join("")}</select></label>
             <label class="f">İllik faiz, %<input name="rate" type="number" min="0" step="0.1" value="${val(a,"rate",17)}"></label>
-            <label class="f">Komissiya, %<input name="commissionPct" type="number" min="0" step="0.1" value="${o?.commissionPct??1.5}"></label>
+            <label class="f">Bank komissiyası, %<input name="commissionPct" type="number" min="0" step="0.1" value="${o?.commissionPct??1.5}"></label>
+            <label class="f">DYP, ₼<input name="costDyp" type="number" min="0" step="1" value="${o?.costs?.dyp??""}" placeholder="0"></label>
+            <label class="f">KASKO sığorta, ₼<input name="costKasko" type="number" min="0" step="1" value="${o?.costs?.kasko??""}" placeholder="0"></label>
+            <label class="f">GPS, ₼<input name="costGps" type="number" min="0" step="1" value="${o?.costs?.gps??""}" placeholder="0"></label>
           </div></fieldset>
           <div class="savebar"><button class="btn ghost" type="submit">Qiymətləndirməni saxla</button><span class="muted" style="font-size:12.5px">Skor serverdə yenidən hesablanır.</span></div>
         </form>
@@ -1417,7 +1420,7 @@ function liveResult(){
   const col=r.verdict==="approve"?"#6FCF97":r.verdict==="reject"?"#F08A80":r.verdict==="incomplete"?"#6E79A6":"#E9BE62";
   const dtiW=r.dti==null?0:Math.min(100,r.dti*100);
   const dtiC=r.dti==null?"transparent":r.dti>Scoring.POLICY.stopDti?"#F08A80":r.dti>lim?"#E9BE62":"#6FCF97";
-  const comm=r.financed*(+i.commissionPct||0)/100,inc=r.verdict==="incomplete";
+  const comm=r.financed*(+i.commissionPct||0)/100,oth=(+i.costDyp||0)+(+i.costKasko||0)+(+i.costGps||0),inc=r.verdict==="incomplete";
   $("#result").innerHTML=`<span class="eyebrow">Decision engine · canlı</span>
     <div class="score"><div class="ring" style="--p:${inc?0:r.score};--c:${col}"><span>${inc?"—":r.score}<small>${inc?"skor":"bal · "+r.grade}</small></span></div>
       <div><small>Tövsiyə</small><div class="verdict" style="color:${col}">${Scoring.VERDICTS[r.verdict]}</div>
@@ -1432,7 +1435,7 @@ function liveResult(){
       <div><small>Maks. avtomobil qiyməti</small><b>${azn(r.maxPrice)}</b></div>
     </div>
     ${r.stops.length||r.notes.length?`<ul class="r">${r.stops.map(s=>`<li class="stop">${esc(s)}</li>`).join("")}${r.notes.map(s=>`<li>${esc(s)}</li>`).join("")}</ul>`:`<p class="ok-line">${IC.check.replace("<svg",'<svg width="16" height="16"')} Risk faktoru yoxdur</p>`}
-    ${comm?`<p style="font-size:12.5px;margin:12px 0 0"><small>Komissiya: ${azn(comm)}</small></p>`:""}`;
+    ${comm||oth?`<p style="font-size:12.5px;margin:12px 0 0"><small>Digər xərclər (müştəri görür): ${azn(comm+oth)}${comm?` · bank komissiyası ${azn(comm)}`:""}</small></p>`:""}`;
 }
 
 document.addEventListener("input",e=>{if(e.target.closest("#aForm"))liveResult()});
@@ -1460,7 +1463,7 @@ document.addEventListener("click",async e=>{
     if(r.verdict==="reject"&&!confirmInline(b,"Skor imtina tövsiyə edir. Yenə göndər?"))return;
     try{
       await api(`/applications/${cur.id}/assessment`,{method:"PUT",body:JSON.stringify(i)});
-      await api(`/applications/${cur.id}/offer`,{method:"POST",body:JSON.stringify({price:+i.price,downPct:+i.downPct,months:+i.months,rate:+i.rate,commissionPct:+i.commissionPct})});
+      await api(`/applications/${cur.id}/offer`,{method:"POST",body:JSON.stringify({price:+i.price,downPct:+i.downPct,months:+i.months,rate:+i.rate,commissionPct:+i.commissionPct,costs:{dyp:+i.costDyp||0,kasko:+i.costKasko||0,gps:+i.costGps||0}})});
       toast("Təklif müştəriyə göndərildi");await openApp(cur.id);loadList()}catch(err){toast(err.message)}}
   if(b.id==="akbLoad"){
     const f=$("#akbFile").files[0];if(!f){toast("AKB XML faylını seç.");return}

@@ -132,7 +132,11 @@ const REJECT_REASONS = {
 // Final terms the customer confirmed: the offer with their chosen down payment.
 function finalTerms(o, dp) {
   const down = o.price * dp / 100, F = o.price - down;
-  return { dp, down, credit: F, months: o.months, pay: Scoring.pmt(F, o.rate, o.months) };
+  // "Digər xərclər": DYP, KASKO, GPS as the expert entered them (AZN) and the bank commission on the financed amount.
+  const c = o.costs || {}, fee = F * (+o.commissionPct || 0) / 100;
+  const other = { dyp: +c.dyp || 0, kasko: +c.kasko || 0, gps: +c.gps || 0, bank_commission: fee };
+  other.total = other.dyp + other.kasko + other.gps + other.bank_commission;
+  return { dp, down, credit: F, months: o.months, pay: Scoring.pmt(F, o.rate, o.months), fee, other };
 }
 // After the customer confirms, the final offer goes by SMS to the customer, underwriting and sales at once.
 async function announceAccepted(id, { customer = true } = {}) {
@@ -141,7 +145,7 @@ async function announceAccepted(id, { customer = true } = {}) {
   const t = finalTerms(a.offer, a.offer.final.downPct);
   const terms = `ilkin ödəniş ${t.dp}% (${money(t.down)}), ilkin kredit məbləği ${money(t.credit)}, aylıq ${money(t.pay)}, ${t.months} ay`;
   // Installment sale: the customer's text has no credit amount, interest or commission, only what they pay.
-  const own = `ilkin ödəniş ${t.dp}% (${money(t.down)}), aylıq ${money(t.pay)}, ${t.months} ay`;
+  const own = `ilkin ödəniş ${t.dp}% (${money(t.down)}), aylıq ${money(t.pay)}, ${t.months} ay${t.other.total ? `, digər xərclər ${money(t.other.total)}` : ""}`;
   const panel = SITE_URL ? ` Panel: ${SITE_URL}/admin` : "";
   const staff = await pool.query("SELECT name, role, phone FROM staff_users WHERE active AND phone IS NOT NULL AND (role = 'admin' OR cardinality(brands) = 0 OR $1 = ANY(brands))", [a.brand]);
   await Promise.all([
@@ -238,7 +242,7 @@ async function tokenApp(req) {
 const num = (v, lo, hi) => { const x = +v; return Number.isFinite(x) && x >= lo && x <= hi ? x : null; };
 const maskPhone = p => `+${p.slice(0, 3)} ${p.slice(3, 5)} *** ** ${p.slice(-2)}`;
 const CUSTOMER_FIELDS = `a.id, a.created_at, a.updated_at, a.fin, a.id_series, a.id_number, a.phone, a.income_sources, a.voen,
-  a.brand, a.model, a.status, a.offer - 'commissionPct' AS offer, a.reject_public, a.info_request, (SELECT count(*)::int FROM application_files f WHERE f.application_id = a.id) AS files`;
+  a.brand, a.model, a.status, a.offer, a.reject_public, a.info_request, (SELECT count(*)::int FROM application_files f WHERE f.application_id = a.id) AS files`;
 
 /* ---------- applications ---------- */
 const upload = multer({
@@ -627,7 +631,8 @@ app.post("/api/admin/settings/webhook", admin, adminOnly, async (req, res) => {
 
 /* ---------- robocall integration: robocall pulls application data and calls customers ---------- */
 // The token is generated in the panel and shown once; only its sha256 is stored. Robocall sends it as X-Integration-Token.
-// No interest rate or commission goes out (the bot must never mention them), and FİN is masked.
+// No interest rate goes out (the bot must never mention it), and FİN is masked. "Digər xərclər" (DYP, KASKO, GPS, bank
+// commission) go out in AZN as terms.other_costs, because the customer is told about them.
 const RC = { hash: "", lastPull: null };
 async function loadRobocallSettings() {
   const { rows } = await pool.query("SELECT value FROM settings WHERE key = 'robocall_token_hash'");
@@ -900,7 +905,7 @@ app.get("/api/integrations/robocall/applications", rcAuth, async (req, res) => {
     if (p.deleted) return { id: p.id, deleted: true, changed_at };
     const a = byId.get(p.id); if (!a) return { id: p.id, deleted: true, changed_at };
     const o = a.offer, info = a.status === "info" ? a.info_request : null;
-    const terms = dp => { const t = finalTerms(o, dp); return { car_price: o.price, down_payment_pct: t.dp, down_payment: r2(t.down), amount: r2(t.credit), months: t.months, monthly_payment: r2(t.pay) }; };
+    const terms = dp => { const t = finalTerms(o, dp); return { car_price: o.price, down_payment_pct: t.dp, down_payment: r2(t.down), amount: r2(t.credit), months: t.months, monthly_payment: r2(t.pay), other_costs: Object.fromEntries(Object.entries(t.other).map(([k, v]) => [k, r2(v)])) }; };
     return {
       id: a.id, deleted: false, changed_at, created_at: a.created_at, updated_at: a.updated_at,
       phone: "+" + a.phone, status: a.status, status_label: RC_STATUS[a.status] || a.status,
@@ -1093,8 +1098,10 @@ app.post("/api/admin/applications/:id/offer", admin, brandGate, can("apps.offer"
   const b = req.body || {};
   const offer = {
     price: num(b.price, 1000, 1e7), downPct: num(b.downPct ?? 20, 0, 90), months: num(b.months ?? 36, 6, 84),
-    rate: num(b.rate ?? 17, 0, 60), commissionPct: num(b.commissionPct ?? 1.5, 0, 10), at: new Date().toISOString()
+    rate: num(b.rate ?? 17, 0, 60), commissionPct: num(b.commissionPct ?? 1.5, 0, 10),
+    costs: { dyp: num(b.costs?.dyp ?? 0, 0, 1e6), kasko: num(b.costs?.kasko ?? 0, 0, 1e6), gps: num(b.costs?.gps ?? 0, 0, 1e6) }, at: new Date().toISOString()
   };
+  if (Object.values(offer.costs).some(v => v == null)) return bad(res, "Digər xərclər düzgün deyil.");
   if (offer.price == null) return bad(res, "Qiymət düzgün deyil.");
   if (Object.values(offer).some(v => v == null)) return bad(res, "Təklif şərtləri düzgün deyil.");
   const r = await pool.query(
@@ -1103,8 +1110,8 @@ app.post("/api/admin/applications/:id/offer", admin, brandGate, can("apps.offer"
   if (!r.rowCount) return bad(res, "Bu müraciətə təklif göndərmək olmur.", 409);
   await logEvent(pool, req.params.id, req.staff, "offer", offer);
   sendResult(req.params.id);
-  const pay = Scoring.pmt(offer.price * (1 - offer.downPct / 100), offer.rate, offer.months);
-  notify(req.params.id, r.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id} təsdiqləndi. Təklif: ilkin ödəniş ${offer.downPct}% (${money(offer.price * offer.downPct / 100)}), aylıq ${money(pay)}, ${offer.months} ay. Kabinetdə qrafikə baxıb təsdiqləyin.${cabinet()}`);
+  const ft = finalTerms(offer, offer.downPct), pay = ft.pay;
+  notify(req.params.id, r.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id} təsdiqləndi. Təklif: ilkin ödəniş ${offer.downPct}% (${money(offer.price * offer.downPct / 100)}), aylıq ${money(pay)}, ${offer.months} ay${ft.other.total ? `, digər xərclər (DYP, KASKO, GPS, bank komissiyası) ${money(ft.other.total)}` : ""}. Kabinetdə qrafikə baxıb təsdiqləyin.${cabinet()}`);
   // The offer also goes to the sales specialists of this brand (or those without a brand), so they can call the customer.
   const { brand, model } = r.rows[0], credit = money(offer.price * (1 - offer.downPct / 100));
   const sales = await pool.query(

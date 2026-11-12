@@ -111,6 +111,14 @@ curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/offer" -d '{"price":4
 curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID" | grep -q '"costs":{"dyp":250,"gps":300,"kasko":1350}\|"costs":{"dyp":250,"kasko":1350,"gps":300}' || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID/offer" -d '{"price":45000,"costs":{"dyp":-5}}')" = 400 ] || fail
 sleep 1; curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q "digər xərclər (DYP, KASKO, GPS, bank komissiyası) 2 440" || fail
+# KASKO not given: 2.38% of the car price + 20 AZN
+curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/offer" -d '{"price":45000,"downPct":20,"months":36,"rate":17,"commissionPct":1.5,"costs":{"dyp":250,"gps":300}}' >/dev/null || fail
+curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID" | grep -q '"kasko":1091' || fail
+# DYP and GPS not given: DYP 650 AZN, GPS 169.92 AZN a year ((108 + 25 + 11) + 18%) for 3 years
+curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/offer" -d '{"price":45000,"downPct":20,"months":36,"rate":17}' >/dev/null || fail
+CO=$(curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID"); echo "$CO" | grep -q '"dyp":650' && echo "$CO" | grep -q '"gps":509.76' || fail
+# Bank commission not given: follows the down payment (20% → 3%); a typed one is kept
+echo "$CO" | grep -q '"commissionAuto":true' && echo "$CO" | grep -q '"commissionPct":3' || fail
 echo "✓ digər xərclər (DYP, KASKO, GPS, bank komissiyası) müştəriyə göstərilir və SMS-də yazılır"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/applications/$ID/decision" -H "Content-Type: application/json" -d '{"decision":"accepted"}')" = 401 ] || fail; echo "✓ açarsız qərar 401"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/applications/$ID/decision" -H "x-app-token: $TOK" -H "Content-Type: application/json" -d '{"decision":"accepted","downPct":10}')" = 400 ] || fail; echo "✓ ilkin ödəniş azaldıla bilmir"

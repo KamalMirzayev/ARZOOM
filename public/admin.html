@@ -563,8 +563,11 @@ const grp=n=>Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");
 const azn=n=>grp(n)+" ₼";
 // Sales terms: credit amount = car price minus down payment, recalculated as the expert types.
 function creditCalc(){const f=$("#aForm");if(!f||!$("#creditAmt"))return;const p=+f.price.value||0,d=+f.downPct.value||0;
-  $("#creditAmt").textContent=p?azn(Math.round(p*(1-d/100))):"—"}
-document.addEventListener("input",e=>{if(e.target.closest("#aForm"))creditCalc()});
+  $("#creditAmt").textContent=p?azn(Math.round(p*(1-d/100))):"—";
+  // KASKO follows the car price (2.38% + 20 ₼) until staff type their own amount.
+  const k=f.costKasko;if(k&&!k.dataset.manual&&p)k.value=kaskoFor(p)}
+const kaskoFor=p=>Math.round((p*0.0238+20)*100)/100;
+document.addEventListener("input",e=>{if(e.isTrusted&&e.target.name==="costKasko")e.target.dataset.manual="1";if(e.target.closest("#aForm"))creditCalc()});
 // birth_date arrives as an ISO date; shown as day.month.year with the age.
 const fmtDob=s=>{const [y,m,d]=String(s).slice(0,10).split("-").map(Number),t=new Date();
   const age=t.getFullYear()-y-((t.getMonth()+1<m||(t.getMonth()+1===m&&t.getDate()<d))?1:0);return `${String(d).padStart(2,"0")}.${String(m).padStart(2,"0")}.${y} · ${age} yaş`};
@@ -1341,7 +1344,7 @@ function renderDetail(){
             <label class="f">İllik faiz, %<input name="rate" type="number" min="0" step="0.1" value="${val(a,"rate",17)}"></label>
             <label class="f">Bank komissiyası, %<input name="commissionPct" type="number" min="0" step="0.1" value="${o?.commissionPct??1.5}"></label>
             <label class="f">DYP, ₼<input name="costDyp" type="number" min="0" step="1" value="${o?.costs?.dyp??""}" placeholder="0"></label>
-            <label class="f">KASKO sığorta, ₼<input name="costKasko" type="number" min="0" step="1" value="${o?.costs?.kasko??""}" placeholder="0"></label>
+            <label class="f">KASKO sığorta, ₼ <small class="muted">qiymətin 2.38% + 20 ₼</small><input name="costKasko" type="number" min="0" step="0.01" value="${o?.costs?.kasko??""}" ${o?.costs&&o.costs.kasko!==kaskoFor(+o.price||0)?'data-manual="1"':""} placeholder="0"></label>
             <label class="f">GPS, ₼<input name="costGps" type="number" min="0" step="1" value="${o?.costs?.gps??""}" placeholder="0"></label>
           </div></fieldset>
           <div class="savebar"><button class="btn ghost" type="submit">Qiymətləndirməni saxla</button><span class="muted" style="font-size:12.5px">Skor serverdə yenidən hesablanır.</span></div>

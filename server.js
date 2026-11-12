@@ -1116,7 +1116,7 @@ app.post("/api/admin/applications/:id/offer", admin, brandGate, can("apps.offer"
   const offer = {
     price: num(b.price, 1000, 1e7), downPct: num(b.downPct ?? 20, 0, 90), months: num(b.months ?? 36, 6, 84),
     rate: num(b.rate ?? 17, 0, 60), commissionPct: num(b.commissionPct ?? 1.5, 0, 10),
-    costs: { dyp: num(b.costs?.dyp ?? 0, 0, 1e6), kasko: num(b.costs?.kasko ?? 0, 0, 1e6), gps: num(b.costs?.gps ?? 0, 0, 1e6) }, at: new Date().toISOString()
+    costs: { dyp: num(b.costs?.dyp ?? 0, 0, 1e6), kasko: num(b.costs?.kasko ?? (b.price ? Math.round((+b.price * 0.0238 + 20) * 100) / 100 : 0), 0, 1e6), gps: num(b.costs?.gps ?? 0, 0, 1e6) }, at: new Date().toISOString()
   };
   if (Object.values(offer.costs).some(v => v == null)) return bad(res, "Digər xərclər düzgün deyil.");
   if (offer.price == null) return bad(res, "Qiymət düzgün deyil.");

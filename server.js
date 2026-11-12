@@ -137,8 +137,8 @@ const commissionFor = dp => dp <= 20 ? 3 : dp <= 30 ? 2 : 1;
 // Final terms the customer confirmed: the offer with their chosen down payment.
 function finalTerms(o, dp) {
   const down = o.price * dp / 100, F = o.price - down;
-  // "Digər xərclər": DYP, KASKO, GPS as the expert entered them (AZN) and the bank commission on the financed amount.
-  const c = o.costs || {}, fee = F * (o.commissionAuto ? commissionFor(dp) : (+o.commissionPct || 0)) / 100;
+  // "Digər xərclər": DYP, KASKO, GPS as the expert entered them (AZN) and the bank commission on the down payment.
+  const c = o.costs || {}, fee = down * (o.commissionAuto ? commissionFor(dp) : (+o.commissionPct || 0)) / 100;
   const other = { dyp: +c.dyp || 0, kasko: +c.kasko || 0, gps: +c.gps || 0, bank_commission: fee };
   other.total = other.dyp + other.kasko + other.gps + other.bank_commission;
   return { dp, down, credit: F, months: o.months, pay: Scoring.pmt(F, o.rate, o.months), fee, other };

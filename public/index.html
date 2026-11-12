@@ -744,7 +744,7 @@ const DP_MAX=70;
 function offerAt(o,dp){
   dp=Math.max(o.downPct??20,Math.min(DP_MAX,dp));
   const down=Math.round(o.price*dp/100),F=o.price-down,r=o.rate/100/12;
-  return {...o,downPct:dp,down,F,fee:F*(o.commAuto?(dp<=20?3:dp<=30?2:1):(o.comm||0))/100,pmt:r?F*r/(1-Math.pow(1+r,-o.n)):F/o.n};
+  return {...o,downPct:dp,down,F,fee:down*(o.commAuto?(dp<=20?3:dp<=30?2:1):(o.comm||0))/100,pmt:r?F*r/(1-Math.pow(1+r,-o.n)):F/o.n};
 }
 const chosenDp=a=>a.offer.final?.downPct??a.dp??a.offer.downPct??20;
 function figsHtml(a){

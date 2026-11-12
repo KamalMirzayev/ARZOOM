@@ -1429,7 +1429,7 @@ function liveResult(){
   const col=r.verdict==="approve"?"#6FCF97":r.verdict==="reject"?"#F08A80":r.verdict==="incomplete"?"#6E79A6":"#E9BE62";
   const dtiW=r.dti==null?0:Math.min(100,r.dti*100);
   const dtiC=r.dti==null?"transparent":r.dti>Scoring.POLICY.stopDti?"#F08A80":r.dti>lim?"#E9BE62":"#6FCF97";
-  const comm=r.financed*(+i.commissionPct||0)/100,oth=(+i.costDyp||0)+(+i.costKasko||0)+(+i.costGps||0),inc=r.verdict==="incomplete";
+  const comm=(+i.price||0)*(+i.downPct||0)/100*(+i.commissionPct||0)/100,oth=(+i.costDyp||0)+(+i.costKasko||0)+(+i.costGps||0),inc=r.verdict==="incomplete";
   $("#result").innerHTML=`<span class="eyebrow">Decision engine · canlı</span>
     <div class="score"><div class="ring" style="--p:${inc?0:r.score};--c:${col}"><span>${inc?"—":r.score}<small>${inc?"skor":"bal · "+r.grade}</small></span></div>
       <div><small>Tövsiyə</small><div class="verdict" style="color:${col}">${Scoring.VERDICTS[r.verdict]}</div>

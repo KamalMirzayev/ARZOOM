@@ -134,21 +134,37 @@ const REJECT_REASONS = {
 };
 // Bank commission follows the down payment: up to 20% → 3%, up to 30% → 2%, above 30% → 1%.
 const commissionFor = dp => dp <= 20 ? 3 : dp <= 30 ? 2 : 1;
+// Two separate commissions. The bank's is on the down payment (3/2/1% by down payment unless staff typed their own) and the
+// customer sees it under "Digər xərclər". The organization's own is on the credit amount (1.5% by default) and stays with
+// staff. Offers sent before the split kept the bank commission in commissionPct/commissionAuto.
+const ORG_COMMISSION = 1.5;
+const split = o => o.bankCommissionPct !== undefined;
+const bankPct = (o, dp) => split(o) ? (o.bankCommissionAuto ? commissionFor(dp) : +o.bankCommissionPct || 0)
+  : o.commissionAuto === false ? +o.commissionPct || 0 : commissionFor(dp);
+const orgPct = o => split(o) || o.commissionAuto === undefined ? +o.commissionPct || 0 : ORG_COMMISSION;
+// The customer's copy of the offer: the bank commission only, never the organization's.
+function customerOffer(o) {
+  if (!o) return o;
+  const { commissionPct, commissionAuto, ...rest } = o;
+  return { ...rest, bankCommissionAuto: split(o) ? !!o.bankCommissionAuto : o.commissionAuto !== false, bankCommissionPct: bankPct(o, o.downPct) };
+}
+const toCustomer = row => row && { ...row, offer: customerOffer(row.offer) };
 // Final terms the customer confirmed: the offer with their chosen down payment.
 function finalTerms(o, dp) {
   const down = o.price * dp / 100, F = o.price - down;
   // "Digər xərclər": DYP, KASKO, GPS as the expert entered them (AZN) and the bank commission on the down payment.
-  const c = o.costs || {}, fee = down * (o.commissionAuto ? commissionFor(dp) : (+o.commissionPct || 0)) / 100;
+  const c = o.costs || {}, fee = down * bankPct(o, dp) / 100;
   const other = { dyp: +c.dyp || 0, kasko: +c.kasko || 0, gps: +c.gps || 0, bank_commission: fee };
   other.total = other.dyp + other.kasko + other.gps + other.bank_commission;
-  return { dp, down, credit: F, months: o.months, pay: Scoring.pmt(F, o.rate, o.months), fee, other };
+  const org = { pct: orgPct(o), amount: F * orgPct(o) / 100 };
+  return { dp, down, credit: F, months: o.months, pay: Scoring.pmt(F, o.rate, o.months), fee, other, org };
 }
 // After the customer confirms, the final offer goes by SMS to the customer, underwriting and sales at once.
 async function announceAccepted(id, { customer = true } = {}) {
   const { rows } = await pool.query("SELECT phone, brand, model, offer FROM applications WHERE id = $1", [id]);
   const a = rows[0]; if (!a?.offer?.final) return;
   const t = finalTerms(a.offer, a.offer.final.downPct);
-  const terms = `ilkin ödəniş ${t.dp}% (${money(t.down)}), ilkin kredit məbləği ${money(t.credit)}, aylıq ${money(t.pay)}, ${t.months} ay`;
+  const terms = `ilkin ödəniş ${t.dp}% (${money(t.down)}), ilkin kredit məbləği ${money(t.credit)}, aylıq ${money(t.pay)}, ${t.months} ay${t.org.amount ? `, təşkilatın komissiyası ${money(t.org.amount)}` : ""}`;
   // Installment sale: the customer's text has no credit amount, interest or commission, only what they pay.
   const own = `ilkin ödəniş ${t.dp}% (${money(t.down)}), aylıq ${money(t.pay)}, ${t.months} ay${t.other.total ? `, digər xərclər ${money(t.other.total)}` : ""}`;
   const panel = SITE_URL ? ` Panel: ${SITE_URL}/admin` : "";
@@ -351,14 +367,14 @@ app.post("/api/lookup/verify", verifyLimit, finLimit, async (req, res) => {
   const token = await issueToken(pool, a.id);
   await logEvent(pool, a.id, "Müştəri", "note", { text: "Müştəri SMS ilə kabinetə daxil oldu" });
   const { rows } = await pool.query(`SELECT ${CUSTOMER_FIELDS} FROM applications a WHERE a.id = $1`, [a.id]);
-  res.json({ token, application: rows[0] });
+  res.json({ token, application: toCustomer(rows[0]) });
 });
 
 // Customer view: needs the key the browser received after the SMS check.
 app.get("/api/applications/:id", lookupLimit, async (req, res) => {
   if (!(await tokenApp(req))) return bad(res, "Giriş müddəti bitib. Müraciəti yenidən SMS kodu ilə tap.", 401);
   const { rows } = await pool.query(`SELECT ${CUSTOMER_FIELDS} FROM applications a WHERE a.id = $1`, [req.params.id]);
-  rows[0] ? res.json(rows[0]) : bad(res, "Müraciət tapılmadı.", 404);
+  rows[0] ? res.json(toCustomer(rows[0])) : bad(res, "Müraciət tapılmadı.", 404);
 });
 
 // The customer answers a request for more information: a text and/or extra documents. The application goes back to review.
@@ -1046,7 +1062,7 @@ app.get("/api/admin/export.xlsx", admin, async (req, res) => {
   const cols = [["Müraciət №", 14], ["Daxil olub", 17], ["Status", 18], ["FİN", 10], ["Şəxsiyyət vəsiqəsi", 16], ["Doğum tarixi", 12],
     ["Telefon", 15], ["Partnyor", 14], ["Partnyor ref №", 14], ["Gəlir mənbələri", 28], ["VÖEN", 12], ["Marka", 14], ["Model", 18], ["Zamin", 8], ["Bal", 7], ["Risk dərəcəsi", 10],
     ["Avtomobilin qiyməti", 14], ["İlkin ödəniş %", 10], ["İlkin ödəniş", 13], ["İlkin kredit məbləği", 15], ["Müddət (ay)", 10],
-    ["İllik faiz %", 10], ["Aylıq ödəniş", 13], ["Rədd səbəbi", 30], ["Qərar verən", 14], ["Son danışığın nəticəsi", 20], ["Son dəyişiklik", 17]].map(([title, width]) => ({ title, width }));
+    ["İllik faiz %", 10], ["Aylıq ödəniş", 13], ["Bank komissiyası", 13], ["Təşkilatın komissiyası", 15], ["Rədd səbəbi", 30], ["Qərar verən", 14], ["Son danışığın nəticəsi", 20], ["Son dəyişiklik", 17]].map(([title, width]) => ({ title, width }));
   const r2 = x => Math.round(x * 100) / 100;
   const data = rows.map(a => {
     const o = a.offer, t = o?.price ? finalTerms(o, o.final?.downPct ?? o.downPct) : null;
@@ -1054,7 +1070,7 @@ app.get("/api/admin/export.xlsx", admin, async (req, res) => {
       a.birth_date ? a.birth_date.split("-").reverse().join(".") : "", "+" + a.phone, a.partner || "", a.partner_ref || "",
       (a.income_sources || []).map(s => INCOME_NAMES[s] || s).join(", "), a.voen || "", a.brand, a.model,
       a.guarantor == null ? "" : a.guarantor ? "Bəli" : "Xeyr", a.score ?? "", a.grade || "",
-      t ? o.price : "", t ? t.dp : "", t ? r2(t.down) : "", t ? r2(t.credit) : "", t ? t.months : "", t ? o.rate : "", t ? r2(t.pay) : "",
+      t ? o.price : "", t ? t.dp : "", t ? r2(t.down) : "", t ? r2(t.credit) : "", t ? t.months : "", t ? o.rate : "", t ? r2(t.pay) : "", t ? r2(t.fee) : "", t ? r2(t.org.amount) : "",
       a.reject_public || "", a.decided_by || "", CALL_RESULTS[a.last_call] || ROBO_RESULTS[a.last_call] || "", a.updated_at];
   });
   audit(req, req.user.username, "apps.export", `${rows.length} müraciət${st ? `, status: ${st}` : ""}${q ? `, axtarış: ${q}` : ""}`);
@@ -1118,9 +1134,11 @@ app.post("/api/admin/applications/:id/offer", admin, brandGate, can("apps.offer"
   const offer = {
     price: num(b.price, 1000, 1e7), downPct: num(b.downPct ?? 20, 0, 90), months: num(b.months ?? 36, 6, 84),
     rate: num(b.rate ?? 17, 0, 60),
-    // Staff may type their own commission; otherwise it follows the down payment the customer ends up choosing.
-    commissionAuto: b.commissionPct == null || b.commissionAuto === true,
-    commissionPct: b.commissionPct == null || b.commissionAuto === true ? commissionFor(+b.downPct || 20) : num(b.commissionPct, 0, 10),
+    // The organization's commission on the credit amount, and the bank's on the down payment: staff may type their own
+    // bank commission, otherwise it follows the down payment the customer ends up choosing.
+    commissionPct: num(b.commissionPct ?? ORG_COMMISSION, 0, 10),
+    bankCommissionAuto: b.bankCommissionPct == null || b.bankCommissionAuto === true,
+    bankCommissionPct: b.bankCommissionPct == null || b.bankCommissionAuto === true ? commissionFor(+b.downPct || 20) : num(b.bankCommissionPct, 0, 10),
     costs: { dyp: num(b.costs?.dyp ?? 650, 0, 1e6), kasko: num(b.costs?.kasko ?? (b.price ? Math.round((+b.price * 0.0238 + 20) * 100) / 100 : 0), 0, 1e6), gps: num(b.costs?.gps ?? Math.round(169.92 * Math.ceil((+b.months || 36) / 12) * 100) / 100, 0, 1e6) }, at: new Date().toISOString()
   };
   if (Object.values(offer.costs).some(v => v == null)) return bad(res, "Digər xərclər düzgün deyil.");
@@ -1139,7 +1157,7 @@ app.post("/api/admin/applications/:id/offer", admin, brandGate, can("apps.offer"
   const sales = await pool.query(
     "SELECT name, phone FROM staff_users WHERE active AND phone IS NOT NULL AND role = 'sales' AND (cardinality(brands) = 0 OR $1 = ANY(brands))", [brand]);
   for (const u of sales.rows)
-    notify(req.params.id, u.phone, `Arzoom Avto: Müraciət № ${req.params.id} üzrə müştəriyə təklif göndərildi: ${brand} ${model}, qiymət ${money(offer.price)}, ilkin ödəniş ${offer.downPct}%, ilkin kredit məbləği ${credit}, aylıq ${money(pay)}, ${offer.months} ay.${SITE_URL ? ` Panel: ${SITE_URL}/admin` : ""}`, u.name);
+    notify(req.params.id, u.phone, `Arzoom Avto: Müraciət № ${req.params.id} üzrə müştəriyə təklif göndərildi: ${brand} ${model}, qiymət ${money(offer.price)}, ilkin ödəniş ${offer.downPct}%, ilkin kredit məbləği ${credit}, aylıq ${money(pay)}, ${offer.months} ay${ft.org.amount ? `, təşkilatın komissiyası ${money(ft.org.amount)}` : ""}.${SITE_URL ? ` Panel: ${SITE_URL}/admin` : ""}`, u.name);
   res.json({ ok: true, offer });
 });
 

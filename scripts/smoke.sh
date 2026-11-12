@@ -110,7 +110,7 @@ sleep 1; curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q "üzrə m
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/offer" -d '{"price":45000,"downPct":20,"months":36,"rate":17,"commissionPct":1.5,"costs":{"dyp":250,"kasko":1350,"gps":300}}' >/dev/null || fail
 curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID" | grep -q '"costs":{"dyp":250,"gps":300,"kasko":1350}\|"costs":{"dyp":250,"kasko":1350,"gps":300}' || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID/offer" -d '{"price":45000,"costs":{"dyp":-5}}')" = 400 ] || fail
-sleep 1; curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q "digər xərclər (DYP, KASKO, GPS, bank komissiyası) 2 035" || fail
+sleep 1; curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q "digər xərclər (DYP, KASKO, GPS, bank komissiyası) 2 170" || fail
 # KASKO not given: 2.38% of the car price + 20 AZN
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/offer" -d '{"price":45000,"downPct":20,"months":36,"rate":17,"commissionPct":1.5,"costs":{"dyp":250,"gps":300}}' >/dev/null || fail
 curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID" | grep -q '"kasko":1091' || fail
@@ -118,7 +118,15 @@ curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID" | grep -q '"kasko":10
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/offer" -d '{"price":45000,"downPct":20,"months":36,"rate":17}' >/dev/null || fail
 CO=$(curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID"); echo "$CO" | grep -q '"dyp":650' && echo "$CO" | grep -q '"gps":509.76' || fail
 # Bank commission not given: follows the down payment (20% → 3%); a typed one is kept
-echo "$CO" | grep -q '"commissionAuto":true' && echo "$CO" | grep -q '"commissionPct":3' || fail
+echo "$CO" | grep -q '"bankCommissionAuto":true' && echo "$CO" | grep -q '"bankCommissionPct":3' || fail
+# The organization's commission (1.5% of the credit amount by default) stays with staff: never in the customer's copy
+echo "$CO" | grep -q '"commissionPct"\|"commissionAuto"' && fail
+curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q '"commissionPct":1.5' || fail
+sleep 1; curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q "təşkilatın komissiyası 540" || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/offer" -d '{"price":45000,"downPct":20,"months":36,"rate":17,"commissionPct":2,"bankCommissionPct":1.2,"bankCommissionAuto":false}' >/dev/null || fail
+CO=$(curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID"); echo "$CO" | grep -q '"bankCommissionAuto":false' && echo "$CO" | grep -q '"bankCommissionPct":1.2' || fail
+echo "$CO" | grep -q '"commissionPct"' && fail
+echo "✓ bank komissiyası (ilkin ödənişdən, müştəri görür) və təşkilatın komissiyası (kredit məbləğindən, müştəri görmür) ayrıdır"
 echo "✓ digər xərclər (DYP, KASKO, GPS, bank komissiyası) müştəriyə göstərilir və SMS-də yazılır"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/applications/$ID/decision" -H "Content-Type: application/json" -d '{"decision":"accepted"}')" = 401 ] || fail; echo "✓ açarsız qərar 401"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/applications/$ID/decision" -H "x-app-token: $TOK" -H "Content-Type: application/json" -d '{"decision":"accepted","downPct":10}')" = 400 ] || fail; echo "✓ ilkin ödəniş azaldıla bilmir"

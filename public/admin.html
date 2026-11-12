@@ -569,11 +569,13 @@ function creditCalc(){const f=$("#aForm");if(!f||!$("#creditAmt"))return;const p
   // GPS is yearly ((108 + 25 + 11) ₼ + 18% VAT) for every year of the term, until staff type their own amount.
   const g=f.costGps;if(g&&!g.dataset.manual)g.value=gpsFor(+f.months.value||36);
   // Bank commission follows the down payment (up to 20% → 3%, up to 30% → 2%, above → 1%) until staff type their own.
-  const c=f.commissionPct;if(c&&!c.dataset.manual)c.value=commFor(d||20)}
+  const c=f.bankCommissionPct;if(c&&!c.dataset.manual)c.value=commFor(d||20)}
 const commFor=dp=>dp<=20?3:dp<=30?2:1;
+// The organization's commission (on the credit amount, 1.5% by default). Before the split, commissionPct held the bank's.
+const orgOf=x=>x&&x.bankCommissionPct!==undefined?x.commissionPct:undefined,orgComm=a=>orgOf(a.assessment?.inputs)??orgOf(a.offer)??1.5;
 const kaskoFor=p=>Math.round((p*0.0238+20)*100)/100;
 const GPS_YEAR=Math.round((108+25+11)*1.18*100)/100,gpsFor=m=>Math.round(GPS_YEAR*Math.ceil(m/12)*100)/100;
-document.addEventListener("input",e=>{if(e.isTrusted&&["costKasko","costGps","commissionPct"].includes(e.target.name))e.target.dataset.manual="1";if(e.target.closest("#aForm"))creditCalc()});
+document.addEventListener("input",e=>{if(e.isTrusted&&["costKasko","costGps","bankCommissionPct"].includes(e.target.name))e.target.dataset.manual="1";if(e.target.closest("#aForm"))creditCalc()});
 // birth_date arrives as an ISO date; shown as day.month.year with the age.
 const fmtDob=s=>{const [y,m,d]=String(s).slice(0,10).split("-").map(Number),t=new Date();
   const age=t.getFullYear()-y-((t.getMonth()+1<m||(t.getMonth()+1===m&&t.getDate()<d))?1:0);return `${String(d).padStart(2,"0")}.${String(m).padStart(2,"0")}.${y} · ${age} yaş`};
@@ -1348,7 +1350,8 @@ function renderDetail(){
             <label class="f">Kredit məbləği, ₼<output class="inp calc" id="creditAmt" aria-live="polite">—</output></label>
             <label class="f">Müddət<select name="months">${[12,24,36,48,60].map(m=>`<option value="${m}" ${+val(a,"months",36)===m?"selected":""}>${m} ay</option>`).join("")}</select></label>
             <label class="f">İllik faiz, %<input name="rate" type="number" min="0" step="0.1" value="${val(a,"rate",17)}"></label>
-            <label class="f">Bank komissiyası, % <small class="muted">ilkin ödənişə görə 3 / 2 / 1%</small><input name="commissionPct" type="number" min="0" step="0.1" value="${o?.commissionPct??""}" ${o&&o.commissionAuto===false?'data-manual="1"':""}></label>
+            <label class="f">Təşkilatın komissiyası, % <small class="muted">kreditdən, gizli</small><input name="commissionPct" type="number" min="0" max="10" step="0.1" value="${orgComm(a)}"></label>
+            <label class="f">Bank komissiyası, % <small class="muted">ilkin ödənişdən: 3 / 2 / 1%</small><input name="bankCommissionPct" type="number" min="0" max="10" step="0.1" value="${o?.bankCommissionPct??(o&&o.commissionAuto===false?o.commissionPct:"")}" ${o&&(o.bankCommissionPct!==undefined?o.bankCommissionAuto===false:o.commissionAuto===false)?'data-manual="1"':""}></label>
             <label class="f">DYP, ₼ <small class="muted">ən azı 650 ₼, qiymətə görə artır</small><input name="costDyp" type="number" min="0" step="1" value="${o?.costs?.dyp??650}"></label>
             <label class="f">KASKO sığorta, ₼ <small class="muted">qiymətin 2.38% + 20 ₼</small><input name="costKasko" type="number" min="0" step="0.01" value="${o?.costs?.kasko??""}" ${o?.costs&&o.costs.kasko!==kaskoFor(+o.price||0)?'data-manual="1"':""} placeholder="0"></label>
             <label class="f">GPS, ₼ <small class="muted">illik ${GPS_YEAR} ₼ × il sayı</small><input name="costGps" type="number" min="0" step="0.01" value="${o?.costs?.gps??""}" ${o?.costs&&o.costs.gps!==gpsFor(+o.months||36)?'data-manual="1"':""} placeholder="0"></label>
@@ -1429,7 +1432,7 @@ function liveResult(){
   const col=r.verdict==="approve"?"#6FCF97":r.verdict==="reject"?"#F08A80":r.verdict==="incomplete"?"#6E79A6":"#E9BE62";
   const dtiW=r.dti==null?0:Math.min(100,r.dti*100);
   const dtiC=r.dti==null?"transparent":r.dti>Scoring.POLICY.stopDti?"#F08A80":r.dti>lim?"#E9BE62":"#6FCF97";
-  const comm=(+i.price||0)*(+i.downPct||0)/100*(+i.commissionPct||0)/100,oth=(+i.costDyp||0)+(+i.costKasko||0)+(+i.costGps||0),inc=r.verdict==="incomplete";
+  const comm=(+i.price||0)*(+i.downPct||0)/100*(+i.bankCommissionPct||0)/100,org=(+i.price||0)*(1-(+i.downPct||0)/100)*(+i.commissionPct||0)/100,oth=(+i.costDyp||0)+(+i.costKasko||0)+(+i.costGps||0),inc=r.verdict==="incomplete";
   $("#result").innerHTML=`<span class="eyebrow">Decision engine · canlı</span>
     <div class="score"><div class="ring" style="--p:${inc?0:r.score};--c:${col}"><span>${inc?"—":r.score}<small>${inc?"skor":"bal · "+r.grade}</small></span></div>
       <div><small>Tövsiyə</small><div class="verdict" style="color:${col}">${Scoring.VERDICTS[r.verdict]}</div>
@@ -1444,7 +1447,8 @@ function liveResult(){
       <div><small>Maks. avtomobil qiyməti</small><b>${azn(r.maxPrice)}</b></div>
     </div>
     ${r.stops.length||r.notes.length?`<ul class="r">${r.stops.map(s=>`<li class="stop">${esc(s)}</li>`).join("")}${r.notes.map(s=>`<li>${esc(s)}</li>`).join("")}</ul>`:`<p class="ok-line">${IC.check.replace("<svg",'<svg width="16" height="16"')} Risk faktoru yoxdur</p>`}
-    ${comm||oth?`<p style="font-size:12.5px;margin:12px 0 0"><small>Digər xərclər (müştəri görür): ${azn(comm+oth)}${comm?` · bank komissiyası ${azn(comm)}`:""}</small></p>`:""}`;
+    ${comm||oth?`<p style="font-size:12.5px;margin:12px 0 0"><small>Digər xərclər (müştəri görür): ${azn(comm+oth)}${comm?` · bank komissiyası ${azn(comm)}`:""}</small></p>`:""}
+    ${org?`<p style="font-size:12.5px;margin:6px 0 0"><small>Təşkilatın komissiyası (müştəri görmür): ${azn(org)}</small></p>`:""}`;
 }
 
 document.addEventListener("input",e=>{if(e.target.closest("#aForm"))liveResult()});
@@ -1472,7 +1476,7 @@ document.addEventListener("click",async e=>{
     if(r.verdict==="reject"&&!confirmInline(b,"Skor imtina tövsiyə edir. Yenə göndər?"))return;
     try{
       await api(`/applications/${cur.id}/assessment`,{method:"PUT",body:JSON.stringify(i)});
-      await api(`/applications/${cur.id}/offer`,{method:"POST",body:JSON.stringify({price:+i.price,downPct:+i.downPct,months:+i.months,rate:+i.rate,commissionPct:+i.commissionPct,commissionAuto:!$("#aForm").commissionPct.dataset.manual,costs:{dyp:+i.costDyp||0,kasko:+i.costKasko||0,gps:+i.costGps||0}})});
+      await api(`/applications/${cur.id}/offer`,{method:"POST",body:JSON.stringify({price:+i.price,downPct:+i.downPct,months:+i.months,rate:+i.rate,commissionPct:+i.commissionPct,bankCommissionPct:+i.bankCommissionPct,bankCommissionAuto:!$("#aForm").bankCommissionPct.dataset.manual,costs:{dyp:+i.costDyp||0,kasko:+i.costKasko||0,gps:+i.costGps||0}})});
       toast("Təklif müştəriyə göndərildi");await openApp(cur.id);loadList()}catch(err){toast(err.message)}}
   if(b.id==="akbLoad"){
     const f=$("#akbFile").files[0];if(!f){toast("AKB XML faylını seç.");return}

@@ -132,11 +132,13 @@ const REJECT_REASONS = {
   docs: "Təqdim etdiyiniz sənədlər natamamdır və ya yoxlanıla bilmədi.",
   terms: "Müraciətiniz lizinq şərtlərimizə uyğun gəlmir."
 };
+// Bank commission follows the down payment: up to 20% → 3%, up to 30% → 2%, above 30% → 1%.
+const commissionFor = dp => dp <= 20 ? 3 : dp <= 30 ? 2 : 1;
 // Final terms the customer confirmed: the offer with their chosen down payment.
 function finalTerms(o, dp) {
   const down = o.price * dp / 100, F = o.price - down;
   // "Digər xərclər": DYP, KASKO, GPS as the expert entered them (AZN) and the bank commission on the financed amount.
-  const c = o.costs || {}, fee = F * (+o.commissionPct || 0) / 100;
+  const c = o.costs || {}, fee = F * (o.commissionAuto ? commissionFor(dp) : (+o.commissionPct || 0)) / 100;
   const other = { dyp: +c.dyp || 0, kasko: +c.kasko || 0, gps: +c.gps || 0, bank_commission: fee };
   other.total = other.dyp + other.kasko + other.gps + other.bank_commission;
   return { dp, down, credit: F, months: o.months, pay: Scoring.pmt(F, o.rate, o.months), fee, other };
@@ -1115,8 +1117,11 @@ app.post("/api/admin/applications/:id/offer", admin, brandGate, can("apps.offer"
   const b = req.body || {};
   const offer = {
     price: num(b.price, 1000, 1e7), downPct: num(b.downPct ?? 20, 0, 90), months: num(b.months ?? 36, 6, 84),
-    rate: num(b.rate ?? 17, 0, 60), commissionPct: num(b.commissionPct ?? 1.5, 0, 10),
-    costs: { dyp: num(b.costs?.dyp ?? 0, 0, 1e6), kasko: num(b.costs?.kasko ?? (b.price ? Math.round((+b.price * 0.0238 + 20) * 100) / 100 : 0), 0, 1e6), gps: num(b.costs?.gps ?? 0, 0, 1e6) }, at: new Date().toISOString()
+    rate: num(b.rate ?? 17, 0, 60),
+    // Staff may type their own commission; otherwise it follows the down payment the customer ends up choosing.
+    commissionAuto: b.commissionPct == null || b.commissionAuto === true,
+    commissionPct: b.commissionPct == null || b.commissionAuto === true ? commissionFor(+b.downPct || 20) : num(b.commissionPct, 0, 10),
+    costs: { dyp: num(b.costs?.dyp ?? 650, 0, 1e6), kasko: num(b.costs?.kasko ?? (b.price ? Math.round((+b.price * 0.0238 + 20) * 100) / 100 : 0), 0, 1e6), gps: num(b.costs?.gps ?? Math.round(169.92 * Math.ceil((+b.months || 36) / 12) * 100) / 100, 0, 1e6) }, at: new Date().toISOString()
   };
   if (Object.values(offer.costs).some(v => v == null)) return bad(res, "Digər xərclər düzgün deyil.");
   if (offer.price == null) return bad(res, "Qiymət düzgün deyil.");

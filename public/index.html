@@ -718,12 +718,12 @@ async function submitApp(){
   finally{sending=false;$("#nextBtn").disabled=false;$("#nextBtn").textContent=step===4?"Təsdiqlə və göndər":"Davam et"}
 }
 function offerFromServer(o){const F=o.price*(1-o.downPct/100),r=o.rate/100/12;
-  return {price:o.price,downPct:o.downPct,down:Math.round(o.price*o.downPct/100),F,rate:o.rate,comm:+o.commissionPct||0,costs:o.costs||{},n:o.months,pmt:F*r/(1-Math.pow(1+r,-o.months)),at:o.at,final:o.final||null}}
+  return {price:o.price,downPct:o.downPct,down:Math.round(o.price*o.downPct/100),F,rate:o.rate,comm:+o.commissionPct||0,commAuto:!!o.commissionAuto,costs:o.costs||{},n:o.months,pmt:F*r/(1-Math.pow(1+r,-o.months)),at:o.at,final:o.final||null}}
 async function syncApps(){
   if(!API||!apps.length)return;
   await Promise.all(apps.map(async a=>{if(!a.token)return;try{const r=await fetch(`/api/applications/${encodeURIComponent(a.id)}`,{headers:{"x-app-token":a.token}});if(r.status===401){a.gone=true;return}if(!r.ok)return;const j=await r.json();
     if(j.status==="cancelled"){a.gone=true;return}
-    if(j.offer&&(!a.offer||a.offer.at!==j.offer.at||!!a.offer.final!==!!j.offer.final||a.offer.costs===undefined))a.offer=offerFromServer(j.offer);
+    if(j.offer&&(!a.offer||a.offer.at!==j.offer.at||!!a.offer.final!==!!j.offer.final||a.offer.costs===undefined||a.offer.commAuto===undefined))a.offer=offerFromServer(j.offer);
     // "Təkrar təklif" shows to the customer as being reviewed again, until the new offer arrives.
     a.reoffer=j.status==="reoffer";if(a.reoffer)a.state="review";
     if(j.status==="offer"&&["review","info","declined"].includes(a.state))a.state="offer";
@@ -744,7 +744,7 @@ const DP_MAX=70;
 function offerAt(o,dp){
   dp=Math.max(o.downPct??20,Math.min(DP_MAX,dp));
   const down=Math.round(o.price*dp/100),F=o.price-down,r=o.rate/100/12;
-  return {...o,downPct:dp,down,F,fee:F*(o.comm||0)/100,pmt:r?F*r/(1-Math.pow(1+r,-o.n)):F/o.n};
+  return {...o,downPct:dp,down,F,fee:F*(o.commAuto?(dp<=20?3:dp<=30?2:1):(o.comm||0))/100,pmt:r?F*r/(1-Math.pow(1+r,-o.n)):F/o.n};
 }
 const chosenDp=a=>a.offer.final?.downPct??a.dp??a.offer.downPct??20;
 function figsHtml(a){

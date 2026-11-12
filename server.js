@@ -107,7 +107,8 @@ const sameHex = (a, b) => a.length === b.length && crypto.timingSafeEqual(Buffer
 const normPhone = p => String(p || "").replace(/\D/g, "");
 const bad = (res, msg, code = 400) => res.status(code).json({ error: msg });
 const logEvent = (db, id, actor, kind, details = null) =>
-  db.query("INSERT INTO application_events (application_id, actor, kind, details) VALUES ($1,$2,$3,$4)", [id, actor, kind, details]);
+  db.query("INSERT INTO application_events (application_id, actor, kind, details) VALUES ($1,$2,$3,$4)", [id, actor, kind, details])
+    .then(r => { if (kind !== "webhook") queueHistory(id); return r; });
 // Security log of staff actions: sign-ins, account changes, document views, deletions.
 const audit = (req, username, action, target = null) =>
   pool.query("INSERT INTO audit_log (username, ip, action, target) VALUES ($1,$2,$3,$4)", [username, req.ip, action, target == null ? null : String(target)])
@@ -580,6 +581,57 @@ async function postResult(id, attempt = 1, only = null) {
   if (error) { console.error(`Partnyor webhook xətası (${id}): ${error}`); if (attempt < 2) setTimeout(() => postResult(id, attempt + 1, only).catch(() => {}), 60000); }
 }
 const sendResult = id => postResult(id).catch(e => console.error(e.message));
+
+// "Tarixçə və qeydlər" go to the partner (Bitrix) as event "history": the whole timeline as the panel shows it, sent
+// ~15 s after the last change of an application (so a burst of events goes as one call). Credit bureau and income
+// document readings stay in ARZOOM; partner notifications themselves are not repeated.
+const H_TITLES = { call_requeue: "ArzoomCall-a yenidən zəng sifariş edildi", partner_ref: "Partnyor ref nömrəsi əlavə edildi",
+  info_request: "Müştəridən əlavə məlumat istənildi", info_reply: "Müştəri əlavə məlumat göndərdi", created: "Müraciət daxil oldu",
+  assessed: "Qiymətləndirildi", offer: "Təklif göndərildi", reoffer: "Müştəri başqa şərt istəyir: təkrar təklif", rejected: "Müraciət rədd edildi",
+  note: "Qeyd", accepted: "Müştəri son təklifi təsdiqlədi: anderraytinqə və satışa ötürüldü", declined: "Müştəri təklifdən imtina etdi",
+  cancelled: "Müştəri müraciəti ləğv etdi", sms: "SMS" };
+const H_SKIP = new Set(["webhook", "bureau", "doc_analysis"]);
+function historyEntry(e) {
+  const d = e.details || {};
+  const title = e.kind === "accepted" && d.via === "robocall" ? "ArzoomCall müştərini satış təmsilçisinə qoşdu: satışa ötürüldü"
+    : e.kind === "note" && d.channel === "robocall" ? "ArzoomCall zənginin nəticəsi"
+    : e.kind === "note" && CALL_RESULTS[d.outcome] ? (d.channel === "meeting" ? "Fiziki görüşün nəticəsi" : "Telefon danışığının nəticəsi")
+    : e.kind === "sms" ? `SMS${d.to ? " → " + d.to : ""}` : H_TITLES[e.kind] || e.kind;
+  const text = e.kind === "assessed" ? `${d.score} bal, ${d.grade}`
+    : e.kind === "offer" ? `${money(d.price)}, ilkin ${d.downPct}%, ${d.months} ay, illik ${d.rate}%`
+    : e.kind === "reoffer" ? [d.label, d.reason].filter(Boolean).join(" · ")
+    : e.kind === "rejected" ? d.reason || ""
+    : e.kind === "note" ? [d.channel === "robocall" ? (d.outcome_label || ROBO_RESULTS[d.outcome]) : CALL_RESULTS[d.outcome], d.text].filter(Boolean).join(" · ")
+    : e.kind === "sms" ? (d.error ? "Göndərilmədi: " + d.error : d.text || "")
+    : e.kind === "info_request" ? d.text || "" : e.kind === "info_reply" ? [d.text, d.files ? `${d.files} sənəd` : ""].filter(Boolean).join(" · ")
+    : e.kind === "created" ? `${d.files || 0} sənəd` : e.kind === "accepted" && d.downPct != null ? `ilkin ödəniş ${d.downPct}%`
+    : e.kind === "partner_ref" ? d.ref || "" : "";
+  return { at: new Date(e.at).toISOString(), kind: e.kind, title, text: String(text || ""), actor: e.actor === "Robocall" ? "ArzoomCall" : e.actor };
+}
+const historyTimers = new Map();
+function queueHistory(id) {
+  if (!WH.url || !id) return;
+  clearTimeout(historyTimers.get(id));
+  historyTimers.set(id, setTimeout(() => { historyTimers.delete(id); postHistory(id).catch(e => console.error(e.message)); }, HISTORY_DELAY).unref());
+}
+const HISTORY_DELAY = Number(process.env.HISTORY_DELAY_MS) || 15000;
+async function postHistory(id, attempt = 1) {
+  if (!WH.url) return;
+  const { rows } = await pool.query("SELECT id, partner_ref, status FROM applications WHERE id = $1", [id]);
+  const a = rows[0]; if (!a?.partner_ref) return;
+  const ev = await pool.query("SELECT kind, actor, details, at FROM application_events WHERE application_id = $1 ORDER BY at, id", [id]);
+  const history = ev.rows.filter(e => !H_SKIP.has(e.kind)).map(historyEntry).slice(-300);
+  const body = { event: "history", external_id: a.partner_ref, application_id: a.id, date: new Date().toISOString(),
+                 status: a.status, status_label: EXPORT_STATUS[a.status] || a.status, history };
+  let error = null;
+  try {
+    const res = await fetch(WH.url, { method: "POST", signal: AbortSignal.timeout(10000),
+      headers: { "Content-Type": "application/json", ...(WH.token ? { "X-Api-Key": WH.token } : {}) }, body: JSON.stringify(body) });
+    if (!res.ok) error = `HTTP ${res.status}`;
+  } catch (e) { error = e.name === "TimeoutError" ? "cavab gəlmədi (10 san.)" : "qoşulmaq olmadı"; }
+  WH.last = { ok: !error, at: new Date().toISOString(), id, error, event: "history" };
+  if (error && attempt < 3) setTimeout(() => postHistory(id, attempt + 1).catch(() => {}), attempt * 60e3).unref();
+}
 // Stock and prices come from the same partner, with the same token: GET {origin}/credit/kb/{token}, refreshed every 15 minutes.
 // The last good list is kept if the partner is unreachable.
 const STOCK = { brands: {}, at: null, error: null };
@@ -746,6 +798,7 @@ app.post("/api/integrations/robocall/applications/:id/feedback", rcAuth, async (
   const ins = await pool.query(
     `INSERT INTO application_events (application_id, actor, kind, details) VALUES ($1, 'ArzoomCall', 'note', $2)
      ON CONFLICT ((details->>'feedback_id')) WHERE kind = 'note' AND details ? 'feedback_id' DO NOTHING`, [req.params.id, details]);
+  if (ins.rowCount) queueHistory(req.params.id);
   let reoffer = false;
   if (ins.rowCount && REOFFER_OUTCOMES.has(outcome)) {
     const request = { outcome, label, reason: details.text || null, requested_terms: details.requested_terms, at: new Date().toISOString(), source: "robocall" };

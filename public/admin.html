@@ -874,7 +874,7 @@ async function renderWh(st){
       <label class="f">Webhook ünvanı<input id="whUrl" type="password" autocomplete="new-password" spellcheck="false" placeholder="${st.connected?"Saxlanılıb, dəyişmək üçün yenisini yaz":"https://…"}" ${st.connected?"":"required"}></label>
       <label class="f">Token (X-Api-Key)<input id="whToken" type="password" autocomplete="new-password" placeholder="${st.tokenSet?"Saxlanılıb, dəyişmək üçün yenisini yaz":"Partnyorun verdiyi token"}"></label>
     </div>
-    <div class="pbar"><small class="muted">Ref nömrəsi ilə gələn müraciətlər üçün bu ünvana göndərilir: ərizə göndərildi, təsdiqləndi (şərtlərlə), rədd edildi. Ünvan və token ekranda bir daha göstərilmir.</small><span class="sp"></span>${st.connected?`<button class="btn ghost sm" type="button" id="whOff">Söndür</button>`:""}<button class="btn sm" type="submit">Saxla</button></div>`;
+    <div class="pbar"><small class="muted">Ref nömrəsi ilə gələn müraciətlər üçün bu ünvana göndərilir: ərizə göndərildi, təsdiqləndi (şərtlərlə), rədd edildi, satışa ötürüldü, imtina, ləğv, bir də hər dəyişiklikdən sonra tarixçə və qeydlər (AKB və gəlir sənədinin oxunuşu getmir). Ünvan və token ekranda bir daha göstərilmir.</small><span class="sp"></span>${st.connected?`<button class="btn ghost sm" type="button" id="whOff">Söndür</button>`:""}<button class="btn sm" type="submit">Saxla</button></div>`;
 }
 document.addEventListener("submit",async e=>{if(e.target.id!=="whBox")return;e.preventDefault();
   try{const st=await api("/settings/webhook",{method:"POST",body:JSON.stringify({url:$("#whUrl").value,token:$("#whToken").value})});

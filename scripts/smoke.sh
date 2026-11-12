@@ -119,6 +119,13 @@ curl -fsS -X POST "$B/api/applications/$ID/decision" -H "x-app-token: $TOK" -H "
 [ "$(curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID" | J offer.final.downPct)" = 30 ] || fail; echo "✓ ilkin ödəniş 30%-ə artırıldı"
 [ "$(curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID" | J status)" = accepted ] || fail; echo "✓ təklif qəbul edildi"
 sleep 1; grep '^wh-token-12345 {"event":"accepted","external_id":"111938","application_id":"'"$ID"'"' "$WHF" | grep -q '"down_payment_pct":30' || fail; echo "✓ satışa ötürülmə partnyora göndərilir (son şərtlərlə)"
+# "Tarixçə və qeydlər" go to the partner as event "history" (the whole timeline), without bureau or income readings
+curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/notes" -d '{"text":"Bitrix üçün qeyd 42"}' >/dev/null || fail
+for i in $(seq 1 25); do grep -q '^wh-token-12345 {"event":"history","external_id":"111938","application_id":"'"$ID"'".*Bitrix üçün qeyd 42' "$WHF" && break; sleep 1; done
+HL=$(grep '^wh-token-12345 {"event":"history","external_id":"111938","application_id":"'"$ID"'"' "$WHF" | tail -1)
+echo "$HL" | grep -q 'Bitrix üçün qeyd 42' && echo "$HL" | grep -q '"title":"Müraciət daxil oldu"' && echo "$HL" | grep -q '"status_label":"Satışa ötürülüb"' \
+  && ! echo "$HL" | grep -q '"kind":"webhook"\|"kind":"bureau"\|"kind":"doc_analysis"' || fail
+echo "✓ tarixçə və qeydlər partnyora (Bitrix) göndərilir"
 sleep 1
 EV=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID")
 echo "$EV" | grep -c "Test Satış" >/dev/null && echo "$EV" | grep -c "Müraciət № $ID satışa" >/dev/null && echo "$EV" | grep -c "Son təklifi təsdiqlədiniz" >/dev/null || fail; echo "✓ son təklif SMS-i müştəriyə və satışa"

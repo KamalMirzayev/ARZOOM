@@ -9,6 +9,8 @@ const { Pool, types } = require("pg");
 // DATE columns stay plain YYYY-MM-DD strings, with no time zone shift.
 types.setTypeParser(1082, v => v);
 const Sms = require("./lib/sms");
+const { CALL_RESULTS, ROBO_RESULTS, EXPORT_STATUS } = require("./lib/labels");
+const History = require("./lib/history");
 const Xlsx = require("./lib/xlsx");
 const Stock = require("./lib/stock");
 const { sendSms } = Sms;
@@ -582,32 +584,8 @@ async function postResult(id, attempt = 1, only = null) {
 }
 const sendResult = id => postResult(id).catch(e => console.error(e.message));
 
-// "Tarixçə və qeydlər" go to the partner (Bitrix) as event "history": the whole timeline as the panel shows it, sent
-// ~15 s after the last change of an application (so a burst of events goes as one call). Credit bureau and income
-// document readings stay in ARZOOM; partner notifications themselves are not repeated.
-const H_TITLES = { call_requeue: "ArzoomCall-a yenidən zəng sifariş edildi", partner_ref: "Partnyor ref nömrəsi əlavə edildi",
-  info_request: "Müştəridən əlavə məlumat istənildi", info_reply: "Müştəri əlavə məlumat göndərdi", created: "Müraciət daxil oldu",
-  assessed: "Qiymətləndirildi", offer: "Təklif göndərildi", reoffer: "Müştəri başqa şərt istəyir: təkrar təklif", rejected: "Müraciət rədd edildi",
-  note: "Qeyd", accepted: "Müştəri son təklifi təsdiqlədi: anderraytinqə və satışa ötürüldü", declined: "Müştəri təklifdən imtina etdi",
-  cancelled: "Müştəri müraciəti ləğv etdi", sms: "SMS" };
-const H_SKIP = new Set(["webhook", "bureau", "doc_analysis"]);
-function historyEntry(e) {
-  const d = e.details || {};
-  const title = e.kind === "accepted" && d.via === "robocall" ? "ArzoomCall müştərini satış təmsilçisinə qoşdu: satışa ötürüldü"
-    : e.kind === "note" && d.channel === "robocall" ? "ArzoomCall zənginin nəticəsi"
-    : e.kind === "note" && CALL_RESULTS[d.outcome] ? (d.channel === "meeting" ? "Fiziki görüşün nəticəsi" : "Telefon danışığının nəticəsi")
-    : e.kind === "sms" ? `SMS${d.to ? " → " + d.to : ""}` : H_TITLES[e.kind] || e.kind;
-  const text = e.kind === "assessed" ? `${d.score} bal, ${d.grade}`
-    : e.kind === "offer" ? `${money(d.price)}, ilkin ${d.downPct}%, ${d.months} ay, illik ${d.rate}%`
-    : e.kind === "reoffer" ? [d.label, d.reason].filter(Boolean).join(" · ")
-    : e.kind === "rejected" ? d.reason || ""
-    : e.kind === "note" ? [d.channel === "robocall" ? (d.outcome_label || ROBO_RESULTS[d.outcome]) : CALL_RESULTS[d.outcome], d.text].filter(Boolean).join(" · ")
-    : e.kind === "sms" ? (d.error ? "Göndərilmədi: " + d.error : d.text || "")
-    : e.kind === "info_request" ? d.text || "" : e.kind === "info_reply" ? [d.text, d.files ? `${d.files} sənəd` : ""].filter(Boolean).join(" · ")
-    : e.kind === "created" ? `${d.files || 0} sənəd` : e.kind === "accepted" && d.downPct != null ? `ilkin ödəniş ${d.downPct}%`
-    : e.kind === "partner_ref" ? d.ref || "" : "";
-  return { at: new Date(e.at).toISOString(), kind: e.kind, title, text: String(text || ""), actor: e.actor === "Robocall" ? "ArzoomCall" : e.actor };
-}
+// "Tarixçə və qeydlər" go to the partner (Bitrix) as event "history" (see lib/history.js), ~15 s after the last change
+// of an application, so a burst of events goes as one call.
 const historyTimers = new Map();
 function queueHistory(id) {
   if (!WH.url || !id) return;
@@ -617,21 +595,13 @@ function queueHistory(id) {
 const HISTORY_DELAY = Number(process.env.HISTORY_DELAY_MS) || 15000;
 async function postHistory(id, attempt = 1) {
   if (!WH.url) return;
-  const { rows } = await pool.query("SELECT id, partner_ref, status FROM applications WHERE id = $1", [id]);
-  const a = rows[0]; if (!a?.partner_ref) return;
-  const ev = await pool.query("SELECT kind, actor, details, at FROM application_events WHERE application_id = $1 ORDER BY at, id", [id]);
-  const history = ev.rows.filter(e => !H_SKIP.has(e.kind)).map(historyEntry).slice(-300);
-  const body = { event: "history", external_id: a.partner_ref, application_id: a.id, date: new Date().toISOString(),
-                 status: a.status, status_label: EXPORT_STATUS[a.status] || a.status, history };
-  let error = null;
-  try {
-    const res = await fetch(WH.url, { method: "POST", signal: AbortSignal.timeout(10000),
-      headers: { "Content-Type": "application/json", ...(WH.token ? { "X-Api-Key": WH.token } : {}) }, body: JSON.stringify(body) });
-    if (!res.ok) error = `HTTP ${res.status}`;
-  } catch (e) { error = e.name === "TimeoutError" ? "cavab gəlmədi (10 san.)" : "qoşulmaq olmadı"; }
+  const body = await History.build(pool, id); if (!body) return;
+  const error = await History.post(WH, body);
   WH.last = { ok: !error, at: new Date().toISOString(), id, error, event: "history" };
   if (error && attempt < 3) setTimeout(() => postHistory(id, attempt + 1).catch(() => {}), attempt * 60e3).unref();
 }
+
+
 // Stock and prices come from the same partner, with the same token: GET {origin}/credit/kb/{token}, refreshed every 15 minutes.
 // The last good list is kept if the partner is unreachable.
 const STOCK = { brands: {}, at: null, error: null };
@@ -773,11 +743,6 @@ const rcAuth = (req, res, next) => {
 };
 // The customer's final word from a robocall call. Stored as a call note (channel "robocall"), so it shows in the panel
 // timeline and comes back in last_call. feedback_id makes repeats harmless: robocall retries until it gets 200.
-const ROBO_RESULTS = { agrees_will_visit: "Razıdır, salona gələcək", agrees_will_call: "Razıdır, özü zəng edəcək", thinking: "Düşünür",
-  docs_will_send: "Sənədləri göndərəcək", docs_cannot: "Sənədləri təqdim edə bilmir", declined: "İmtina etdi",
-  callback: "Yenidən zəng istədi", wrong_person: "Başqa şəxsdir", other: "Digər",
-  wants_lower_monthly: "Aylıq ödənişi çox hesab edir", wants_lower_down: "İlkin ödənişdə endirim istəyir",
-  wants_other_terms: "Başqa şərt istəyir (müddət, məbləğ)", transferred_to_sales: "Satış təmsilçisinə qoşuldu" };
 // The customer is interested but not with these terms: the application goes to "Təkrar təklif" for staff to rework the offer.
 const REOFFER_OUTCOMES = new Set(["wants_lower_monthly", "wants_lower_down", "wants_other_terms"]);
 app.post("/api/integrations/robocall/applications/:id/feedback", rcAuth, async (req, res) => {
@@ -1061,7 +1026,6 @@ app.get("/api/admin/applications", admin, async (req, res) => {
 
 /* ---------- Excel export ---------- */
 // All applications (or the current filter) as .xlsx. Holds personal data, so it needs its own permission and is audited.
-const EXPORT_STATUS = { review: "Baxılır", info: "Əlavə məlumat gözlənilir", offer: "Təklif göndərilib", reoffer: "Təkrar təklif", rejected: "Rədd edilib", accepted: "Satışa ötürülüb", declined: "Müştəri imtina etdi", cancelled: "Ləğv edilib" };
 app.get("/api/admin/export.xlsx", admin, async (req, res) => {
   if (!req.perms.includes("apps.export")) return bad(res, "Excel-ə çıxarmaq üçün icazən yoxdur.", 403);
   const q = String(req.query.q || "").trim().toUpperCase().slice(0, 64);
@@ -1250,9 +1214,6 @@ app.post("/api/admin/applications/:id/reject", admin, brandGate, can("apps.rejec
 });
 
 // Result of a talk with the customer, picked from a fixed list; the note text is optional with it.
-const CALL_RESULTS = { agreed: "Razılaşdı", thinking: "Düşünür", callback: "Yenidən zəng ediləcək", docs: "Sənəd gətirəcək",
-  verified: "Məlumatlar təsdiqləndi", mismatch: "Uyğunsuzluq aşkarlandı",
-  no_answer: "Cavab vermədi", not_interested: "Maraqlanmır", wrong_number: "Nömrə səhvdir" };
 const LAST_CALL = `(SELECT details->>'outcome' FROM application_events e WHERE e.application_id = applications.id AND e.kind = 'note' AND details ? 'outcome' ORDER BY e.at DESC LIMIT 1)`;
 app.post("/api/admin/applications/:id/notes", admin, brandGate, can("apps.notes"), async (req, res) => {
   const text = String(req.body?.text || "").trim().slice(0, 2000);

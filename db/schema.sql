@@ -146,3 +146,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS application_events_feedback_idx ON application
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS reoffer JSONB;
 -- Gəlir sənədinin süni intellektlə analizi (ekspert "Analiz et" basanda)
 ALTER TABLE application_files ADD COLUMN IF NOT EXISTS analysis JSONB;
+-- ArzoomCall kampaniyası: razılaşan şəxsə müraciət linki SMS-lə (nömrə yalnız hash və maskalı saxlanılır)
+CREATE TABLE IF NOT EXISTS link_sms (
+  id            BIGSERIAL PRIMARY KEY,
+  phone_hash    TEXT NOT NULL,
+  phone_masked  TEXT NOT NULL,
+  brand         TEXT,
+  source        TEXT NOT NULL,
+  error         TEXT,
+  at            TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS link_sms_phone_at ON link_sms (phone_hash, at);

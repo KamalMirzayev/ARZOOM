@@ -280,6 +280,12 @@ curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/j
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$RCU/YOX-0000/feedback" -d "$FB")" = 404 ] || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$RCU/$RLIVE/feedback" -d '{"feedback_id":"x","outcome":"hack"}')" = 400 ] || fail
 curl -fsS -H "x-integration-token: $RCT" "$RCU?limit=500" | grep -q '"last_call":{"outcome":"declined","outcome_label":"İmtina etdi","channel":"robocall","text":"Başqa yerdən aldı"' || fail
+# Campaign: ArzoomCall asks ARZOOM to text the application link; token required, number checked, needs SMS and site address
+LNK="$B/api/integrations/robocall/send-application-link"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Content-Type: application/json" "$LNK" -d '{"phone":"994501234567"}')" = 401 ] || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$LNK" -d '{"phone":"12345"}')" = 400 ] || fail
+if [ "$SMS_ON" = false ]; then [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$LNK" -d '{"phone":"994501234567"}')" = 503 ] || fail; fi
+echo "✓ ArzoomCall kampaniyası: müraciət linki SMS-i yalnız token ilə, nömrə yoxlanılır"
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$RLIVE" | grep -o "$FBID" | wc -l)" = 1 ] || fail
 # Təkrar təklif: the customer wants a lower monthly payment -> the offer goes back to staff; a new offer moves it on
 node -e 'const {Client}=require("pg"),db=new Client({connectionString:process.env.DATABASE_URL});db.connect().then(()=>db.query("UPDATE applications SET status = '"'"'offer'"'"' WHERE id = $1",[process.argv[1]])).then(()=>db.end())' "$RLIVE"

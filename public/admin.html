@@ -742,10 +742,9 @@ async function renderUsers(){
   </div>
   <form class="panel" id="whBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("send","Partnyor webhook (Bitrix)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <section class="panel" id="rcBox" style="margin-top:16px;display:grid;gap:12px">${ph("send","ArzoomCall inteqrasiyası")}<p class="muted" style="margin:0">Yüklənir…</p></section>
-  <form class="panel" id="aiBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("doc","Sənəd analizi (süni intellekt)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <form class="panel" id="smsBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("shield","SMS provayderi (Softline)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <section class="panel" id="auditBox" style="margin-top:16px">${ph("shield","Təhlükəsizlik jurnalı")}<p class="muted" style="margin:0">Yüklənir…</p></section>`;
-  renderSms();renderWh();renderRc();renderAi();
+  renderSms();renderWh();renderRc();
   try{const {items}=await api("/audit");
     $("#auditBox").innerHTML=ph("shield","Təhlükəsizlik jurnalı")+(items.length?`<div style="overflow-x:auto"><table class="dtable"><thead><tr><th>Vaxt</th><th>İstifadəçi</th><th>Əməliyyat</th><th>Obyekt</th><th>IP</th></tr></thead>
       <tbody>${items.map(r=>`<tr${r.action==="login.fail"?' class="closed"':""}><td>${dt(r.at)}</td><td class="mono">${esc(r.username||"—")}</td><td>${esc(AUDIT[r.action]||r.action)}</td><td>${esc(r.target||"")}</td><td class="mono">${esc(r.ip||"")}</td></tr>`).join("")}</tbody></table></div>`
@@ -1232,6 +1231,7 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-days]");if
 async function openApp(id){
   try{cur=await api("/applications/"+encodeURIComponent(id))}catch(err){toast(err.message);return}
   $("#shell").classList.add("open");renderList();renderDetail();window.scrollTo({top:0});
+  if(history.state?.detail)history.replaceState({detail:true,id},"","#"+encodeURIComponent(id));
 }
 const val=(a,k,d="")=>a.assessment?.inputs?.[k]??a.offer?.[k]??d;
 function steps(a){
@@ -1512,7 +1512,22 @@ function confirmInline(b,text){
   return false;
 }
 
-if(token)start().catch(()=>{});
+// Phone back button: opening a page (application, users, analytics, calls...) adds a history step, so "back" closes it
+// instead of leaving the panel; the application stays in the address (#ID), so a reload opens it again.
+let navPop=false;
+new MutationObserver(()=>{const open=$("#shell").classList.contains("open");
+  if(open&&!history.state?.detail)history.pushState({detail:true,id:cur?.id||null},"",cur?"#"+encodeURIComponent(cur.id):location.pathname);
+  else if(!open&&history.state?.detail&&!navPop)history.back();
+}).observe($("#shell"),{attributes:true,attributeFilter:["class"]});
+addEventListener("popstate",e=>{if(!token||$("#app").hidden)return;navPop=true;
+  try{if(e.state?.detail){if(e.state.id&&e.state.id!==cur?.id)openApp(e.state.id);else if(!e.state.id)$("#shell").classList.add("open")}
+    else if($("#shell").classList.contains("open")){$("#shell").classList.remove("open");cur=null;renderList();renderHome()}}
+  finally{setTimeout(()=>navPop=false)}});
+// With a saved session the sign-in form stays hidden while the session is checked, so it does not flash on the way back.
+if(token){$("#login").hidden=true;
+  const want=decodeURIComponent(location.hash.slice(1));
+  start().then(()=>{if(/^[A-Za-z0-9-]{1,40}$/.test(want)){history.replaceState(null,"",location.pathname);openApp(want)}})
+    .catch(()=>{if($("#app").hidden)$("#login").hidden=false})}
 setInterval(()=>{if(token&&!$("#app").hidden)loadList().catch(()=>{})},20000);
 </script>
 </body>

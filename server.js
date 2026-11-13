@@ -908,6 +908,31 @@ app.get("/api/admin/call-analytics/calls/:callId/recording", admin, can("analyti
   audit(req, req.user.username, "call.recording", id);
   require("stream").Readable.fromWeb(r.body).pipe(res);
 });
+// Campaign calls to people who are not applicants yet: when they agree, ArzoomCall asks ARZOOM to text them the link
+// to the application form (ArzoomCall has no SMS provider). One SMS per number per 24 h and LINK_SMS_DAILY_MAX (500)
+// a day in all. The number is kept only as a hash (for the 24 h check) and masked; the text carries no name.
+const LINK_DAILY = Number(process.env.LINK_SMS_DAILY_MAX) || 500;
+app.post("/api/integrations/robocall/send-application-link", rcAuth, async (req, res) => {
+  const b = req.body || {}, p = normPhone(b.phone), phone = p.length === 9 ? "994" + p : p;
+  if (!/^994\d{9}$/.test(phone)) return bad(res, "Mobil nömrə düzgün deyil (994XXXXXXXXX).");
+  const brand = BRANDS.find(x => x.toLowerCase() === String(b.brand || "").trim().toLowerCase()) || null;
+  const source = /^[a-z0-9_-]{1,32}$/.test(String(b.source ?? "")) ? String(b.source) : "robocall";
+  if (!SITE_URL) return bad(res, "Saytın ünvanı (SITE_ADDRESS) təyin olunmayıb.", 503);
+  if (!Sms.configured()) return bad(res, "SMS provayderi qoşulmayıb.", 503);
+  const hash = sha("link:" + phone);
+  const recent = await pool.query("SELECT at FROM link_sms WHERE phone_hash = $1 AND error IS NULL AND at > now() - interval '24 hours' ORDER BY at DESC LIMIT 1", [hash]);
+  if (recent.rowCount) return res.status(429).json({ error: "Bu nömrəyə son 24 saatda link göndərilib.", duplicate: true,
+    retry_after: new Date(recent.rows[0].at.getTime() + 864e5).toISOString() });
+  const day = await pool.query("SELECT count(*)::int AS n FROM link_sms WHERE error IS NULL AND at > now() - interval '24 hours'");
+  if (day.rows[0].n >= LINK_DAILY) return bad(res, "Günlük SMS limiti dolub.", 429);
+  const text = `Arzoom Avto: ${brand ? brand + " avtomobilini" : "Avtomobili"} lizinqə almaq üçün müraciəti bu linkdən göndərin: ${SITE_URL}/?partner=arzoomcall`;
+  let error = null;
+  try { await sendSms(phone, text); } catch (e) { error = String(e.message || "göndərilmədi").slice(0, 200); }
+  const r = await pool.query("INSERT INTO link_sms (phone_hash, phone_masked, brand, source, error) VALUES ($1,$2,$3,$4,$5) RETURNING id",
+    [hash, maskPhone(phone), brand, source, error]);
+  if (error) { console.error(`Link SMS-i göndərilmədi: ${error}`); return bad(res, "SMS göndərilmədi.", 502); }
+  res.json({ ok: true, sms_id: String(r.rows[0].id) });
+});
 app.get("/api/integrations/robocall/applications", rcAuth, async (req, res) => {
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 200, 1), 500);
   let since = "1970-01-01T00:00:00Z", afterId = "";

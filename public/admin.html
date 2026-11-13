@@ -8,10 +8,10 @@
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta name="theme-color" content="#F5F7FC">
+<meta name="theme-color" content="#F7F6F2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&family=Fraunces:opsz,wght@9..144,500..700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <script>try{if(localStorage.getItem("arzoom-theme")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}</script>
 <style>
 /* Staff desk: the customer page's tokens, denser layout. List on the left, one application on the right. */
@@ -452,6 +452,53 @@ details.inq summary{cursor:pointer;font-weight:600;font-size:13px;margin-top:14p
 @media (max-width:1280px){.ugrid{grid-template-columns:1fr}.agrid .w2,.agrid .w3,.agrid .w4{grid-column:span 6}.akb-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:900px){.tiles{grid-template-columns:1fr 1fr}}
 .cacts{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
+
+/* ---------- premium layer: warm ivory paper, navy ink, a thin gold accent, serif headlines, soft layered depth ---------- */
+:root{--f-serif:"Fraunces","Archivo",Georgia,serif;--gold-a:#A9824A;--gold-a2:#C9A66B;--gold-line:rgb(169 130 74 / .35);--ease:cubic-bezier(.2,.8,.2,1)}
+:root[data-theme="dark"]{--gold-a:#D4B47A;--gold-a2:#E6CC98;--gold-line:rgb(212 180 122 / .35)}
+:root:not([data-theme="dark"]){
+  --bg:#F7F6F2; --surface:#FFFFFF; --raised:#FAF9F6; --line:#E8E5DD; --line-2:#D9D4C8; --muted:#5F6680;
+  --shadow:0 1px 1px rgb(14 20 48 / .03),0 8px 24px -10px rgb(14 20 48 / .08),0 28px 56px -28px rgb(14 20 48 / .14)}
+::selection{background:rgb(169 130 74 / .22)}
+.eyebrow{color:var(--gold-a)!important;letter-spacing:.16em}
+.panel{transition:box-shadow .25s var(--ease),transform .25s var(--ease),border-color .25s}
+.btn{background:linear-gradient(180deg,#5A78FF,#3F5FF2);box-shadow:0 1px 0 rgb(255 255 255 / .25) inset,0 8px 18px -8px rgb(63 95 242 / .55);transition:transform .15s var(--ease),box-shadow .2s,filter .15s}
+.btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 1px 0 rgb(255 255 255 / .25) inset,0 12px 24px -10px rgb(63 95 242 / .6)}
+.btn:active:not(:disabled){transform:translateY(0)}
+.btn.ghost{background:var(--surface);box-shadow:0 1px 2px rgb(14 20 48 / .05)}
+.btn.ghost:hover:not(:disabled){border-color:var(--gold-line);box-shadow:0 6px 14px -8px rgb(14 20 48 / .2)}
+.btn.danger{background:linear-gradient(180deg,#EE4650,#D71F29);box-shadow:0 8px 18px -8px rgb(215 31 41 / .5)}
+input,select,textarea,.inp{transition:border-color .2s,box-shadow .2s,background .2s}
+.logoplate{box-shadow:0 0 0 1px var(--line),0 6px 16px -10px rgb(14 20 48 / .25)}
+.welcome h2,.hero h2,.login form h1,.engine h2{font-family:var(--f-serif);font-weight:600;letter-spacing:0;font-variation-settings:"opsz" 72}
+.panel{border-radius:18px}
+.panel:hover{box-shadow:0 1px 1px rgb(14 20 48 / .03),0 12px 28px -12px rgb(14 20 48 / .12),0 32px 60px -30px rgb(14 20 48 / .16)}
+.stat{border-radius:14px}
+/* sign-in: ivory page, the decision-engine illustration framed as a floating screen */
+:root:not([data-theme="dark"]) .login{background:radial-gradient(800px 500px at 100% 0%,rgb(169 130 74 / .10),transparent 70%),var(--bg)}
+:root:not([data-theme="dark"]) .login-side{background:transparent;border-right:0}
+.login form{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:34px 30px;box-shadow:var(--shadow)}
+.login form h1{font-size:32px}
+.engine{margin:22px 22px 22px 0;border-radius:28px;box-shadow:0 40px 80px -36px rgb(7 11 28 / .6),0 0 0 1px var(--gold-line) inset}
+.engine .eyebrow{color:var(--gold-a2)!important}
+@media (max-width:960px){.login form{padding:26px 20px}}
+/* navigation rail: white and gold in the light theme */
+:root:not([data-theme="dark"]) .side{background:linear-gradient(180deg,#FFFFFF,#FBFAF6);border-right:1px solid var(--line);color:#3A4366}
+:root:not([data-theme="dark"]) .side .brand small{color:var(--gold-a)}
+:root:not([data-theme="dark"]) .side .brand .logoplate{box-shadow:0 0 0 1px var(--line)}
+:root:not([data-theme="dark"]) .nav h6{color:#A39C8C}
+:root:not([data-theme="dark"]) .nav button{color:#3A4366;transition:background .2s,color .2s}
+:root:not([data-theme="dark"]) .nav button:hover{background:#F5F2EA;color:var(--ink)}
+:root:not([data-theme="dark"]) .nav button[aria-pressed="true"]{background:linear-gradient(90deg,rgb(169 130 74 / .16),rgb(169 130 74 / .04));color:var(--ink);box-shadow:inset 2px 0 0 var(--gold-a)}
+:root:not([data-theme="dark"]) .nav button b{color:#6A7395;background:#F1EFE8}
+:root:not([data-theme="dark"]) .nav button[aria-pressed="true"] b{color:#FFFFFF;background:var(--gold-a)}
+:root:not([data-theme="dark"]) .me{background:#F7F5EF;border-color:var(--line)}
+:root:not([data-theme="dark"]) .me .who b{color:var(--ink)}
+:root:not([data-theme="dark"]) .me .who span{color:var(--muted)}
+:root:not([data-theme="dark"]) .iconbtn{color:#6A7395}
+:root:not([data-theme="dark"]) .iconbtn:hover{background:#EFECE4;color:var(--ink)}
+.nav button{white-space:nowrap}
+.av{background:linear-gradient(135deg,#22348F,#5273FF);box-shadow:0 0 0 2px var(--surface),0 0 0 3px var(--gold-line)}
 </style>
 </head>
 <body>

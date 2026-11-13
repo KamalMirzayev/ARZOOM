@@ -119,13 +119,16 @@ curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/offer" -d '{"price":4
 CO=$(curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID"); echo "$CO" | grep -q '"dyp":650' && echo "$CO" | grep -q '"gps":509.76' || fail
 # Bank commission not given: follows the down payment (20% → 3%); a typed one is kept
 echo "$CO" | grep -q '"bankCommissionAuto":true' && echo "$CO" | grep -q '"bankCommissionPct":3' || fail
-# The organization's commission (1.5% of the credit amount by default) stays with staff: never in the customer's copy
+# The organization's commission (3% of the credit amount by default) stays with staff: never in the customer's copy
 echo "$CO" | grep -q '"commissionPct"\|"commissionAuto"' && fail
-curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q '"commissionPct":1.5' || fail
-sleep 1; curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q "təşkilatın komissiyası 540" || fail
+curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q '"commissionPct":3' || fail
+sleep 1; curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q "təşkilatın komissiyası 1 080" || fail
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/offer" -d '{"price":45000,"downPct":20,"months":36,"rate":17,"commissionPct":2,"bankCommissionPct":1.2,"bankCommissionAuto":false}' >/dev/null || fail
 CO=$(curl -fsS -H "x-app-token: $TOK" "$B/api/applications/$ID"); echo "$CO" | grep -q '"bankCommissionAuto":false' && echo "$CO" | grep -q '"bankCommissionPct":1.2' || fail
 echo "$CO" | grep -q '"commissionPct"' && fail
+# Interest not given: 23% a year by default
+curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/offer" -d '{"price":45000,"downPct":20,"months":36}' >/dev/null || fail
+curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q '"rate":23' || fail
 echo "✓ bank komissiyası (ilkin ödənişdən, müştəri görür) və təşkilatın komissiyası (kredit məbləğindən, müştəri görmür) ayrıdır"
 echo "✓ digər xərclər (DYP, KASKO, GPS, bank komissiyası) müştəriyə göstərilir və SMS-də yazılır"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/applications/$ID/decision" -H "Content-Type: application/json" -d '{"decision":"accepted"}')" = 401 ] || fail; echo "✓ açarsız qərar 401"

@@ -571,8 +571,8 @@ function creditCalc(){const f=$("#aForm");if(!f||!$("#creditAmt"))return;const p
   // Bank commission follows the down payment (up to 20% → 3%, up to 30% → 2%, above → 1%) until staff type their own.
   const c=f.bankCommissionPct;if(c&&!c.dataset.manual)c.value=commFor(d||20)}
 const commFor=dp=>dp<=20?3:dp<=30?2:1;
-// The organization's commission (on the credit amount, 1.5% by default). Before the split, commissionPct held the bank's.
-const orgOf=x=>x&&x.bankCommissionPct!==undefined?x.commissionPct:undefined,orgComm=a=>orgOf(a.assessment?.inputs)??orgOf(a.offer)??1.5;
+// The organization's commission (on the credit amount, 3% by default). Before the split, commissionPct held the bank's.
+const orgOf=x=>x&&x.bankCommissionPct!==undefined?x.commissionPct:undefined,orgComm=a=>orgOf(a.assessment?.inputs)??orgOf(a.offer)??3;
 const kaskoFor=p=>Math.round((p*0.0238+20)*100)/100;
 const GPS_YEAR=Math.round((108+25+11)*1.18*100)/100,gpsFor=m=>Math.round(GPS_YEAR*Math.ceil(m/12)*100)/100;
 document.addEventListener("input",e=>{if(e.isTrusted&&["costKasko","costGps","bankCommissionPct"].includes(e.target.name))e.target.dataset.manual="1";if(e.target.closest("#aForm"))creditCalc()});
@@ -742,10 +742,9 @@ async function renderUsers(){
   </div>
   <form class="panel" id="whBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("send","Partnyor webhook (Bitrix)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <section class="panel" id="rcBox" style="margin-top:16px;display:grid;gap:12px">${ph("send","ArzoomCall inteqrasiyası")}<p class="muted" style="margin:0">Yüklənir…</p></section>
-  <form class="panel" id="aiBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("doc","Sənəd analizi (süni intellekt)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <form class="panel" id="smsBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("shield","SMS provayderi (Softline)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <section class="panel" id="auditBox" style="margin-top:16px">${ph("shield","Təhlükəsizlik jurnalı")}<p class="muted" style="margin:0">Yüklənir…</p></section>`;
-  renderSms();renderWh();renderRc();renderAi();
+  renderSms();renderWh();renderRc();
   try{const {items}=await api("/audit");
     $("#auditBox").innerHTML=ph("shield","Təhlükəsizlik jurnalı")+(items.length?`<div style="overflow-x:auto"><table class="dtable"><thead><tr><th>Vaxt</th><th>İstifadəçi</th><th>Əməliyyat</th><th>Obyekt</th><th>IP</th></tr></thead>
       <tbody>${items.map(r=>`<tr${r.action==="login.fail"?' class="closed"':""}><td>${dt(r.at)}</td><td class="mono">${esc(r.username||"—")}</td><td>${esc(AUDIT[r.action]||r.action)}</td><td>${esc(r.target||"")}</td><td class="mono">${esc(r.ip||"")}</td></tr>`).join("")}</tbody></table></div>`
@@ -1232,6 +1231,7 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-days]");if
 async function openApp(id){
   try{cur=await api("/applications/"+encodeURIComponent(id))}catch(err){toast(err.message);return}
   $("#shell").classList.add("open");renderList();renderDetail();window.scrollTo({top:0});
+  if(history.state?.detail)history.replaceState({detail:true,id},"","#"+encodeURIComponent(id));
 }
 const val=(a,k,d="")=>a.assessment?.inputs?.[k]??a.offer?.[k]??d;
 function steps(a){
@@ -1349,7 +1349,7 @@ function renderDetail(){
             <label class="f">İlkin ödəniş, %<input name="downPct" type="number" min="0" max="90" value="${val(a,"downPct",20)}"></label>
             <label class="f">Kredit məbləği, ₼<output class="inp calc" id="creditAmt" aria-live="polite">—</output></label>
             <label class="f">Müddət<select name="months">${[12,24,36,48,60].map(m=>`<option value="${m}" ${+val(a,"months",36)===m?"selected":""}>${m} ay</option>`).join("")}</select></label>
-            <label class="f">İllik faiz, %<input name="rate" type="number" min="0" step="0.1" value="${val(a,"rate",17)}"></label>
+            <label class="f">İllik faiz, %<input name="rate" type="number" min="0" step="0.1" value="${val(a,"rate",23)}"></label>
             <label class="f">Təşkilatın komissiyası, % <small class="muted">kreditdən, gizli</small><input name="commissionPct" type="number" min="0" max="10" step="0.1" value="${orgComm(a)}"></label>
             <label class="f">Bank komissiyası, % <small class="muted">ilkin ödənişdən: 3 / 2 / 1%</small><input name="bankCommissionPct" type="number" min="0" max="10" step="0.1" value="${o?.bankCommissionPct??(o&&o.commissionAuto===false?o.commissionPct:"")}" ${o&&(o.bankCommissionPct!==undefined?o.bankCommissionAuto===false:o.commissionAuto===false)?'data-manual="1"':""}></label>
             <label class="f">DYP, ₼ <small class="muted">ən azı 650 ₼, qiymətə görə artır</small><input name="costDyp" type="number" min="0" step="1" value="${o?.costs?.dyp??650}"></label>
@@ -1512,7 +1512,22 @@ function confirmInline(b,text){
   return false;
 }
 
-if(token)start().catch(()=>{});
+// Phone back button: opening a page (application, users, analytics, calls...) adds a history step, so "back" closes it
+// instead of leaving the panel; the application stays in the address (#ID), so a reload opens it again.
+let navPop=false;
+new MutationObserver(()=>{const open=$("#shell").classList.contains("open");
+  if(open&&!history.state?.detail)history.pushState({detail:true,id:cur?.id||null},"",cur?"#"+encodeURIComponent(cur.id):location.pathname);
+  else if(!open&&history.state?.detail&&!navPop)history.back();
+}).observe($("#shell"),{attributes:true,attributeFilter:["class"]});
+addEventListener("popstate",e=>{if(!token||$("#app").hidden)return;navPop=true;
+  try{if(e.state?.detail){if(e.state.id&&e.state.id!==cur?.id)openApp(e.state.id);else if(!e.state.id)$("#shell").classList.add("open")}
+    else if($("#shell").classList.contains("open")){$("#shell").classList.remove("open");cur=null;renderList();renderHome()}}
+  finally{setTimeout(()=>navPop=false)}});
+// With a saved session the sign-in form stays hidden while the session is checked, so it does not flash on the way back.
+if(token){$("#login").hidden=true;
+  const want=decodeURIComponent(location.hash.slice(1));
+  start().then(()=>{if(/^[A-Za-z0-9-]{1,40}$/.test(want)){history.replaceState(null,"",location.pathname);openApp(want)}})
+    .catch(()=>{if($("#app").hidden)$("#login").hidden=false})}
 setInterval(()=>{if(token&&!$("#app").hidden)loadList().catch(()=>{})},20000);
 </script>
 </body>

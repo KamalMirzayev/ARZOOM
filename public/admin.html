@@ -8,10 +8,11 @@
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta name="theme-color" content="#05081A">
+<meta name="theme-color" content="#F5F7FC">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<script>try{if(localStorage.getItem("arzoom-theme")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}</script>
 <style>
 /* Staff desk: the customer page's tokens, denser layout. List on the left, one application on the right. */
 :root{
@@ -21,15 +22,16 @@
   --f-display:"Archivo","Manrope",system-ui,sans-serif; --f-body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif; --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
   color-scheme:dark;
 }
-@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
+:root:not([data-theme="dark"]){
   --bg:#F3F5FB; --surface:#FFFFFF; --raised:#F7F8FD; --ink:#0E1430; --muted:#5A6386; --line:#E2E6F2; --line-2:#CBD2E6;
   --blue:#3F5FF2; --blue-soft:rgb(82 115 255 / .09); --red:#D71F29; --red-soft:rgb(215 31 41 / .08);
-  --ok:#1C7A46; --ok-soft:#E1F3E8; --warn:#9A6400; --warn-soft:#FBF0D6; --bad:#B23A30; --bad-soft:#F9E1DE; color-scheme:light}}
+  --ok:#1C7A46; --ok-soft:#E1F3E8; --warn:#9A6400; --warn-soft:#FBF0D6; --bad:#B23A30; --bad-soft:#F9E1DE; color-scheme:light}
 :root[data-theme="light"]{
   --bg:#F3F5FB; --surface:#FFFFFF; --raised:#F7F8FD; --ink:#0E1430; --muted:#5A6386; --line:#E2E6F2; --line-2:#CBD2E6;
   --blue:#3F5FF2; --blue-soft:rgb(82 115 255 / .09); --red:#D71F29; --red-soft:rgb(215 31 41 / .08);
   --ok:#1C7A46; --ok-soft:#E1F3E8; --warn:#9A6400; --warn-soft:#FBF0D6; --bad:#B23A30; --bad-soft:#F9E1DE; color-scheme:light}
 *{box-sizing:border-box}
+.themebtn .t-sun{display:none}:root[data-theme="dark"] .themebtn .t-sun{display:block}:root[data-theme="dark"] .themebtn .t-moon{display:none}
 [hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.5}
 h1,h2,h3{font-family:var(--f-display);font-stretch:100%;margin:0;letter-spacing:-.01em}
@@ -91,7 +93,6 @@ label.chk input{width:17px;height:17px;accent-color:var(--blue);flex:none}
 
 /* ---------- app shell: dark navigation rail, list column, workspace ---------- */
 :root{--shadow:0 1px 2px rgb(14 20 48 / .05),0 6px 24px -12px rgb(14 20 48 / .12);--r:16px}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--shadow:0 1px 0 rgb(255 255 255 / .03) inset,0 10px 30px -18px #000}}
 :root[data-theme="dark"]{--shadow:0 1px 0 rgb(255 255 255 / .03) inset,0 10px 30px -18px #000}
 #app{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh}
 .side{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:22px;padding:20px 14px;color:#C9D1F2;overflow:auto;
@@ -377,7 +378,6 @@ ul.r li.stop{color:#FFB4AC;font-weight:700} ul.r li.stop::before{background:#F08
 
 /* analytics */
 :root{--c1:#3F5FF2;--c2:#C9701F}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--c1:#6A82FA;--c2:#C98228}}
 :root[data-theme="dark"]{--c1:#6A82FA;--c2:#C98228}
 .seg{display:inline-flex;background:var(--raised);border:1px solid var(--line);border-radius:11px;padding:3px;gap:2px}
 .seg button{border:0;background:transparent;border-radius:8px;padding:6px 12px;font-weight:600;font-size:13px;cursor:pointer;color:var(--muted)}
@@ -538,7 +538,7 @@ details.inq summary{cursor:pointer;font-weight:600;font-size:13px;margin-top:14p
       <button type="button" id="pwBtn" title="Parolu dəyiş"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg><span class="t">Parolu dəyiş</span></button>
     </div>
     <div class="me"><span class="av" id="av"></span><span class="who" id="who"></span>
-      <button class="iconbtn" id="logout" type="button" title="Çıxış" aria-label="Çıxış"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3"/></svg></button></div>
+      <button class="iconbtn themebtn" type="button" title="Gecə / gündüz rejimi" aria-label="Gecə / gündüz rejimi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="t-moon"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="t-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button><button class="iconbtn" id="logout" type="button" title="Çıxış" aria-label="Çıxış"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3"/></svg></button></div>
   </nav>
   <div class="shell" id="shell">
     <aside>
@@ -557,6 +557,9 @@ details.inq summary{cursor:pointer;font-weight:600;font-size:13px;margin-top:14p
 
 <script src="/admin/scoring.js"></script>
 <script>
+// Light by default, whatever the device is set to; the moon button switches to dark and the choice is remembered.
+document.addEventListener("click",e=>{if(!e.target.closest(".themebtn"))return;const d=document.documentElement,dark=d.dataset.theme!=="dark";
+  if(dark)d.dataset.theme="dark";else delete d.dataset.theme;try{localStorage.setItem("arzoom-theme",dark?"dark":"light")}catch(e){}});
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const grp=n=>Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");

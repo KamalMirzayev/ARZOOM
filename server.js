@@ -135,9 +135,11 @@ const REJECT_REASONS = {
 // Bank commission follows the down payment: up to 20% → 3%, up to 30% → 2%, above 30% → 1%.
 const commissionFor = dp => dp <= 20 ? 3 : dp <= 30 ? 2 : 1;
 // Two separate commissions. The bank's is on the down payment (3/2/1% by down payment unless staff typed their own) and the
-// customer sees it under "Digər xərclər". The organization's own is on the credit amount (1.5% by default) and stays with
+// customer sees it under "Digər xərclər". The organization's own is on the credit amount (3% by default) and stays with
 // staff. Offers sent before the split kept the bank commission in commissionPct/commissionAuto.
-const ORG_COMMISSION = 1.5;
+const ORG_COMMISSION = 3;
+// Annual interest the offer form starts with; staff can change it per application.
+const DEFAULT_RATE = 23;
 const split = o => o.bankCommissionPct !== undefined;
 const bankPct = (o, dp) => split(o) ? (o.bankCommissionAuto ? commissionFor(dp) : +o.bankCommissionPct || 0)
   : o.commissionAuto === false ? +o.commissionPct || 0 : commissionFor(dp);
@@ -1139,7 +1141,7 @@ app.put("/api/admin/applications/:id/assessment", admin, brandGate, can("apps.as
     maxOverdue: ["0", "1-30", "31-90", "90+"].includes(b.maxOverdue) ? b.maxOverdue : "0",
     tenureMonths: num(b.tenureMonths, 0, 1000) ?? 0, docsOk: !!b.docsOk,
     price: num(b.price, 0, 1e7) ?? 0, downPct: num(b.downPct, 0, 90) ?? 20,
-    months: num(b.months, 6, 84) ?? 36, rate: num(b.rate, 0, 60) ?? 17,
+    months: num(b.months, 6, 84) ?? 36, rate: num(b.rate, 0, 60) ?? DEFAULT_RATE,
     akbNote: String(b.akbNote || "").slice(0, 1000)
   };
   // Keep the bureau-only factors when an expert edits the form after an AKB report was loaded.
@@ -1158,7 +1160,7 @@ app.post("/api/admin/applications/:id/offer", admin, brandGate, can("apps.offer"
   const b = req.body || {};
   const offer = {
     price: num(b.price, 1000, 1e7), downPct: num(b.downPct ?? 20, 0, 90), months: num(b.months ?? 36, 6, 84),
-    rate: num(b.rate ?? 17, 0, 60),
+    rate: num(b.rate ?? DEFAULT_RATE, 0, 60),
     // The organization's commission on the credit amount, and the bank's on the down payment: staff may type their own
     // bank commission, otherwise it follows the down payment the customer ends up choosing.
     commissionPct: num(b.commissionPct ?? ORG_COMMISSION, 0, 10),
@@ -1308,7 +1310,7 @@ async function applyBureau(id, xml, actor) {
   if (!rows[0]) return null;
   const report = Akb.analyze(Akb.parse(xml), { fin: rows[0].fin });
   const prev = rows[0].assessment?.inputs || {}, o = rows[0].offer || {};
-  const inputs = { downPct: o.downPct ?? 20, months: o.months ?? 36, rate: o.rate ?? 17, price: o.price ?? 0 };
+  const inputs = { downPct: o.downPct ?? 20, months: o.months ?? 36, rate: o.rate ?? DEFAULT_RATE, price: o.price ?? 0 };
   for (const k of MANUAL_KEYS) if (prev[k] !== undefined) inputs[k] = prev[k];
   Object.assign(inputs, report.inputs);
   const result = Scoring.assess(inputs);

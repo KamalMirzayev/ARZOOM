@@ -20,7 +20,7 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"FinancialService","name":"Arzoom Avto MMC","alternateName":"Arzoom Avto","url":"https://arzoomavto.az/","logo":"https://arzoomavto.az/logo.png","description":"Fiziki şəxslər, sahibkarlar və şirkətlər üçün avtomobil lizinqi.","email":"info@arzoomavto.az","telephone":"*5665","address":{"@type":"PostalAddress","streetAddress":"Sumqayıt şossesi, 6-cı km","addressLocality":"Bakı","addressCountry":"AZ"},"areaServed":"AZ","sameAs":["https://avtoskan.az/"]}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,300..800&family=Manrope:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,300..800&family=Fraunces:ital,opsz,wght@1,9..144,500&family=Manrope:wght@400;500;600;700&display=swap">
 <style>
 /* Premium layout: midnight stages (hero, showroom, closing) alternate with paper sections.
    Brand colours match the leasing app (public/index.html): blue #3F5FF2 / #5273FF, red #D71F29. */
@@ -358,6 +358,9 @@ footer{background:var(--night);color:var(--n-ink);border-top:1px solid var(--n-l
 .js .rv.in{opacity:1;transform:none}
 .js .rv.d1{transition-delay:.08s}.js .rv.d2{transition-delay:.16s}.js .rv.d3{transition-delay:.24s}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}.js .rv{opacity:1;transform:none}}
+.motto{display:inline-flex;align-items:center;gap:10px;font-family:"Fraunces",Georgia,serif;font-style:italic;font-weight:500;font-size:clamp(17px,1.6vw,21px);color:var(--ink);letter-spacing:0}
+.motto::before{content:"";width:22px;height:1px;background:linear-gradient(90deg,var(--gold-a,#A9824A),var(--gold-a2,#C9A66B))}
+.hero-copy .motto{margin:14px 0 6px;color:#E6CC98}
 </style>
 </head>
 <body>
@@ -426,6 +429,7 @@ footer{background:var(--night);color:var(--n-ink);border-top:1px solid var(--n-l
         <div class="hero-copy">
           <span class="label rv">Arzoom Avto · avtomobil lizinqi</span>
           <h1 id="h-hero" class="rv d1">Arzuladığın avtomobil. <span class="grad">Rahat aylıq ödənişlə.</span></h1>
+          <p class="motto rv d2">Hər ailənin avtomobili olacaq</p>
           <p class="lead rv d2">Fiziki şəxslər, sahibkarlar və şirkətlər üçün avtomobil lizinqi. Ödənişi indi hesabla, iki dəqiqəyə onlayn müraciət et, fərdi təklifi SMS ilə al.</p>
           <div class="btns rv d3">
             <a class="btn pri" href="https://lizinq.arzoomavto.az/" data-app>Onlayn müraciət et <svg class="ic"><use href="#i-arrow"/></svg></a>

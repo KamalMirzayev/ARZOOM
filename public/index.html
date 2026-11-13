@@ -17,7 +17,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&family=Fraunces:opsz,wght@9..144,500..700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <script>try{if(localStorage.getItem("arzoom-theme")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}</script>
 <style>
 /* Layout: showroom. Dark-first stage, hairline-framed form on the left, a "membership card" for the application on the right that reflects the chosen car. */
@@ -316,6 +316,8 @@ input,select,textarea,.inp{transition:border-color .2s,box-shadow .2s,background
 nav.tabs{box-shadow:0 1px 2px rgb(14 20 48 / .04),0 10px 24px -16px rgb(14 20 48 / .2)}
 .steps li.cur::before,.steps li.done::before{background:linear-gradient(90deg,var(--gold),var(--gold-2))}
 .card .btn{background:linear-gradient(180deg,#FFFFFF,#EEF1FF);color:#22348F;box-shadow:0 8px 18px -10px rgb(0 0 0 / .5)}
+.motto{display:inline-flex;align-items:center;gap:10px;font-family:var(--f-serif,Georgia,serif);font-style:italic;font-weight:500;font-size:clamp(17px,1.6vw,21px);color:var(--ink);letter-spacing:0}
+.motto::before{content:"";width:22px;height:1px;background:linear-gradient(90deg,var(--gold-a,#A9824A),var(--gold-a2,#C9A66B))}
 </style>
 </head>
 <body>
@@ -341,6 +343,7 @@ nav.tabs{box-shadow:0 1px 2px rgb(14 20 48 / .04),0 10px 24px -16px rgb(14 20 48
       <span class="eyebrow">Avtomobil lizinqi</span>
       <h1>Arzuladığın avtomobilə <em>onlayn müraciət</em></h1>
       <p>Beş addım, təxminən iki dəqiqə. Filiala gəlməyə ehtiyac yoxdur: müraciəti SMS kodu ilə təsdiqləyirsən, təklif və ödəniş qrafiki kabinetinə gəlir.</p>
+      <span class="motto">Hər ailənin avtomobili olacaq</span>
     </div>
     <div class="grid">
       <form class="panel" id="appForm" novalidate>

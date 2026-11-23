@@ -797,9 +797,10 @@ async function renderUsers(){
   </div>
   <form class="panel" id="whBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("send","Partnyor webhook (Bitrix)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <section class="panel" id="rcBox" style="margin-top:16px;display:grid;gap:12px">${ph("send","ArzoomCall inteqrasiyası")}<p class="muted" style="margin:0">Yüklənir…</p></section>
+  <form class="panel" id="mailBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("send","E-poçt hesabatları (rəhbərlərə)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <form class="panel" id="smsBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("shield","SMS provayderi (Softline)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <section class="panel" id="auditBox" style="margin-top:16px">${ph("shield","Təhlükəsizlik jurnalı")}<p class="muted" style="margin:0">Yüklənir…</p></section>`;
-  renderSms();renderWh();renderRc();
+  renderSms();renderWh();renderRc();renderMail();
   try{const {items}=await api("/audit");
     $("#auditBox").innerHTML=ph("shield","Təhlükəsizlik jurnalı")+(items.length?`<div style="overflow-x:auto"><table class="dtable"><thead><tr><th>Vaxt</th><th>İstifadəçi</th><th>Əməliyyat</th><th>Obyekt</th><th>IP</th></tr></thead>
       <tbody>${items.map(r=>`<tr${r.action==="login.fail"?' class="closed"':""}><td>${dt(r.at)}</td><td class="mono">${esc(r.username||"—")}</td><td>${esc(AUDIT[r.action]||r.action)}</td><td>${esc(r.target||"")}</td><td class="mono">${esc(r.ip||"")}</td></tr>`).join("")}</tbody></table></div>`
@@ -822,6 +823,47 @@ async function renderSms(st){
 document.addEventListener("submit",async e=>{if(e.target.id!=="smsBox")return;e.preventDefault();
   try{const st=await api("/settings/sms",{method:"POST",body:JSON.stringify({user:$("#slUser").value,key:$("#slKey").value,sender:$("#slSender").value})});
     toast(st.connected?"SMS provayderi qoşuldu":"Saxlanıldı");renderSms(st)}catch(err){toast(err.message)}});
+// Manager e-mails: every application moved to "Satış" goes out at once, plus a daily summary at the set time (Baku).
+// Microsoft 365 (Graph, an app registration with Mail.Send) or any SMTP server. The secret is never sent back.
+async function renderMail(st){
+  const box=$("#mailBox");if(!box)return;
+  try{st=st||await api("/settings/mail")}catch(e){box.hidden=true;return}
+  const p=st.provider||"ms365",KIND={sale:"satış məktubu",daily:"gündəlik hesabat",test:"test məktubu"};
+  box.innerHTML=ph("send","E-poçt hesabatları (rəhbərlərə)")+`
+    <p style="margin:0">${st.ready?`<span class="st sm s-accepted">Qoşulub</span> <span class="muted">${esc(st.from)} → ${st.to.length} alıcı</span>`:`<span class="st sm s-rejected">Qoşulmayıb</span> <span class="muted">Satışa ötürülənlər e-poçtla getmir.</span>`}</p>
+    ${st.last?`<p style="margin:0;font-size:13px">${st.last.ok?`<span class="muted">Son ${KIND[st.last.kind]||""} uğurla göndərildi: ${dt(st.last.at)}</span>`:`<b style="color:var(--bad)">Son ${KIND[st.last.kind]||"məktub"} getmədi (${dt(st.last.at)}):</b> ${esc(st.last.error)}`}</p>`:""}
+    <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:14px">
+      <label><input type="radio" name="mlProv" value="ms365" ${p==="ms365"?"checked":""}> Microsoft 365 (Graph API)</label>
+      <label><input type="radio" name="mlProv" value="smtp" ${p==="smtp"?"checked":""}> SMTP server</label>
+    </div>
+    <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+      <label class="f" data-ml="ms365">Tenant ID<input id="mlTenant" value="${esc(st.tenant||"")}" class="mono" spellcheck="false" placeholder="xxxxxxxx-xxxx-…"></label>
+      <label class="f" data-ml="ms365">Client (Application) ID<input id="mlClient" value="${esc(st.clientId||"")}" class="mono" spellcheck="false"></label>
+      <label class="f" data-ml="smtp">SMTP server<input id="mlHost" value="${esc(st.host||"")}" class="mono" spellcheck="false" placeholder="smtp.office365.com"></label>
+      <label class="f" data-ml="smtp">Port<input id="mlPort" value="${esc(st.port||587)}" inputmode="numeric" class="mono"></label>
+      <label class="f" data-ml="smtp">İstifadəçi adı<input id="mlUser" value="${esc(st.user||"")}" spellcheck="false" autocapitalize="off" placeholder="boş qalsa, göndərən ünvanı"></label>
+      <label class="f"><span data-ml="ms365">Client secret</span><span data-ml="smtp">SMTP parolu</span><input id="mlSecret" type="password" autocomplete="new-password" placeholder="${st.secretSet?"Saxlanılıb, dəyişmək üçün yenisini yaz":""}"></label>
+      <label class="f">Göndərən ünvan (mailbox)<input id="mlFrom" type="email" value="${esc(st.from||"")}" spellcheck="false" placeholder="hesabat@arzoomavto.az"></label>
+      <label class="f">Gündəlik hesabat saatı (Bakı)<input id="mlDaily" type="time" value="${esc(st.dailyAt||"")}"></label>
+    </div>
+    <label class="f">Alıcılar (rəhbərlər), vergül və ya yeni sətirlə<textarea id="mlTo" rows="2" spellcheck="false">${esc((st.to||[]).join(", "))}</textarea></label>
+    <label style="font-size:14px"><input type="checkbox" id="mlOnSale" ${st.onSale!==false?"checked":""}> Hər müraciət "Satış"a keçəndə dərhal məktub göndər</label>
+    <div class="pbar"><small class="muted">Məktubda: müraciət №, avtomobil, müştərinin telefonu, necə ötürüldü (ArzoomCall və ya onlayn), şərtlər, zəngin xülasəsi. FİN getmir. Microsoft 365 üçün Azure-da tətbiqə <b>Mail.Send</b> (Application) icazəsi və admin təsdiqi lazımdır. Gündəlik saat boşdursa, gündəlik hesabat getmir.</small><span class="sp"></span>
+      ${st.ready?`<button class="btn ghost sm" type="button" id="mlTest">Test məktubu</button><button class="btn ghost sm" type="button" id="mlDailyNow">Bugünkü hesabatı göndər</button><button class="btn ghost sm" type="button" id="mlOff">Söndür</button>`:""}<button class="btn sm" type="submit">Saxla</button></div>`;
+  mailProv();
+}
+function mailProv(){const p=document.querySelector('[name="mlProv"]:checked')?.value||"ms365";document.querySelectorAll("[data-ml]").forEach(x=>x.hidden=x.dataset.ml!==p)}
+document.addEventListener("change",e=>{if(e.target.name==="mlProv")mailProv()});
+document.addEventListener("submit",async e=>{if(e.target.id!=="mailBox")return;e.preventDefault();
+  const body={provider:document.querySelector('[name="mlProv"]:checked')?.value,tenant:$("#mlTenant").value,clientId:$("#mlClient").value,host:$("#mlHost").value,
+    port:$("#mlPort").value,user:$("#mlUser").value,secret:$("#mlSecret").value,from:$("#mlFrom").value,to:$("#mlTo").value,dailyAt:$("#mlDaily").value,onSale:$("#mlOnSale").checked};
+  try{renderMail(await api("/settings/mail",{method:"POST",body:JSON.stringify(body)}));toast("E-poçt ayarları saxlanıldı")}catch(err){toast(err.message)}});
+document.addEventListener("click",async e=>{const b=e.target.closest?.("#mlTest,#mlDailyNow,#mlOff");if(!b)return;
+  if(b.id==="mlOff"&&!confirmInline(b,"Məktublar dayanacaq, təsdiqlə"))return;
+  b.disabled=true;
+  try{if(b.id==="mlOff"){renderMail(await api("/settings/mail",{method:"POST",body:JSON.stringify({clear:true})}));toast("E-poçt söndürüldü")}
+    else{renderMail(await api("/settings/mail/test",{method:"POST",body:JSON.stringify(b.id==="mlDailyNow"?{daily:true}:{})}));toast(b.id==="mlTest"?"Test məktubu göndərildi":"Bugünkü hesabat göndərildi")}}
+  catch(err){toast(err.message);renderMail()}});
 // Income document analysis: the server reads the PDF or photo (OCR, nothing leaves the server); the expert checks and decides.
 const AI_MIME=/^(application\/pdf|image\/(jpeg|png|webp|gif|tiff|bmp))$/;
 const AI_MATCH={match:["ok","uyğundur"],partial:["","qismən tapıldı"],mismatch:["bad","tapılmadı"],unknown:["","yoxlanmadı"]};
@@ -950,7 +992,7 @@ document.addEventListener("click",async e=>{if(e.target.id!=="whOff")return;
 document.addEventListener("change",async e=>{const c=e.target.closest("[data-ubrand]");if(!c)return;const id=c.dataset.ubrand;
   const brands=[...document.querySelectorAll(`[data-ubrand="${id}"]:checked`)].map(i=>i.value);
   try{await api("/users/"+id,{method:"POST",body:JSON.stringify({brands})});toast(brands.length?"Markalar: "+brands.join(", "):"Bütün markalar")}catch(err){toast(err.message)}renderUsers()});
-const AUDIT={"apps.partner_ref":"Partnyor ref nömrəsi əlavə etdi","apps.export":"Excel-ə çıxardı","settings.sms":"SMS ayarını dəyişdi","settings.webhook":"Webhook ayarını dəyişdi","settings.robocall":"ArzoomCall inteqrasiyasını dəyişdi","call.recording":"Zəng yazısına qulaq asdı","settings.ai":"Sənəd analizi açarını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
+const AUDIT={"apps.partner_ref":"Partnyor ref nömrəsi əlavə etdi","apps.export":"Excel-ə çıxardı","settings.sms":"SMS ayarını dəyişdi","settings.mail":"E-poçt hesabatı ayarını dəyişdi","settings.webhook":"Webhook ayarını dəyişdi","settings.robocall":"ArzoomCall inteqrasiyasını dəyişdi","call.recording":"Zəng yazısına qulaq asdı","settings.ai":"Sənəd analizi açarını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
   "user.update":"İstifadəçini dəyişdi","file.view":"Sənədə baxdı","app.delete":"Müraciəti sildi"};
 $("#usersBtn").onclick=renderUsers;
 // Excel: downloads what the list shows now (status filter and search), all rows, not only the first 500.

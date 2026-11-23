@@ -9,6 +9,7 @@ const { Pool, types } = require("pg");
 // DATE columns stay plain YYYY-MM-DD strings, with no time zone shift.
 types.setTypeParser(1082, v => v);
 const Sms = require("./lib/sms");
+const Mail = require("./lib/mail");
 const { CALL_RESULTS, ROBO_RESULTS, EXPORT_STATUS } = require("./lib/labels");
 const History = require("./lib/history");
 const Xlsx = require("./lib/xlsx");
@@ -176,7 +177,8 @@ async function announceAccepted(id, { customer = true } = {}) {
     ...staff.rows.map(u => notify(id, u.phone, u.role === "sales"
       ? `Arzoom Avto: Müraciət № ${id} satışa ötürüldü. Müştəri son təklifi təsdiqlədi: ${a.brand} ${a.model}, ${terms}. Müştəri ilə əlaqə saxlayın.${panel}`
       : `Arzoom Avto: Müraciət № ${id} anderraytinq üçün. Müştəri son təklifi təsdiqlədi: ${a.brand} ${a.model}, ${terms}.${panel}`, u.name))
-  ]);
+  ]);  // Managers get it by e-mail too (if set up in the panel); a mail failure never affects the SMS or the status.
+  mailSale(id).catch(e => console.error(e.message));
 }
 // A new application goes by SMS to every active admin, risk expert and sales manager with a phone on file.
 // The text carries no FİN or customer phone: staff open the panel for the details.
@@ -669,6 +671,135 @@ app.post("/api/admin/settings/webhook", admin, adminOnly, async (req, res) => {
   await loadStock();
   audit(req, req.user.username, "settings.webhook", url ? "ünvan yeniləndi" : "token yeniləndi");
   res.json(whState());
+});
+
+/* ---------- e-mail to managers: every hand-over to sales, and a daily summary (admin only) ---------- */
+// Settings live in the settings table: mail_config (JSON, no secret) and mail_secret (client secret or SMTP password).
+const MAILST = { last: null, dailyLast: "" };
+async function loadMailSettings() {
+  const { rows } = await pool.query("SELECT key, value FROM settings WHERE key IN ('mail_config','mail_secret','mail_daily_last')");
+  const v = Object.fromEntries(rows.map(r => [r.key, r.value]));
+  let cfg = {}; try { cfg = JSON.parse(v.mail_config || "{}"); } catch {}
+  Mail.configure(cfg, v.mail_secret || "");
+  MAILST.dailyLast = v.mail_daily_last || "";
+}
+const mailState = () => ({ ...Mail.publicConfig(), last: MAILST.last, dailyLast: MAILST.dailyLast || null });
+const h = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const bakuDay = (d = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baku" }).format(d);           // 2026-11-18
+const bakuTime = (d = new Date()) => new Intl.DateTimeFormat("az-AZ", { timeZone: "Asia/Baku", hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+const bakuDateTime = d => `${bakuDay(d).split("-").reverse().join(".")} ${bakuTime(d)}`;
+const MAIL_CSS = "font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#1f2430";
+const row2 = (k, v) => `<tr><td style="padding:4px 14px 4px 0;color:#6b7280;white-space:nowrap;vertical-align:top">${h(k)}</td><td style="padding:4px 0">${v}</td></tr>`;
+async function mailSend(subject, html, kind) {
+  try { await Mail.send({ subject, html }); MAILST.last = { ok: true, at: new Date().toISOString(), kind }; }
+  catch (e) { MAILST.last = { ok: false, at: new Date().toISOString(), kind, error: e.message }; console.error(`E-poçt göndərilmədi (${kind}): ${e.message}`); throw e; }
+}
+// Facts about one hand-over to sales: terms, channel, and what the customer said on the ArzoomCall call.
+async function saleFacts(id) {
+  const { rows } = await pool.query(
+    `SELECT a.id, a.phone, a.brand, a.model, a.offer, a.partner, a.partner_ref, a.created_at, a.updated_at,
+       (SELECT e.details FROM application_events e WHERE e.application_id = a.id AND e.kind = 'accepted' ORDER BY e.at DESC LIMIT 1) AS acc,
+       (SELECT e.at FROM application_events e WHERE e.application_id = a.id AND e.kind = 'accepted' ORDER BY e.at DESC LIMIT 1) AS acc_at,
+       (SELECT e.details FROM application_events e WHERE e.application_id = a.id AND e.kind = 'note' AND e.details->>'channel' = 'robocall'
+         ORDER BY e.at DESC LIMIT 1) AS call
+     FROM applications a WHERE a.id = $1`, [id]);
+  const a = rows[0]; if (!a) return null;
+  const o = a.offer, t = o?.final ? finalTerms(o, o.final.downPct) : null;
+  const robot = a.acc?.via === "robocall" || o?.final?.source === "robocall";
+  return { ...a, t, via: robot ? "ArzoomCall: bot müştərini satış təmsilçisinə qoşdu" : "Müştəri təklifi onlayn təsdiqlədi", robot };
+}
+function saleHtml(f) {
+  const t = f.t;
+  return `<div style="${MAIL_CSS}"><p style="margin:0 0 12px">Müraciət <b>№ ${h(f.id)}</b> satışa ötürüldü.</p>
+    <table style="border-collapse:collapse">${[
+      row2("Vaxt", h(bakuDateTime(f.acc_at || f.updated_at))),
+      row2("Avtomobil", h(`${f.brand} ${f.model}`)),
+      row2("Müştərinin telefonu", h("+" + f.phone)),
+      row2("Necə", h(f.via)),
+      t ? row2("Şərtlər", h(`qiymət ${money(f.offer.price)}, ilkin ödəniş ${t.dp}% (${money(t.down)}), kredit ${money(t.credit)}, aylıq ${money(t.pay)}, ${t.months} ay`)) : "",
+      f.partner || f.partner_ref ? row2("Partnyor", h([f.partner, f.partner_ref].filter(Boolean).join(", ref "))) : "",
+      f.robot && f.call?.text ? row2("Zəngin xülasəsi", h(f.call.text)) : "",
+      SITE_URL ? row2("Panel", `<a href="${h(SITE_URL)}/admin">${h(SITE_URL)}/admin</a>`) : ""
+    ].join("")}</table></div>`;
+}
+// Called once, when an application moves to "Satış" (accepted). Never breaks the step that triggered it.
+async function mailSale(id) {
+  if (!Mail.ready() || !Mail.C.onSale) return;
+  const f = await saleFacts(id); if (!f) return;
+  await mailSend(`Satışa ötürüldü: № ${f.id}, ${f.brand} ${f.model}${f.robot ? " (ArzoomCall)" : ""}`, saleHtml(f), "sale").catch(() => {});
+}
+// The day's summary (Baku time): every application handed to sales today, and how many moved through each step.
+async function dailyReport(day = bakuDay()) {
+  const { rows: sold } = await pool.query(
+    `SELECT DISTINCT e.application_id AS id FROM application_events e
+     WHERE e.kind = 'accepted' AND (e.at AT TIME ZONE 'Asia/Baku')::date = $1::date`, [day]);
+  const facts = (await Promise.all(sold.map(r => saleFacts(r.id)))).filter(Boolean).sort((x, y) => new Date(x.acc_at) - new Date(y.acc_at));
+  const { rows: cnt } = await pool.query(
+    `SELECT kind, count(DISTINCT application_id)::int AS n FROM application_events
+     WHERE (at AT TIME ZONE 'Asia/Baku')::date = $1::date AND kind IN ('created','offer','rejected','accepted','declined','cancelled','reoffer')
+     GROUP BY kind`, [day]);
+  const n = Object.fromEntries(cnt.map(r => [r.kind, r.n]));
+  const robot = facts.filter(f => f.robot).length;
+  const th = s => `<th style="text-align:left;padding:6px 10px;border-bottom:1px solid #d1d5db;background:#f3f4f6">${s}</th>`;
+  const td = s => `<td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;vertical-align:top">${s}</td>`;
+  const dd = day.split("-").reverse().join(".");
+  const html = `<div style="${MAIL_CSS}"><p style="margin:0 0 10px"><b>${dd}</b> üzrə gündəlik hesabat.</p>
+    <p style="margin:0 0 14px">Satışa ötürüldü: <b>${facts.length}</b> (ArzoomCall ilə ${robot}, onlayn ${facts.length - robot}).
+      Yeni müraciət: ${n.created || 0}, təklif: ${n.offer || 0}, təkrar təklif: ${n.reoffer || 0}, rədd: ${n.rejected || 0}, imtina: ${n.declined || 0}, ləğv: ${n.cancelled || 0}.</p>
+    ${facts.length ? `<table style="border-collapse:collapse;font-size:13px"><thead><tr>${["Vaxt", "№", "Avtomobil", "Telefon", "Necə", "Şərtlər", "Zəngin xülasəsi"].map(th).join("")}</tr></thead><tbody>${
+      facts.map(f => `<tr>${[h(bakuTime(new Date(f.acc_at))), h(f.id), h(`${f.brand} ${f.model}`), h("+" + f.phone), h(f.robot ? "ArzoomCall" : "Onlayn"),
+        f.t ? h(`ilkin ${f.t.dp}% (${money(f.t.down)}), aylıq ${money(f.t.pay)}, ${f.t.months} ay`) : "—",
+        h(f.robot ? (f.call?.text || "").slice(0, 300) : "")].map(td).join("")}</tr>`).join("")}</tbody></table>`
+      : `<p style="margin:0;color:#6b7280">Bu gün satışa ötürülən müraciət olmayıb.</p>`}
+    ${SITE_URL ? `<p style="margin:14px 0 0"><a href="${h(SITE_URL)}/admin">${h(SITE_URL)}/admin</a></p>` : ""}</div>`;
+  await mailSend(`Gündəlik hesabat ${dd}: satışa ötürüldü ${facts.length}`, html, "daily");
+}
+// Checked every minute; sent once a day at the set time (Baku). The sent day is kept in the DB, so a restart does not repeat it.
+async function dailyTick() {
+  if (!Mail.ready() || !Mail.C.dailyAt) return;
+  const day = bakuDay();
+  if (MAILST.dailyLast === day || bakuTime() < Mail.C.dailyAt) return;
+  MAILST.dailyLast = day;
+  await pool.query("INSERT INTO settings (key, value, updated_by) VALUES ('mail_daily_last',$1,'Sistem') ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = now()", [day]);
+  await dailyReport(day).catch(() => {});
+}
+app.get("/api/admin/settings/mail", admin, adminOnly, (_req, res) => res.json(mailState()));
+app.post("/api/admin/settings/mail", admin, adminOnly, async (req, res) => {
+  const b = req.body || {};
+  if (b.clear) {
+    await pool.query("DELETE FROM settings WHERE key IN ('mail_config','mail_secret')");
+    Mail.configure({}, ""); MAILST.last = null;
+    audit(req, req.user.username, "settings.mail", "söndürüldü");
+    return res.json(mailState());
+  }
+  const cfg = { provider: String(b.provider || ""), tenant: String(b.tenant || "").trim(), clientId: String(b.clientId || "").trim(),
+    host: String(b.host || "").trim(), port: Number(b.port) || 587, user: String(b.user || "").trim().slice(0, 200),
+    from: String(b.from || "").trim(), to: Mail.list(b.to), onSale: b.onSale !== false, dailyAt: String(b.dailyAt || "").trim() };
+  const err = Mail.validate(cfg); if (err) return bad(res, err);
+  const secret = String(b.secret || "").trim();
+  if (secret.length > 500) return bad(res, "Gizli açar çox uzundur.");
+  const changedWay = cfg.provider !== Mail.C.provider;
+  if (!secret && (!Mail.C.secret || changedWay)) return bad(res, cfg.provider === "ms365" ? "Client secret yaz." : "SMTP parolunu yaz.");
+  const up = (k, v) => pool.query("INSERT INTO settings (key, value, updated_by) VALUES ($1,$2,$3) ON CONFLICT (key) DO UPDATE SET value = $2, updated_by = $3, updated_at = now()", [k, v, req.user.username]);
+  await up("mail_config", JSON.stringify(cfg));
+  if (secret) await up("mail_secret", secret);
+  // Turning the daily report on after today's time has passed must not send it at once: today counts as done.
+  if (cfg.dailyAt && bakuTime() >= cfg.dailyAt && MAILST.dailyLast !== bakuDay()) {
+    MAILST.dailyLast = bakuDay(); await up("mail_daily_last", MAILST.dailyLast);
+  }
+  Mail.configure(cfg, secret || Mail.C.secret);
+  audit(req, req.user.username, "settings.mail", secret ? "ayarlar və açar yeniləndi" : "ayarlar yeniləndi");
+  res.json(mailState());
+});
+// A test letter, or today's report sent now (it does not stop the scheduled one).
+app.post("/api/admin/settings/mail/test", admin, adminOnly, async (req, res) => {
+  if (!Mail.ready()) return bad(res, "Əvvəlcə e-poçt ayarlarını saxla.", 409);
+  try {
+    if (req.body?.daily) await dailyReport();
+    else await mailSend("ARZOOM: test məktubu", `<div style="${MAIL_CSS}">Bu test məktubudur. Satışa ötürülən müraciətlər bu ünvanlara göndəriləcək.</div>`, "test");
+  } catch (e) { return bad(res, e.message, 502); }
+  audit(req, req.user.username, "settings.mail", req.body?.daily ? "gündəlik hesabat göndərildi" : "test məktubu");
+  res.json(mailState());
 });
 
 /* ---------- robocall integration: robocall pulls application data and calls customers ---------- */
@@ -1444,6 +1575,8 @@ async function start() {
   await loadWebhookSettings();
   await loadRobocallSettings();
   await loadRcApi();
+  await loadMailSettings().catch(e => console.error(`E-poçt ayarları oxunmadı: ${e.message}`));
+  setInterval(() => dailyTick().catch(e => console.error(e.message)), 60e3).unref();
   await backfillRobotSales().catch(e => console.error(e.message));
   Ocr.available().then(t => { if (!t.tesseract || !t.pdftotext) console.warn("Sənəd analizi üçün tesseract və poppler-utils quraşdırılmayıb."); });
   loadStock(); setInterval(loadStock, 15 * 60 * 1000).unref();

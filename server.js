@@ -1057,7 +1057,8 @@ app.get("/api/admin/applications", admin, async (req, res) => {
   const [pDays, pEnd] = periodArgs(String(req.query.period || ""), q);
   const { rows } = await pool.query(
     `SELECT id, created_at, updated_at, fin, phone, partner, partner_ref, brand, model, income_sources, status,
-            assessment->'result'->>'grade' AS grade, (assessment->'result'->>'score')::int AS score, ${LAST_CALL} AS last_call
+            assessment->'result'->>'grade' AS grade, (assessment->'result'->>'score')::int AS score, ${LAST_CALL} AS last_call,
+            (status = 'offer' AND reoffer ? 'declined') AS reoffer_declined
      FROM applications
      WHERE ($1 = '' OR status = $1)
        AND ($2 = '' OR id ILIKE '%' || $2 || '%' OR fin ILIKE '%' || $2 || '%' OR phone LIKE '%' || $2 || '%' OR upper(model) LIKE '%' || $2 || '%' OR upper(partner_ref) = $2)
@@ -1172,7 +1173,7 @@ app.post("/api/admin/applications/:id/offer", admin, brandGate, can("apps.offer"
   if (offer.price == null) return bad(res, "Qiymət düzgün deyil.");
   if (Object.values(offer).some(v => v == null)) return bad(res, "Təklif şərtləri düzgün deyil.");
   const r = await pool.query(
-    `UPDATE applications SET status = 'offer', offer = $2, reject_reason = NULL, reject_public = NULL, decided_by = $3, updated_at = now()
+    `UPDATE applications SET status = 'offer', offer = $2, reoffer = NULL, reject_reason = NULL, reject_public = NULL, decided_by = $3, updated_at = now()
      WHERE id = $1 AND status IN ('review','info','offer','reoffer','rejected') RETURNING id, phone, brand, model`, [req.params.id, offer, req.staff]);
   if (!r.rowCount) return bad(res, "Bu müraciətə təklif göndərmək olmur.", 409);
   await logEvent(pool, req.params.id, req.staff, "offer", offer);
@@ -1260,6 +1261,19 @@ app.post("/api/admin/applications/:id/reject", admin, brandGate, can("apps.rejec
   await logEvent(pool, req.params.id, req.staff, "rejected", { reason, code });
   sendResult(req.params.id);
   notify(req.params.id, r.rows[0].phone, `Arzoom Avto: Müraciət № ${req.params.id} təsdiqlənmədi. Səbəb: ${pub} Sualınız varsa, *5665 nömrəsinə zəng edin.`);
+  res.json({ ok: true });
+});
+
+// The customer asked for other terms but none can be given: the application goes back to "Təklif" with the offer it
+// already has, marked "Təkrar təklif göndərilmədi", so it does not sit in "Təkrar təklif". A new offer clears the mark.
+app.post("/api/admin/applications/:id/reoffer-decline", admin, brandGate, can("apps.offer"), async (req, res) => {
+  const reason = String(req.body?.reason || "").trim().slice(0, 500) || null;
+  const r = await pool.query(
+    `UPDATE applications SET status = 'offer', reoffer = reoffer || jsonb_build_object('declined', jsonb_build_object('at', now(), 'by', $2::text, 'reason', $3::text)),
+            updated_at = now()
+     WHERE id = $1 AND status = 'reoffer' AND offer ? 'downPct' RETURNING id`, [req.params.id, req.staff, reason]);
+  if (!r.rowCount) return bad(res, "Bu müraciət təkrar təklif gözləmir.", 409);
+  await logEvent(pool, req.params.id, req.staff, "reoffer_declined", { reason });
   res.json({ ok: true });
 });
 

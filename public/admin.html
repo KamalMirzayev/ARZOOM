@@ -163,6 +163,8 @@ main{padding:26px clamp(18px,2.4vw,34px) 40px;min-width:0;max-width:1240px}
 .s-reoffer{background:rgba(185,140,245,.16);color:#9B6BE0}
 .reoffer-box{border:1px solid rgba(185,140,245,.5);background:rgba(185,140,245,.08);border-radius:12px;padding:12px 14px;margin-bottom:12px}
 .reoffer-box b{color:#9B6BE0}
+.rodecl{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}.rodecl input{flex:1 1 220px;padding:7px 10px}
+.tagro{font-size:11px;font-weight:700;color:#9B6BE0;background:rgba(185,140,245,.14);border-radius:6px;padding:1px 7px;white-space:nowrap}
 .s-accepted{background:var(--ok-soft);color:var(--ok)}
 .s-rejected,.s-declined{background:var(--bad-soft);color:var(--bad)}
 .s-cancelled{background:var(--line);color:var(--muted)}
@@ -678,7 +680,7 @@ document.addEventListener("dragleave",e=>{const z=e.target.closest?.("#docZone")
 document.addEventListener("drop",e=>{const z=e.target.closest?.("#docZone");if(!z)return;e.preventDefault();z.classList.remove("over");const k=e.dataTransfer.getData("text/plain");if(INFO_DOCS[k])addDoc({key:k,label:INFO_DOCS[k]})});
 const ROBO_RESULTS={wants_lower_monthly:"Aylıq ödənişi çox hesab edir",wants_lower_down:"İlkin ödənişdə endirim istəyir",wants_other_terms:"Başqa şərt istəyir (müddət, məbləğ)",transferred_to_sales:"Satış təmsilçisinə qoşuldu",agrees_will_visit:"Razıdır, salona gələcək",agrees_will_call:"Razıdır, özü zəng edəcək",thinking:"Düşünür",docs_will_send:"Sənədləri göndərəcək",docs_cannot:"Sənədləri təqdim edə bilmir",declined:"İmtina etdi",callback:"Yenidən zəng istədi",wrong_person:"Başqa şəxsdir",other:"Digər"};
 const CALL_RESULTS={agreed:"Razılaşdı",thinking:"Düşünür",callback:"Yenidən zəng ediləcək",docs:"Sənəd gətirəcək",verified:"Məlumatlar təsdiqləndi",mismatch:"Uyğunsuzluq aşkarlandı",no_answer:"Cavab vermədi",not_interested:"Maraqlanmır",wrong_number:"Nömrə səhvdir"};
-const EVENTS={call_requeue:"ArzoomCall-a yenidən zəng sifariş edildi",partner_ref:"Partnyor ref nömrəsi əlavə edildi",webhook:"Partnyora bildiriş göndərildi",info_request:"Müştəridən əlavə məlumat istənildi",info_reply:"Müştəri əlavə məlumat göndərdi",bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",reoffer:"Müştəri başqa şərt istəyir: təkrar təklif",doc_analysis:"Gəlir sənədi avtomatik oxundu",rejected:"Müraciət rədd edildi",note:"Qeyd",
+const EVENTS={reoffer_declined:"Təkrar təklif göndərilmədi: Təkliflərə qaytarıldı",call_requeue:"ArzoomCall-a yenidən zəng sifariş edildi",partner_ref:"Partnyor ref nömrəsi əlavə edildi",webhook:"Partnyora bildiriş göndərildi",info_request:"Müştəridən əlavə məlumat istənildi",info_reply:"Müştəri əlavə məlumat göndərdi",bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",reoffer:"Müştəri başqa şərt istəyir: təkrar təklif",doc_analysis:"Gəlir sənədi avtomatik oxundu",rejected:"Müraciət rədd edildi",note:"Qeyd",
   accepted:"Müştəri son təklifi təsdiqlədi: anderraytinqə və satışa ötürüldü",declined:"Müştəri təklifdən imtina etdi",cancelled:"Müştəri müraciəti ləğv etdi",sms:"SMS"};
 const FILTERS=[["","Hamısı"],["review","Baxılır"],["info","Məlumat"],["offer","Təklif"],["reoffer","Təkrar təklif"],["accepted","Satış"],["rejected","Rədd"],["declined","İmtina"],["cancelled","Ləğv"]];
 
@@ -1015,7 +1017,7 @@ function renderList(){
       <span class="tile s-${a.status}">${esc(initials(a))}</span>
       <span class="no">№ ${a.id}</span><span class="st sm s-${a.status}" title="${STATUS[a.status]}">${STATUS_SHORT[a.status]||STATUS[a.status]}</span>
       <span class="car">${esc(a.brand)} ${esc(a.model)} <em>· ${esc(a.fin)}</em></span>
-      <span class="tags">${a.grade?`<span class="grade g-${a.grade}">${a.score} · ${a.grade}</span>`:""}<span class="ago">${ago(a.created_at)}</span></span></button>`).join(""):`<div class="empty">${IC.inbox}Bu filtrdə müraciət yoxdur.</div>`;
+      <span class="tags">${a.reoffer_declined?`<span class="tagro" title="Təkrar təklif göndərilmədi">Təkrar təklif yox</span>`:""}${a.grade?`<span class="grade g-${a.grade}">${a.score} · ${a.grade}</span>`:""}<span class="ago">${ago(a.created_at)}</span></span></button>`).join(""):`<div class="empty">${IC.inbox}Bu filtrdə müraciət yoxdur.</div>`;
 }
 // On a phone the list and an open application share the screen: picking a status always goes back to the list.
 $("#statusNav").addEventListener("click",e=>{const b=e.target.closest("[data-st]");if(!b)return;status=b.dataset.st;$("#shell").classList.remove("open");if(matchMedia("(max-width:900px)").matches)scrollTo({top:0});loadList().catch(err=>toast(err.message))});
@@ -1373,7 +1375,9 @@ function renderDetail(){
         ${o?`<dt>Təklif</dt><dd>${azn(o.price)}, ilkin ${o.downPct}%, ${o.months} ay, illik ${o.rate}%</dd>`:""}
       </dl>
       ${fin?`<div class="callout">Müştəri son təklifi təsdiqlədi<small>İlkin ödəniş ${fin.downPct}% · ${azn(o.price*fin.downPct/100)} · kredit ${azn(o.price*(1-fin.downPct/100))} · aylıq ${azn(pay)} · ${dt(fin.at)}</small></div>`:""}
-      ${a.status==="reoffer"&&a.reoffer?`<div class="reoffer-box"><b>Təkrar təklif lazımdır.</b> Müştəri: ${esc(a.reoffer.label||"")}${a.reoffer.reason?` · „${esc(a.reoffer.reason)}“`:""}<br><small class="muted">${a.reoffer.source==="robocall"?"ArzoomCall zəngi":"Qeyd"}, ${dt(a.reoffer.at)}. Şərtləri dəyişib yeni təklif göndərin və ya rədd edin.</small></div>`:""}
+      ${a.status==="reoffer"&&a.reoffer?`<div class="reoffer-box"><b>Təkrar təklif lazımdır.</b> Müştəri: ${esc(a.reoffer.label||"")}${a.reoffer.reason?` · „${esc(a.reoffer.reason)}“`:""}<br><small class="muted">${a.reoffer.source==="robocall"?"ArzoomCall zəngi":"Qeyd"}, ${dt(a.reoffer.at)}. Şərtləri dəyişib yeni təklif göndərin, rədd edin və ya yeni şərt vermək olmursa Təkliflərə qaytarın.</small>
+        ${has("apps.offer")?`<div class="rodecl"><input id="roReason" maxlength="500" placeholder="Səbəb (istəyə görə), məs. ilkin ödəniş artıq minimumdadır"><button class="btn ghost sm" type="button" id="reofferDecline">Təkrar təklif göndərmə, Təkliflərə qaytar</button></div>`:""}</div>`:""}
+      ${a.status==="offer"&&a.reoffer?.declined?`<div class="callout">Təkrar təklif göndərilmədi<small>Müştəri: ${esc(a.reoffer.label||"")}${a.reoffer.declined.reason?` · Səbəb: ${esc(a.reoffer.declined.reason)}`:""} · ${esc(a.reoffer.declined.by||"")}, ${dt(a.reoffer.declined.at)}. Əvvəlki təklif qüvvədədir.</small></div>`:""}
       ${a.info_request?`<div class="callout">${a.status==="info"?"Müştəridən əlavə məlumat gözlənilir":"Əlavə məlumat sorğusu"}<small>Sorğu: ${esc(a.info_request.text)} · ${esc(a.info_request.by||"")}, ${dt(a.info_request.at)}${a.info_request.answeredAt?`<br>Cavab: ${esc(a.info_request.answer||"—")}${a.info_request.files?` · ${a.info_request.files} sənəd`:""} · ${dt(a.info_request.answeredAt)}`:""}</small></div>`:""}
       ${a.reject_reason?`<div class="callout bad">İmtina səbəbi<small>${a.reject_public?`Müştəriyə: ${esc(a.reject_public)}<br>`:""}Daxili: ${esc(a.reject_reason)}</small></div>`:""}
     </section>
@@ -1463,12 +1467,12 @@ function renderDetail(){
   if(!has("docs.view"))document.querySelectorAll("[data-file]").forEach(b=>{b.disabled=true;b.title="Sənədləri açmaq üçün icazən yoxdur"});
   if($("#akbBox"))tipOn($("#akbBox"));
 }
-const EV_IC={doc_analysis:["doc",""],reoffer:["send","k-bad"],webhook:["send",""],info_request:["msg",""],info_reply:["inbox","k-ok"],bureau:["shield",""],created:["inbox",""],assessed:["gauge",""],offer:["send",""],rejected:["x","k-bad"],note:["pen",""],accepted:["check","k-ok"],declined:["x","k-bad"],cancelled:["x","k-bad"],sms:["msg","k-sms"]};
+const EV_IC={doc_analysis:["doc",""],reoffer:["send","k-bad"],reoffer_declined:["send",""],webhook:["send",""],info_request:["msg",""],info_reply:["inbox","k-ok"],bureau:["shield",""],created:["inbox",""],assessed:["gauge",""],offer:["send",""],rejected:["x","k-bad"],note:["pen",""],accepted:["check","k-ok"],declined:["x","k-bad"],cancelled:["x","k-bad"],sms:["msg","k-sms"]};
 function evHtml(e){
   const d=e.details||{};
   const extra=e.kind==="bureau"?`${d.score} bal, ${d.grade} · ${Scoring.VERDICTS[d.verdict]||""} · aylıq borc ${azn(d.debtMonthly||0)}${d.flags?` · ${d.flags} xəbərdarlıq`:""}`:e.kind==="assessed"?`${d.score} bal, ${d.grade} · ${Scoring.VERDICTS[d.verdict]||""}`:
     e.kind==="offer"?`${azn(d.price)}, ilkin ${d.downPct}%, ${d.months} ay, illik ${d.rate}%`:
-    e.kind==="doc_analysis"?[d.file,d.doc,d.avg!=null?`orta aylıq ${money(d.avg)} ₼`:"",d.flags?`${d.flags} xəbərdarlıq`:""].filter(Boolean).join(" · "):e.kind==="reoffer"?[d.label,d.reason].filter(Boolean).join(" · "):e.kind==="rejected"?d.reason:e.kind==="note"?[d.channel==="robocall"?(d.outcome_label||ROBO_RESULTS[d.outcome]):CALL_RESULTS[d.outcome],d.text].filter(Boolean).join(" · "):e.kind==="webhook"?`ref № ${d.ref||"—"} · ${d.result||""}${d.error?" · Göndərilmədi: "+d.error:""}`:e.kind==="sms"?(d.error?"Göndərilmədi: "+d.error:d.text)+(d.demo?" (SMS provayderi qoşulmayıb, göndərilmədi)":""):
+    e.kind==="doc_analysis"?[d.file,d.doc,d.avg!=null?`orta aylıq ${money(d.avg)} ₼`:"",d.flags?`${d.flags} xəbərdarlıq`:""].filter(Boolean).join(" · "):e.kind==="reoffer_declined"?(d.reason||""):e.kind==="reoffer"?[d.label,d.reason].filter(Boolean).join(" · "):e.kind==="rejected"?d.reason:e.kind==="note"?[d.channel==="robocall"?(d.outcome_label||ROBO_RESULTS[d.outcome]):CALL_RESULTS[d.outcome],d.text].filter(Boolean).join(" · "):e.kind==="webhook"?`ref № ${d.ref||"—"} · ${d.result||""}${d.error?" · Göndərilmədi: "+d.error:""}`:e.kind==="sms"?(d.error?"Göndərilmədi: "+d.error:d.text)+(d.demo?" (SMS provayderi qoşulmayıb, göndərilmədi)":""):
     e.kind==="info_request"?d.text:e.kind==="info_reply"?[d.text,d.files?`${d.files} sənəd`:""].filter(Boolean).join(" · "):
     e.kind==="created"?`${d.files||0} sənəd`:e.kind==="accepted"&&d.downPct!=null?`ilkin ödəniş ${d.downPct}%`:"";
   const [ic,cls]=EV_IC[e.kind]||["clock",""];
@@ -1523,6 +1527,9 @@ document.addEventListener("click",async e=>{
     const ref=$("#refIn").value.trim();if(!ref){toast("Ref nömrəsini yaz.");return}
     try{const r=await api(`/applications/${cur.id}/partner-ref`,{method:"POST",body:JSON.stringify({ref,partner:"groupmotors"})});
       toast(r.sent?"Ref əlavə edildi, partnyora göndərildi":"Ref əlavə edildi (webhook qoşulmayıb)");await openApp(cur.id)}catch(err){toast(err.message)}}
+  if(b.id==="reofferDecline"){
+    try{await api(`/applications/${cur.id}/reoffer-decline`,{method:"POST",body:JSON.stringify({reason:$("#roReason").value.trim()})});
+      toast("Təkliflərə qaytarıldı: təkrar təklif göndərilmədi");await openApp(cur.id);loadList()}catch(err){toast(err.message)}}
   if(b.id==="sendOffer"){
     const i=inputs();if(!(+i.price>0)){toast("Avtomobilin qiymətini yaz.");return}
     const r=Scoring.assess(i);

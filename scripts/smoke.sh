@@ -297,6 +297,13 @@ curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/j
 curl -fsS "${H[@]}" "$B/api/admin/applications?status=reoffer" | grep -q "\"id\":\"$RLIVE\"" || fail
 curl -fsS "${H[@]}" "$B/api/admin/applications/$RLIVE" | grep -q '"reoffer":{[^}]*"reason":"Aylıq 800-dən çox ola bilməz"' || fail
 curl -fsS -H "x-integration-token: $RCT" "$RCU?limit=500" | grep -q '"status":"reoffer","status_label":"Təklif yenidən hazırlanır"' || fail
+# No new terms can be given: back to "Təklif" with the old offer, marked; only from "Təkrar təklif"
+curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$RLIVE/reoffer-decline" -d '{"reason":"Müddət artıq maksimumdadır"}' | grep -q '"ok":true' || fail
+DA=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$RLIVE"); [ "$(echo "$DA" | J status)" = offer ] && echo "$DA" | grep -q '"declined":{[^}]*"reason":"Müddət artıq maksimumdadır"' || fail
+curl -fsS "${H[@]}" "$B/api/admin/applications?status=offer&period=all" | grep -q "\"id\":\"$RLIVE\"[^}]*\"reoffer_declined\":true" || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$RLIVE/reoffer-decline" -d '{}')" = 409 ] || fail
+curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$RCU/$RLIVE/feedback" -d '{"feedback_id":"'"$FBID"'-ro2","outcome":"wants_lower_down"}' | grep -q '"reoffer":true' || fail
+echo "✓ təkrar təklif verilə bilmirsə müraciət qeydlə Təkliflərə qayıdır"
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$RLIVE/offer" -d '{"price":45000,"downPct":20,"months":60,"rate":17,"commissionPct":1.5}' >/dev/null || fail
 [ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$RLIVE" | J status)" = offer ] || fail
 curl -fsS -X POST -H "x-integration-token: $RCT" -H "Content-Type: application/json" "$RCU/$RLIVE/feedback" -d '{"feedback_id":"'"$FBID"'-x","outcome":"thinking"}' | grep -q '"reoffer":false' || fail

@@ -223,6 +223,15 @@ curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q "Test BYD" && fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/settings/sms")" = 403 ] || fail
 SMSST=$(curl -fsS "${H[@]}" "$B/api/admin/settings/sms"); echo "$SMSST" | grep -q '"keySet"' || fail; echo "$SMSST" | grep -q '"key"' && fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/sms" -d '{"user":""}')" = 400 ] || fail; echo "✓ SMS ayarı: yalnız admin, açar gizli qalır"
+# Gün sonu hesabatı (e-poçt): yalnız admin, parol geri qaytarılmır, səhv ünvan rədd edilir, SMTP xətası açıq göstərilir.
+[ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/settings/report")" = 403 ] || fail
+RP=$(curl -fsS "${H[@]}" "$B/api/admin/settings/report"); echo "$RP" | grep -q 'gün sonu hesabatı' || fail; echo "$RP" | grep -q '"passSet":false' || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/report" -d '{"host":"127.0.0.1","from":"hesabat@arzoom.test","to":"yanlis-unvan"}')" = 400 ] || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/report" -d '{"host":"127.0.0.1","from":"a@b.az","to":"x@arzoom.test","time":"25:00"}')" = 400 ] || fail
+RP=$(curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/report" -d '{"host":"127.0.0.1","port":1,"user":"u","pass":"smoke-secret-pass","from":"Arzoom <hesabat@arzoom.test>","to":"a@arzoom.test, b@arzoom.test","time":"17:55","enabled":false}')
+echo "$RP" | grep -q '"passSet":true' || fail; echo "$RP" | grep -q 'smoke-secret-pass' && fail; echo "$RP" | grep -q '"a@arzoom.test","b@arzoom.test"' || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/report/send")" = 502 ] || fail
+curl -fsS "${H[@]}" "$B/api/admin/settings/report" | grep -q '"ok":false' || fail; echo "✓ gün sonu hesabatı: yalnız admin, parol gizli, ünvan və vaxt yoxlanır, SMTP xətası görünür"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE -H "x-admin-token: $ES" -H "Content-Type: application/json" "$B/api/admin/applications/$ID2" -d '{"reason":"test"}')" = 403 ] || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE "${H[@]}" "$B/api/admin/applications/$ID2" -d '{}')" = 400 ] || fail
 curl -fsS -X DELETE "${H[@]}" "$B/api/admin/applications/$ID2" -d '{"reason":"smoke test"}' >/dev/null || fail

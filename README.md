@@ -161,3 +161,7 @@ Sonra `cd /opt/arzoom && docker compose up -d`.
 - Telefon, e-poçt, ünvan və iş saatları "Əlaqə" bölməsində və `tel:` keçidlərindədir.
 - Kalkulyatorun nümunə şərtləri (illik faiz, komissiya) skriptin əvvəlindəki `RATE` və `COMMISSION` sabitlərindədir.
 - Lokal baxış: `docker build -t arzoom-website site && docker run --rm -p 8080:8080 arzoom-website`, sonra `http://localhost:8080`.
+
+## Gün sonu hesabatı (e-poçt)
+
+Panel → İstifadəçilər → "Gün sonu hesabatı (e-poçt)". SMTP server, port (587 və ya 465), istifadəçi adı, parol, göndərən və alıcıların e-poçtlarını bir dəfə yaz, vaxtı seç (standart 17:55, Bakı vaxtı). Hesabat hər gün həmin vaxt gedir: bu gün daxil olan müraciətlər (markalar üzrə), günün nəticələri (təklif, rədd, əlavə məlumat, satışa ötürülən, imtina, ləğv, təkrar təklif istəyi), gün sonu gözləyənlər və bu gün hərəkət olan müraciətlərin siyahısı. Ad, FİN, telefon, gəlir, faiz və komissiya hesabata düşmür. Parol serverdə saxlanılır və panelə geri qaytarılmır. "İndi göndər" düyməsi hesabatı dərhal göndərir. Server həmin vaxt işləmirsə, hesabat eyni gün server qalxanda gedir, bir gündə avtomatik yalnız bir dəfə.

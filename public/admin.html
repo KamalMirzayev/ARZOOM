@@ -843,7 +843,7 @@ async function renderReport(st){
     <label class="f">Alıcılar: e-poçtları vergül və ya yeni sətirlə ayır<textarea id="rpTo" rows="3" autocapitalize="off" spellcheck="false" placeholder="direktor@arzoomavto.az, risk@arzoomavto.az">${esc(st.to.join(", "))}</textarea></label>
     <label class="pchk"><input type="checkbox" id="rpOn" ${st.enabled||!st.ready?"checked":""}><span>Hər gün avtomatik göndər</span></label>
     <details><summary class="muted" style="cursor:pointer;font-size:13px">Bu günün hesabatı necə görünəcək</summary><pre class="rptpre">${esc(st.preview.text)}</pre></details>
-    <div class="pbar"><small class="muted">Hesabatda ad, FİN, telefon, gəlir və faiz yoxdur: say, müraciət nömrəsi, marka, model və status.</small><span class="sp"></span>
+    <div class="pbar"><small class="muted">Hesabatda ad, FİN, gəlir və faiz yoxdur: say, müraciət nömrəsi, müştəri nömrəsi, marka, model və status. Alıcıları diqqətlə seç.</small><span class="sp"></span>
       <button class="btn ghost sm" type="button" id="rpSend" ${st.ready?"":"disabled"}>İndi göndər</button><button class="btn sm" type="submit">Saxla</button></div>`;
 }
 document.addEventListener("submit",async e=>{if(e.target.id!=="rptBox")return;e.preventDefault();

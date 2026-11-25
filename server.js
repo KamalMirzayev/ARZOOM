@@ -14,6 +14,8 @@ const History = require("./lib/history");
 const Xlsx = require("./lib/xlsx");
 const Stock = require("./lib/stock");
 const { sendSms } = Sms;
+const nodemailer = require("nodemailer");
+const Report = require("./lib/report");
 const Scoring = require("./lib/scoring");
 const Akb = require("./lib/akb");
 const Ocr = require("./lib/ocr");
@@ -720,6 +722,81 @@ app.post("/api/admin/settings/robocall", admin, adminOnly, async (req, res) => {
   RC.hash = hash;
   audit(req, req.user.username, "settings.robocall", "yeni token");
   res.json({ ...rcState(), token });
+});
+/* ---------- end-of-day report by e-mail: every day at the set Baku time (17:55 by default) to the addresses set in the panel ---------- */
+// SMTP details are typed once in the panel and kept in the settings table. The password never goes back to the browser or the log.
+const REPORT_KEYS = ["smtp_host", "smtp_port", "smtp_user", "smtp_pass", "smtp_from", "report_to", "report_time", "report_enabled", "report_last", "report_status"];
+const RPT = { host: "", port: 587, user: "", pass: "", from: "", to: [], time: "17:55", enabled: false, lastDay: "", status: null };
+async function loadReportSettings() {
+  const { rows } = await pool.query("SELECT key, value FROM settings WHERE key = ANY($1)", [REPORT_KEYS]);
+  const v = Object.fromEntries(rows.map(r => [r.key, r.value]));
+  Object.assign(RPT, { host: v.smtp_host || "", port: +v.smtp_port || 587, user: v.smtp_user || "", pass: v.smtp_pass || "", from: v.smtp_from || "",
+    to: (v.report_to || "").split(",").filter(Boolean), time: v.report_time || "17:55", enabled: v.report_enabled === "1",
+    lastDay: v.report_last || "", status: v.report_status ? JSON.parse(v.report_status) : null });
+}
+const setSetting = (k, v, by) => pool.query("INSERT INTO settings (key, value, updated_by) VALUES ($1,$2,$3) ON CONFLICT (key) DO UPDATE SET value = $2, updated_by = $3, updated_at = now()", [k, String(v), by]);
+const reportState = () => ({ host: RPT.host, port: RPT.port, user: RPT.user, passSet: !!RPT.pass, from: RPT.from, to: RPT.to, time: RPT.time,
+  enabled: RPT.enabled, ready: !!(RPT.host && RPT.from && RPT.to.length), status: RPT.status });
+const EMAIL = /^[^\s@,<>"']{1,64}@[a-z0-9.-]{1,190}\.[a-z]{2,}$/i;
+
+async function sendReport(by) {
+  const r = await Report.build(pool);
+  const at = new Date().toISOString();
+  try {
+    const t = nodemailer.createTransport({ host: RPT.host, port: RPT.port, secure: RPT.port === 465, requireTLS: RPT.port === 587,
+      auth: RPT.user ? { user: RPT.user, pass: RPT.pass } : undefined, connectionTimeout: 20000, greetingTimeout: 20000, socketTimeout: 30000 });
+    await t.sendMail({ from: RPT.from, to: RPT.to.join(", "), subject: Report.subject(r), text: Report.text(r, SITE_URL), html: Report.html(r, SITE_URL) });
+    RPT.status = { at, ok: true, to: RPT.to.length, by };
+  } catch (e) {
+    RPT.status = { at, ok: false, error: String(e.message || e).slice(0, 300), by };
+    console.error(`Gün sonu hesabatı göndərilmədi: ${RPT.status.error}`);
+  }
+  await setSetting("report_status", JSON.stringify(RPT.status), by);
+  return RPT.status;
+}
+// Checked every 30 s. The day is claimed in the database first, so a restart or a second instance never sends it twice.
+// If the server was down at the set time, the report goes out when it is back, the same day.
+async function reportTick() {
+  if (!RPT.enabled || !RPT.host || !RPT.from || !RPT.to.length) return;
+  const now = Report.bakuNow();
+  if (now.hm < RPT.time || RPT.lastDay === now.date) return;
+  const c = await pool.query(`INSERT INTO settings (key, value, updated_by) VALUES ('report_last', $1, 'Sistem')
+    ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = now() WHERE settings.value < $1 RETURNING 1`, [now.date]);
+  RPT.lastDay = now.date;
+  if (c.rowCount) await sendReport("Sistem");
+}
+
+app.get("/api/admin/settings/report", admin, adminOnly, async (_req, res) => {
+  const r = await Report.build(pool);
+  res.json({ ...reportState(), preview: { subject: Report.subject(r), text: Report.text(r, SITE_URL) } });
+});
+app.post("/api/admin/settings/report", admin, adminOnly, async (req, res) => {
+  const b = req.body || {};
+  const host = String(b.host || "").trim().toLowerCase(), port = +b.port || 587, user = String(b.user || "").trim(), from = String(b.from || "").trim();
+  const to = [...new Set(String(b.to || "").split(/[\s,;]+/).map(s => s.trim().toLowerCase()).filter(Boolean))];
+  const time = String(b.time || "17:55").trim();
+  if (!/^[a-z0-9.-]{3,190}$/.test(host)) return bad(res, "SMTP serverin ünvanı düzgün deyil. Məs. smtp.arzoomavto.az");
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return bad(res, "Port düzgün deyil. Adətən 587 və ya 465.");
+  if (user.length > 200 || String(b.pass || "").length > 300) return bad(res, "İstifadəçi adı və ya parol çox uzundur.");
+  const fromAddr = (from.match(/<([^>]+)>\s*$/) || [, from])[1];
+  if (!EMAIL.test(fromAddr) || from.length > 200 || /[\r\n]/.test(from)) return bad(res, "Göndərən e-poçt düzgün deyil. Məs. hesabat@arzoomavto.az");
+  if (!to.length) return bad(res, "Ən azı bir alıcı e-poçtu yaz.");
+  const wrong = to.find(e => !EMAIL.test(e)); if (wrong) return bad(res, `E-poçt düzgün deyil: ${wrong}`);
+  if (to.length > 30) return bad(res, "Ən çox 30 alıcı ola bilər.");
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) return bad(res, "Vaxt SS:DD formatında olmalıdır, məs. 17:55");
+  const vals = { smtp_host: host, smtp_port: port, smtp_user: user, smtp_from: from, report_to: to.join(","), report_time: time, report_enabled: b.enabled === false ? "0" : "1" };
+  if (b.pass) vals.smtp_pass = String(b.pass);
+  for (const [k, v] of Object.entries(vals)) await setSetting(k, v, req.user.username);
+  await loadReportSettings();
+  audit(req, req.user.username, "settings.report", `${to.length} alıcı, ${time}${b.pass ? ", parol yeniləndi" : ""}`);
+  res.json(reportState());
+});
+app.post("/api/admin/settings/report/send", admin, adminOnly, async (req, res) => {
+  if (!RPT.host || !RPT.from || !RPT.to.length) return bad(res, "Əvvəlcə SMTP və alıcıları yaz və saxla.", 409);
+  const st = await sendReport(req.user.username);
+  audit(req, req.user.username, "settings.report", st.ok ? "hesabat indi göndərildi" : "hesabat göndərilmədi");
+  if (!st.ok) return bad(res, `Göndərilmədi: ${st.error}`, 502);
+  res.json(reportState());
 });
 /* ---------- income document analysis on the server (OCR): the expert presses "Analiz et" on a document ---------- */
 // The file never leaves the server: PDF text layer or Tesseract OCR, then rules. At most two run at once (OCR is CPU heavy).
@@ -1444,6 +1521,8 @@ async function start() {
   await loadWebhookSettings();
   await loadRobocallSettings();
   await loadRcApi();
+  await loadReportSettings();
+  setInterval(() => reportTick().catch(e => console.error(e.message)), 30e3).unref();
   await backfillRobotSales().catch(e => console.error(e.message));
   Ocr.available().then(t => { if (!t.tesseract || !t.pdftotext) console.warn("Sənəd analizi üçün tesseract və poppler-utils quraşdırılmayıb."); });
   loadStock(); setInterval(loadStock, 15 * 60 * 1000).unref();

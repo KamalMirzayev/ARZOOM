@@ -96,7 +96,7 @@ app.use(helmet({
 app.use((req, res, next) => { if (req.path.startsWith("/api/")) res.set("Cache-Control", "no-store"); next(); });
 // ArzoomCall's analytics snapshot carries up to 100 recent calls with summaries, so that one path takes a larger body.
 const jsonSmall = express.json({ limit: "100kb" }), jsonLarge = express.json({ limit: "3mb" });
-app.use((req, res, next) => (req.path === "/api/integrations/robocall/analytics" ? jsonLarge : jsonSmall)(req, res, next));
+app.use((req, res, next) => (req.path === "/api/integrations/robocall/analytics" || req.path === "/api/admin/settings/akb" ? jsonLarge : jsonSmall)(req, res, next));
 
 // Browsers send multipart file names as UTF-8, multer reads them as Latin-1 ("Ã§Ä±xarÄ±Å"): decode them back.
 // Names with characters above U+00FF are already right; Latin-1 bytes that are not valid UTF-8 stay as they are.
@@ -1441,76 +1441,116 @@ app.post("/api/integrations/akb", xmlBody, async (req, res) => {
              verdict: out.assessment.result.verdict, flags: out.report.flags });
 });
 
-/* ---------- AKB score-report API: staff press "AKB-dan sorğula", the server asks AKB with the customer's ID card and FİN ---------- */
-// Every request and its full answer are kept in akb_requests (on the server only). An XML credit report in the answer is read
-// and scored at once, the same as an uploaded file. The customer gave consent to the bureau check in the application form.
-const AKBC = { url: AkbApi.DEFAULT_URL, user: "", pass: "", purpose: "001" };
+/* ---------- AKB HUB web service (SOAP BorrowerInquiryWS), per AKB's technical document ---------- */
+// Staff confirm the customer's written consent and press "AKB-dan sorğula"; the server asks AKB with the ID card and FİN,
+// using the organization's certificate, login and password. Every request is logged in akb_requests with who asked, for whom,
+// the purpose and the full answer, and the log is kept for at least 5 years even if the application is deleted (AKB 1.3.4).
+// An <inquiryResult> report in the answer is read and scored at once, the same as an uploaded file.
+const AKB_KEYS = ["akb_mode", "akb_env", "akb_url", "akb_user", "akb_pass", "akb_purpose", "akb_org_id", "akb_branch_id", "akb_user_id", "akb_pfx", "akb_cert_pass", "akb_cert_name"];
+const AKBC = { mode: "soap", env: "test", url: "", user: "", pass: "", purpose: "001", orgId: "", branchId: "", userId: "", pfx: "", certPass: "", certName: "" };
 async function loadAkbSettings() {
-  const { rows } = await pool.query("SELECT key, value FROM settings WHERE key IN ('akb_url','akb_user','akb_pass','akb_purpose')");
+  const { rows } = await pool.query("SELECT key, value FROM settings WHERE key = ANY($1)", [AKB_KEYS]);
   const v = Object.fromEntries(rows.map(r => [r.key, r.value]));
-  Object.assign(AKBC, { url: v.akb_url || AkbApi.DEFAULT_URL, user: v.akb_user || "", pass: v.akb_pass || "", purpose: v.akb_purpose || "001" });
+  Object.assign(AKBC, { mode: v.akb_mode === "rest" ? "rest" : "soap", env: v.akb_env === "prod" ? "prod" : "test", url: v.akb_url || "",
+    user: v.akb_user || "", pass: v.akb_pass || "", purpose: v.akb_purpose || "001", orgId: v.akb_org_id || "", branchId: v.akb_branch_id || "",
+    userId: v.akb_user_id || "", pfx: v.akb_pfx || "", certPass: v.akb_cert_pass || "", certName: v.akb_cert_name || "" });
 }
-const akbReady = () => !!(AKBC.url && AKBC.user && AKBC.pass);
+const akbReady = () => !!(AKBC.user && AKBC.pass);
+const akbEndpoint = () => AKBC.url || (AKBC.mode === "rest" ? AkbApi.REST_URL : AkbApi.SOAP_URLS[AKBC.env]);
 async function akbLast() {
   const { rows } = await pool.query("SELECT at, actor, http_status, ok, error, parsed FROM akb_requests ORDER BY id DESC LIMIT 1");
   return rows[0] || null;
 }
-const akbState = async () => ({ url: AKBC.url, user: AKBC.user, passSet: !!AKBC.pass, purpose: AKBC.purpose, connected: akbReady(), last: await akbLast() });
+const akbState = async () => ({ mode: AKBC.mode, env: AKBC.env, url: AKBC.url, endpoint: akbEndpoint(), urls: AkbApi.SOAP_URLS, user: AKBC.user, passSet: !!AKBC.pass,
+  purpose: AKBC.purpose, orgId: AKBC.orgId, branchId: AKBC.branchId, userId: AKBC.userId, certSet: !!AKBC.pfx, certName: AKBC.certName,
+  connected: akbReady(), last: await akbLast() });
+const akbConf = () => ({ ...AKBC, url: akbEndpoint() });
+const maskDoc = s => String(s || "").replace(/^(.{3}).*(.{2})$/, "$1***$2");
 
 // Asks AKB, stores the answer, reads a report out of it if there is one. applicationId is null for the panel's connection test.
-async function akbAsk(applicationId, person, actor) {
-  const r = await AkbApi.query(AKBC, person);
+async function akbAsk(applicationId, person, actor, extra = {}) {
+  const r = await AkbApi.query(akbConf(), person);
   const xml = r.ok ? AkbApi.findXml(r.text) : null;
-  let parsed = false, parseError = null, out = null;
+  let parsed = false, parseError = null, out = null, reportId = null;
   if (xml && applicationId) {
-    try { out = await applyBureau(applicationId, xml, `${actor} · AKB API`); parsed = !!out; }
+    try { out = await applyBureau(applicationId, xml, `${actor} · AKB API`); parsed = !!out; reportId = out?.report?.reportId || null; }
     catch (e) { parseError = e.message; }
-  } else if (xml) { try { Akb.parse(xml); parsed = true; } catch (e) { parseError = e.message; } }
+  } else if (xml) { try { reportId = String(Akb.parse(xml).reportId || "") || null; parsed = true; } catch (e) { parseError = e.message; } }
+  if (r.ok && !xml && !parseError) parseError = "Cavabda kredit hesabatı (inquiryResult) tapılmadı";
   const ins = await pool.query(
-    `INSERT INTO akb_requests (application_id, actor, http_status, ok, error, content_type, response, parsed, ms)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
-    [applicationId, actor, r.status, r.ok, r.error || parseError, r.type || null, r.text ?? null, parsed, r.ms]);
-  if (applicationId) await logEvent(pool, applicationId, actor, "akb_request", { ok: r.ok, status: r.status, parsed, error: r.error || parseError || undefined });
-  return { id: ins.rows[0].id, ok: r.ok, status: r.status, error: r.error || parseError, parsed, out, shape: r.ok ? AkbApi.shape(r.text) : null };
+    `INSERT INTO akb_requests (application_id, actor, http_status, ok, error, content_type, response, parsed, ms,
+                               fin, document, purpose_code, consent, report_id, test, mode)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id`,
+    [applicationId, actor, r.status, r.ok, r.error || parseError, r.type || null, r.text ?? null, parsed, r.ms,
+     person.fin, `${person.series}${person.number}`, person.purpose || AKBC.purpose, true, reportId, !applicationId, `${AKBC.mode}:${AKBC.env}`]);
+  if (applicationId) await logEvent(pool, applicationId, actor, "akb_request", { ok: r.ok, status: r.status, parsed, reportId, error: r.error || parseError || undefined });
+  return { id: ins.rows[0].id, ok: r.ok, status: r.status, error: r.error || parseError, parsed, out, reportId,
+           shape: r.ok && !parsed ? (AkbApi.shape(r.text) || AkbApi.xmlShape(r.text)) : null };
 }
 
 app.get("/api/admin/settings/akb", admin, adminOnly, async (_req, res) => res.json(await akbState()));
 app.post("/api/admin/settings/akb", admin, adminOnly, async (req, res) => {
   const b = req.body || {};
-  const url = String(b.url || "").trim() || AkbApi.DEFAULT_URL, user = String(b.user || "").trim(), purpose = String(b.purpose || "001").trim();
-  let u; try { u = new URL(url); } catch { return bad(res, "Ünvan düzgün deyil."); }
-  // Only AKB's own hosts over https; a local test server is allowed outside production (smoke test).
-  const local = process.env.NODE_ENV !== "production" && u.protocol === "http:" && u.hostname === "127.0.0.1";
-  if (!local && (u.protocol !== "https:" || !/(^|\.)acb\.az$/i.test(u.hostname))) return bad(res, "Ünvan https və acb.az domenində olmalıdır.");
+  const mode = b.mode === "rest" ? "rest" : "soap", env = b.env === "prod" ? "prod" : "test";
+  const url = String(b.url || "").trim(), user = String(b.user || "").trim(), purpose = String(b.purpose || "001").trim();
+  const orgId = String(b.orgId || "").trim(), branchId = String(b.branchId || "").trim(), userId = String(b.userId || "").trim();
+  if (url) {
+    let u; try { u = new URL(url); } catch { return bad(res, "Ünvan düzgün deyil."); }
+    // Only AKB's own hosts over https; a local test server is allowed outside production (smoke test).
+    const local = process.env.NODE_ENV !== "production" && u.protocol === "http:" && u.hostname === "127.0.0.1";
+    if (!local && (u.protocol !== "https:" || !/(^|\.)acb\.az$/i.test(u.hostname))) return bad(res, "Ünvan https və acb.az domenində olmalıdır.");
+  }
   if (!user || user.length > 200) return bad(res, "AKB istifadəçi adını yaz.");
   if (!/^\d{3}$/.test(purpose)) return bad(res, "Sorğu məqsədi kodu 3 rəqəm olmalıdır, məs. 001.");
+  if ([orgId, branchId, userId].some(x => x.length > 100 || /[<>&]/.test(x))) return bad(res, "Təşkilat, filial və ya istifadəçi kodu düzgün deyil.");
   if (!b.pass && !AKBC.pass) return bad(res, "AKB parolunu yaz.");
-  if (String(b.pass || "").length > 300) return bad(res, "Parol çox uzundur.");
-  const vals = { akb_url: url, akb_user: user, akb_purpose: purpose };
+  if (String(b.pass || "").length > 300 || String(b.certPass || "").length > 300) return bad(res, "Parol çox uzundur.");
+  const vals = { akb_mode: mode, akb_env: env, akb_url: url, akb_user: user, akb_purpose: purpose, akb_org_id: orgId, akb_branch_id: branchId, akb_user_id: userId };
   if (b.pass) vals.akb_pass = String(b.pass);
+  if (b.certPass) vals.akb_cert_pass = String(b.certPass);
+  if (b.pfx) {
+    const raw = Buffer.from(String(b.pfx), "base64");
+    if (raw.length < 100 || raw.length > 60000) return bad(res, "Sertifikat faylı .pfx olmalıdır (60 KB-dan kiçik).");
+    // The file must open with the passphrase given (or the one saved before), otherwise nothing is saved.
+    try { require("tls").createSecureContext({ pfx: raw, passphrase: String(b.certPass || AKBC.certPass || "") }); }
+    catch (e) { return bad(res, `Sertifikat açılmadı: ${/mac verify|bad decrypt|password/i.test(e.message) ? "sertifikatın parolu yanlışdır" : e.message}`); }
+    vals.akb_pfx = raw.toString("base64"); vals.akb_cert_name = String(b.certName || "sertifikat.pfx").replace(/[^\w.\- ]/g, "").slice(0, 80);
+  }
   for (const [k, v] of Object.entries(vals))
     await pool.query("INSERT INTO settings (key, value, updated_by) VALUES ($1,$2,$3) ON CONFLICT (key) DO UPDATE SET value = $2, updated_by = $3, updated_at = now()", [k, v, req.user.username]);
+  if (b.removeCert) await pool.query("DELETE FROM settings WHERE key IN ('akb_pfx','akb_cert_pass','akb_cert_name')");
   await loadAkbSettings();
-  audit(req, req.user.username, "settings.akb", `${u.host}${b.pass ? ", parol yeniləndi" : ""}`);
+  audit(req, req.user.username, "settings.akb", `${mode}/${env}${b.pass ? ", parol yeniləndi" : ""}${b.pfx ? ", sertifikat yükləndi" : ""}${b.removeCert ? ", sertifikat silindi" : ""}`);
   res.json(await akbState());
 });
-// Connection test with a test person's document (AKB's staging gives one). The document is not stored; the answer is.
+// Connection test with a test person's document (AKB's staging gives one). The answer is logged like any other request.
 app.post("/api/admin/settings/akb/test", admin, adminOnly, async (req, res) => {
   if (!akbReady()) return bad(res, "Əvvəlcə AKB ayarlarını saxla.", 409);
+  if (req.body?.consent !== true) return bad(res, "Borcalanın yazılı razılığının alındığını təsdiqlə.");
   const p = { series: String(req.body?.series || "AZE").toUpperCase(), number: String(req.body?.number || "").trim(), fin: String(req.body?.fin || "").trim().toUpperCase() };
   if (!["AZE", "AA", "AB"].includes(p.series) || !/^\d{5,9}$/.test(p.number) || !/^[0-9A-Z]{7}$/.test(p.fin)) return bad(res, "Sənəd seriyası, nömrəsi və FİN-i düzgün yaz.");
   const r = await akbAsk(null, p, req.user.name);
-  audit(req, req.user.username, "settings.akb", r.ok ? "bağlantı yoxlandı" : "bağlantı alınmadı");
-  res.json({ ...r, state: await akbState() });
+  audit(req, req.user.username, "akb.inquiry", `test ${maskDoc(p.series + p.number)}: ${r.ok ? "ok" : "xəta"}`);
+  res.json({ ...r, out: undefined, state: await akbState() });
+});
+// Deposit balance at AKB (getBalance), for the person who tops it up (AKB 1.3.8).
+app.get("/api/admin/settings/akb/balance", admin, adminOnly, async (req, res) => {
+  if (!akbReady() || AKBC.mode !== "soap") return bad(res, "Balans yalnız SOAP servisi qoşulanda yoxlanır.", 409);
+  const r = await AkbApi.balance(akbConf());
+  if (!r.ok) return bad(res, r.error, 502);
+  res.json({ balance: r.balance });
 });
 app.post("/api/admin/applications/:id/akb", admin, brandGate, can("apps.assess"), async (req, res) => {
   if (!akbReady()) return bad(res, "AKB inteqrasiyası qoşulmayıb. Admin paneldə AKB ayarlarını yazmalıdır.", 409);
+  // AKB 1.3.5: the request goes only after staff confirm that the borrower's written consent was obtained.
+  if (req.body?.consent !== true) return bad(res, "Sorğudan əvvəl borcalanın yazılı razılığının alındığını təsdiqlə.");
   const { rows } = await pool.query("SELECT id_series, id_number, fin FROM applications WHERE id = $1", [req.params.id]);
   if (!rows[0]) return bad(res, "Müraciət tapılmadı.", 404);
-  // One request per application per minute, so a double click does not cost two bureau inquiries.
-  const recent = await pool.query("SELECT 1 FROM akb_requests WHERE application_id = $1 AND at > now() - interval '1 minute' AND ok", [req.params.id]);
-  if (recent.rowCount) return bad(res, "Bu müraciət üçün AKB sorğusu bir dəqiqə əvvəl göndərilib.", 429);
+  // AKB refuses a repeat inquiry on the same person within 30 minutes (INQ-018); a double click must not cost a second one.
+  const recent = await pool.query("SELECT 1 FROM akb_requests WHERE application_id = $1 AND at > now() - interval '30 minutes' AND ok", [req.params.id]);
+  if (recent.rowCount) return bad(res, "Bu şəxs üçün AKB sorğusu son 30 dəqiqədə göndərilib. AKB təkrar sorğunu 30 dəqiqədən sonra qəbul edir.", 429);
   const r = await akbAsk(req.params.id, { series: rows[0].id_series, number: rows[0].id_number, fin: rows[0].fin }, req.staff);
+  audit(req, req.user.username, "akb.inquiry", `${req.params.id}: ${r.ok ? (r.parsed ? "hesabat" : "cavab") : "xəta"}`);
   if (!r.ok) return bad(res, r.error, 502);
   res.json({ ok: true, parsed: r.parsed, error: r.error, assessment: r.out?.assessment || null,
              note: r.parsed ? null : "AKB cavab verdi, amma kredit hesabatı tanınmadı. Cavab saxlanıldı." });
@@ -1518,7 +1558,16 @@ app.post("/api/admin/applications/:id/akb", admin, brandGate, can("apps.assess")
 // The stored answers for one application: newest first. The full answer only for staff who may assess.
 app.get("/api/admin/applications/:id/akb", admin, brandGate, can("apps.assess"), async (req, res) => {
   const { rows } = await pool.query(
-    "SELECT id, at, actor, http_status, ok, error, parsed, ms, content_type, left(response, 300000) AS response FROM akb_requests WHERE application_id = $1 ORDER BY id DESC LIMIT 20", [req.params.id]);
+    "SELECT id, at, actor, http_status, ok, error, parsed, ms, content_type, report_id, left(response, 300000) AS response FROM akb_requests WHERE application_id = $1 ORDER BY id DESC LIMIT 20", [req.params.id]);
+  res.json({ items: rows });
+});
+// The inquiry log (AKB 1.3.4): who asked about whom, when, with what purpose; searchable by FİN, document or report number.
+app.get("/api/admin/akb/log", admin, adminOnly, async (req, res) => {
+  const q = String(req.query.q || "").trim().toUpperCase().slice(0, 40);
+  const { rows } = await pool.query(
+    `SELECT id, at, actor, application_id, fin, document, purpose_code, consent, report_id, ok, error, test, mode FROM akb_requests
+     WHERE $1 = '' OR upper(fin) = $1 OR upper(document) LIKE '%' || $1 || '%' OR report_id = $1 OR application_id = $1
+     ORDER BY id DESC LIMIT 200`, [q]);
   res.json({ items: rows });
 });
 

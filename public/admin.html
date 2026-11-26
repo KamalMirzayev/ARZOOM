@@ -425,6 +425,8 @@ ul.r li.stop{color:#FFB4AC;font-weight:700} ul.r li.stop::before{background:#F08
 
 /* AKB report */
 .akb-up{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.akb-ok{display:flex;gap:8px;align-items:center;font-size:13px;margin:0 0 8px}.akb-ok input{width:auto}
+.akb-badges{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0 0}
 .akb-up input[type=file]{width:auto;flex:1;min-width:220px;padding:8px}
 .akb-meta{display:flex;gap:8px 18px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:2px 0 14px}
 .akb-meta b{color:var(--ink);font-weight:600}
@@ -869,6 +871,11 @@ function akbExtract(a){
       <div><span>Ən böyük gecikmə (gün)</span><b>${l.maxOverdue||0}</b></div><div><span>Kreditin statusu</span><b>${esc(l.status)}</b></div>
       <div><span>Təminat</span><b>${esc(l.collateral||"—")}</b></div><div><span>Müddətin uzadılması</span><b>${l.prolongations||0}</b></div></div>
     <p class="ax-cap">Öhdəlik üzrə son 24 aylıq tarixçə və ödəniş tərzi</p>${grid(l)}</div>`;
+  const side=(l,i,sec)=>`<div class="ax-ob"><h4>${sec}.${i+1} ${esc(l.type)} - ${m2(l.amount)} ${esc(l.currency)}</h4>
+    <div class="ax-kv"><div><span>Məlumat təchizatçısı</span><b>${esc(l.bank)}</b></div>${l.borrower?`<div><span>Borcalan</span><b>${esc(l.borrower)}</b></div>`:""}
+      <div><span>Verilmə tarixi</span><b>${esc(l.grantedOn||"—")}</b></div><div><span>Bitmə tarixi</span><b>${esc(l.dueOn||"—")}</b></div>
+      <div class="big"><span>Qalıq məbləğ</span><b>${m2(l.outstanding)}</b></div><div><span>Aylıq ödəniş</span><b>${l.monthly?m2(l.monthly):"—"}</b></div>
+      <div><span>Hazırkı gecikmə</span><b>${l.overdueNow?l.overdueNow+" gün":"Yoxdur"}</b></div><div><span>Statusu</span><b>${esc(l.status)}</b></div></div></div>`;
   const row=(n,t,v,c,k,sub)=>`<tr${sub?' class="sub"':""}><td>${n}</td><td>${t}</td><td class="n">${m2(v)}</td><td class="n">${c}</td><td class="n">${k}</td></tr>`;
   return `<div class="ax">
     <div class="ax-tools"><button class="btn sm" type="button" id="axPrint">Çap et / PDF</button><button class="btn ghost sm" type="button" id="axClose">Bağla</button></div>
@@ -889,6 +896,12 @@ function akbExtract(a){
     ${r.inquiries.length?`<table class="ax-t"><tr><th>N</th><th>Bankın adı</th><th>Tarix</th><th>Məqsəd</th></tr>${r.inquiries.map((q,i)=>`<tr><td>${i+1}.</td><td>${esc(q.org)}</td><td>${esc(q.date)}</td><td>${esc(q.purpose)}</td></tr>`).join("")}</table>`:""}
     <h3 class="ax-h">3. Borcalanın aktiv öhdəlikləri</h3>${act.length?act.map((l,i)=>card(l,i,3)).join(""):`<p>Aktiv öhdəlik yoxdur.</p>`}
     <h3 class="ax-h">4. Borcalanın bağlanmış öhdəlikləri</h3>${cls.length?cls.map((l,i)=>card(l,i,4)).join(""):`<p>Bağlanmış öhdəlik yoxdur.</p>`}
+    ${(r.coLoans||[]).length?`<h3 class="ax-h">5. Birgə borcalan olduğu öhdəliklər</h3>${r.coLoans.map((l,i)=>side(l,i,5)).join("")}`:""}
+    ${(r.guarantees||[]).length?`<h3 class="ax-h">6. Zaminlik üzrə öhdəliklər</h3>${r.guarantees.map((l,i)=>side(l,i,6)).join("")}`:""}
+    ${r.score||r.cas||r.kaqs?`<h3 class="ax-h">7. Skor, özünəqadağa və ani qeydiyyat</h3><div class="ax-kv one">
+      ${r.score?`<div><span>AKB skoru</span><b>${r.score.calculated&&r.score.point?`${r.score.point} · ${esc(r.score.band)}`:esc(r.score.response?r.score.response+": "+(r.score.reason||""):"Hesablanmayıb")}</b></div>`:""}
+      ${r.cas?`<div><span>Özünəqadağa</span><b>${esc(r.cas.title||r.cas.status)}</b></div>`:""}
+      ${r.kaqs?`<div><span>Kreditlərin ani qeydiyyatı</span><b>${esc(r.kaqs.title||r.kaqs.status)}</b></div>`:""}</div>`:""}
     <h3 class="ax-h">Tarixçə üzrə şərti işarələmə</h3>
     <table class="ax-t ax-leg"><tr><td><b>-</b> məlumat yoxdur</td><td><b>0</b> 0 gün gecikmə</td><td><b>30</b> 1-30 gün gecikmə</td></tr>
       <tr><td><b>90</b> 31-90 gün gecikmə</td><td><b>180</b> 91-180 gün gecikmə</td><td><b>360</b> 181-360 gün gecikmə</td></tr><tr><td><b>361+</b> 360 gündən artıq gecikmə</td><td></td><td></td></tr></table>
@@ -896,32 +909,57 @@ function akbExtract(a){
     <p class="ax-end">Kredit hesabatının sonu · ARZOOM paneli, ${esc(new Date().toLocaleString("az-AZ"))}</p></div>`;
 }
 const prettyAkb=t=>{if(!t)return"";try{return JSON.stringify(JSON.parse(t),null,2)}catch{return t}};
-// AKB score-report API: address, login and password typed once; the password never comes back. A test person's document checks the link.
+// AKB HUB web service (SOAP), per AKB's technical document: test or real environment, login, password, the organization's
+// .pfx certificate and its IDs. Password and certificate are typed or uploaded once and never come back to the browser.
 async function renderAkb(st){
   const box=$("#akbBox");if(!box)return;
   try{st=st||await api("/settings/akb")}catch(e){box.hidden=true;return}
-  const l=st.last;
+  const l=st.last,soap=st.mode!=="rest";
   box.innerHTML=ph("shield","AKB inteqrasiyası (kredit bürosu)")+`
-    <p style="margin:0">${st.connected?`<span class="st sm s-accepted">Qoşulub</span>`:`<span class="st sm s-rejected">Qoşulmayıb</span> <span class="muted">Hesabatı XML faylı ilə yükləmək olar.</span>`}</p>
+    <p style="margin:0">${st.connected?`<span class="st sm s-accepted">Qoşulub</span> <span class="muted">${soap?"SOAP servisi":"REST score-report"} · ${st.env==="prod"?"real mühit":"test mühiti"} · ${esc(st.endpoint)}</span>`:`<span class="st sm s-rejected">Qoşulmayıb</span> <span class="muted">Hesabatı XML faylı ilə yükləmək olar.</span>`}</p>
     ${l?`<p style="margin:0;font-size:13px">${l.ok?`<span class="muted">Son sorğu: ${dt(l.at)}, ${l.parsed?"hesabat oxundu":"cavab gəldi, hesabat tanınmadı"}</span>`:`<b style="color:var(--bad)">Son sorğu alınmadı (${dt(l.at)}):</b> ${esc(l.error||"")}`}</p>`:""}
     <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
-      <label class="f" style="grid-column:1/-1">Ünvan (score-report)<input id="akUrl" value="${esc(st.url)}" autocapitalize="off" spellcheck="false" required></label>
+      <label class="f">Servis<select id="akMode"><option value="soap"${soap?" selected":""}>SOAP (BorrowerInquiryWS)</option><option value="rest"${soap?"":" selected"}>REST (score-report)</option></select></label>
+      <label class="f">Mühit<select id="akEnv"><option value="test"${st.env!=="prod"?" selected":""}>Test (staging-hub)</option><option value="prod"${st.env==="prod"?" selected":""}>Real (hub.acb.az)</option></select></label>
+      <label class="f" style="grid-column:span 2">Başqa ünvan <small class="muted">(boş qalsa mühitin ünvanı)</small><input id="akUrl" value="${esc(st.url)}" placeholder="${esc(st.urls?.[st.env]||"")}" autocapitalize="off" spellcheck="false"></label>
       <label class="f">İstifadəçi adı<input id="akUser" value="${esc(st.user)}" autocapitalize="off" spellcheck="false" autocomplete="off" required></label>
       <label class="f">Parol<input id="akPass" type="password" autocomplete="new-password" placeholder="${st.passSet?"Saxlanılıb, dəyişmək üçün yenisini yaz":"AKB parolu"}" ${st.passSet?"":"required"}></label>
-      <label class="f">Sorğu məqsədi kodu<input id="akPurpose" value="${esc(st.purpose)}" inputmode="numeric" maxlength="3"></label>
+      <label class="f">Sorğu məqsədi kodu<select id="akPurpose">${[["001","Kredit müraciəti"],["002","Kredit xətti üçün müraciət"],["005","Cari borcalanın sorğulanması"]].map(([k,v])=>`<option value="${k}"${st.purpose===k?" selected":""}>${k} · ${v}</option>`).join("")}</select></label>
+      <label class="f">Təşkilat kodu (org_id)<input id="akOrg" value="${esc(st.orgId)}" autocomplete="off"></label>
+      <label class="f">Filial kodu (branchId)<input id="akBranch" value="${esc(st.branchId)}" autocomplete="off"></label>
+      <label class="f">AKB istifadəçi kodu (userId)<input id="akUid" value="${esc(st.userId)}" placeholder="boş qalsa istifadəçi adı" autocomplete="off"></label>
+      <label class="f" style="grid-column:span 2">Sertifikat (.pfx / .p12) ${st.certSet?`<small class="muted">· yüklənib: ${esc(st.certName||"sertifikat")}</small>`:""}<input id="akPfx" type="file" accept=".pfx,.p12,application/x-pkcs12"></label>
+      <label class="f">Sertifikatın parolu<input id="akCertPass" type="password" autocomplete="new-password" placeholder="${st.certSet?"Saxlanılıb":"pfx parolu"}"></label>
     </div>
-    <div class="pbar"><small class="muted">Parol serverdə saxlanılır, ekrana qaytarılmır. AKB serverin IP ünvanına icazə verməlidir.</small><span class="sp"></span><button class="btn sm" type="submit">Saxla</button></div>
-    ${st.connected?`<div class="akb-test"><b style="font-size:13.5px">Bağlantını yoxla</b> <small class="muted">AKB-nin test şəxsinin sənədi ilə; sənəd saxlanılmır.</small>
+    <div class="pbar"><small class="muted">Parol və sertifikat yalnız serverdə saxlanılır, ekrana qaytarılmır. AKB serverin IP ünvanına icazə verməlidir.</small><span class="sp"></span>
+      ${st.certSet?`<button class="btn ghost sm" type="button" id="akRmCert">Sertifikatı sil</button>`:""}${st.connected&&soap?`<button class="btn ghost sm" type="button" id="akBal">Balans</button>`:""}<button class="btn ghost sm" type="button" id="akJournal">Sorğu jurnalı</button><button class="btn sm" type="submit">Saxla</button></div>
+    <div id="akBalOut"></div><div id="akJOut"></div>
+    ${st.connected?`<div class="akb-test"><b style="font-size:13.5px">Bağlantını yoxla</b> <small class="muted">AKB-nin test şəxsinin sənədi ilə; sorğu jurnala yazılır.</small>
       <div style="display:grid;gap:8px;grid-template-columns:90px 1fr 1fr auto;align-items:end;margin-top:8px">
         <select id="akTSer" aria-label="Seriya"><option>AZE</option><option>AA</option><option>AB</option></select>
         <input id="akTNum" inputmode="numeric" placeholder="Sənəd nömrəsi" autocomplete="off"><input id="akTFin" placeholder="FİN" maxlength="7" autocapitalize="characters" autocomplete="off">
-        <button class="btn ghost sm" type="button" id="akTest">Yoxla</button></div><div id="akTOut"></div></div>`:""}`;
+        <button class="btn ghost sm" type="button" id="akTest">Yoxla</button></div>
+      <label class="akb-ok" style="margin-top:8px"><input type="checkbox" id="akTConsent"> Şəxsin yazılı razılığı alınmışdır</label><div id="akTOut"></div></div>`:""}`;
 }
+const fileB64=f=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(",")[1]||"");r.onerror=()=>no(new Error("Fayl oxunmadı"));r.readAsDataURL(f)});
 document.addEventListener("submit",async e=>{if(e.target.id!=="akbBox")return;e.preventDefault();
-  try{const st=await api("/settings/akb",{method:"POST",body:JSON.stringify({url:$("#akUrl").value,user:$("#akUser").value,pass:$("#akPass").value,purpose:$("#akPurpose").value})});
+  try{const f=$("#akPfx").files[0];if(f&&f.size>60000){toast("Sertifikat faylı 60 KB-dan böyükdür.");return}
+    const body={mode:$("#akMode").value,env:$("#akEnv").value,url:$("#akUrl").value,user:$("#akUser").value,pass:$("#akPass").value,purpose:$("#akPurpose").value,
+      orgId:$("#akOrg").value,branchId:$("#akBranch").value,userId:$("#akUid").value,certPass:$("#akCertPass").value};
+    if(f){body.pfx=await fileB64(f);body.certName=f.name}
+    const st=await api("/settings/akb",{method:"POST",body:JSON.stringify(body)});
     me.akb=st.connected;toast("AKB ayarları saxlanıldı");renderAkb(st)}catch(err){toast(err.message)}});
-document.addEventListener("click",async e=>{if(e.target.id!=="akTest")return;const b=e.target;b.disabled=true;b.textContent="Gözlənilir…";
-  try{const r=await api("/settings/akb/test",{method:"POST",body:JSON.stringify({series:$("#akTSer").value,number:$("#akTNum").value,fin:$("#akTFin").value})});
+document.addEventListener("click",async e=>{const id=e.target.id;
+  if(id==="akRmCert"){if(!confirmInline(e.target,"Silməyi təsdiqlə"))return;
+    try{const st=await api("/settings/akb",{method:"POST",body:JSON.stringify({mode:$("#akMode").value,env:$("#akEnv").value,url:$("#akUrl").value,user:$("#akUser").value,purpose:$("#akPurpose").value,orgId:$("#akOrg").value,branchId:$("#akBranch").value,userId:$("#akUid").value,removeCert:true})});
+      toast("Sertifikat silindi");renderAkb(st)}catch(err){toast(err.message)}}
+  if(id==="akBal"){try{const r=await api("/settings/akb/balance");$("#akBalOut").innerHTML=`<p style="margin:0">AKB depozit balansı: <b>${r.balance==null?"—":azn(r.balance)}</b></p>`}catch(err){$("#akBalOut").innerHTML=`<p style="margin:0;color:var(--bad)">${esc(err.message)}</p>`}}
+  if(id==="akJournal"){const o=$("#akJOut");if(o.innerHTML){o.innerHTML="";return}
+    try{const {items}=await api("/akb/log");o.innerHTML=items.length?`<div class="tscroll"><table class="dtable"><thead><tr><th>Tarix</th><th>Əməkdaş</th><th>Müraciət</th><th>FİN</th><th>Sənəd</th><th>Məqsəd</th><th>Razılıq</th><th>Hesabat</th><th>Nəticə</th></tr></thead><tbody>${items.map(x=>`<tr><td>${dt(x.at)}</td><td>${esc(x.actor)}</td><td>${x.application_id?esc(x.application_id):x.test?"test":"—"}</td><td class="mono">${esc(x.fin||"—")}</td><td class="mono">${esc(x.document||"—")}</td><td>${esc(x.purpose_code||"—")}</td><td>${x.consent?"Bəli":"—"}</td><td class="mono">${esc(x.report_id||"—")}</td><td>${x.ok?"ok":`<span style="color:var(--bad)">${esc(x.error||"xəta")}</span>`}</td></tr>`).join("")}</tbody></table></div><p class="muted" style="font-size:12px">Son 200 sorğu. Jurnal AKB tələbinə görə ən az 5 il saxlanılır.</p>`:`<p class="muted">Hələ sorğu olmayıb.</p>`}catch(err){toast(err.message)}}
+  if(id!=="akTest")return;const b=e.target;
+  if(!$("#akTConsent").checked){toast("Şəxsin yazılı razılığının alındığını təsdiqlə.");return}
+  b.disabled=true;b.textContent="Gözlənilir…";
+  try{const r=await api("/settings/akb/test",{method:"POST",body:JSON.stringify({series:$("#akTSer").value,number:$("#akTNum").value,fin:$("#akTFin").value,consent:true})});
     $("#akTOut").innerHTML=`<p style="margin:8px 0 0">${r.ok?(r.parsed?`<b style="color:var(--ok)">Bağlantı işləyir, kredit hesabatı oxundu.</b>`:`<b style="color:var(--warn)">AKB cavab verdi (${r.status}), amma hesabat formatı tanınmadı.</b> Cavabın strukturu aşağıdadır (dəyərlər yoxdur):`):`<b style="color:var(--bad)">${esc(r.error||"Alınmadı")}</b>`}</p>${r.shape&&!r.parsed?`<pre class="rptpre">${esc(JSON.stringify(r.shape,null,2))}</pre>`:""}`}
   catch(err){$("#akTOut").innerHTML=`<p style="margin:8px 0 0;color:var(--bad)">${esc(err.message)}</p>`}b.disabled=false;b.textContent="Yoxla"});
 // End-of-day report: mailed every day at the set time. The SMTP password is typed once and never sent back.
@@ -1426,9 +1464,23 @@ function steps(a){
     ["Satış",st==="accepted"?"now":0]];
   return `<ol class="steps">${S.map(([t,v],i)=>`<li class="${v===1?"done":v||""}"><i>${v===1?IC.check:v==="bad"?IC.x:i+1}</i>${t}</li>`).join("")}</ol>`;
 }
+// AKB's own score, self-ban (özünəqadağa) and instant credit registry status, when the report carries them.
+function akbBadges(r){
+  const sc=r.score,c=r.cas,k=r.kaqs;if(!sc&&!c&&!k)return"";
+  const col=p=>p>=750?"var(--ok)":p>=600?"var(--blue)":p>=200?"var(--warn)":"var(--bad)";
+  return `<div class="akb-badges">${sc?`<div class="stat"><small>AKB skoru</small>${sc.calculated&&sc.point?`<b style="color:${col(sc.point)}">${sc.point}</b><small>${esc(sc.band)} · 1–1000</small>`:`<b>—</b><small>${esc(sc.response?sc.response+": "+(sc.reason||""):"hesablanmayıb")}</small>`}</div>`:""}
+    ${c?`<div class="stat"><small>Özünəqadağa</small><b style="color:${c.status==="ACTIVE"?"var(--bad)":"var(--ok)"}">${c.status==="ACTIVE"?"Aktivdir":"Yoxdur"}</b><small>${esc(c.title||"")}</small></div>`:""}
+    ${k?`<div class="stat"><small>Kreditlərin ani qeydiyyatı</small><b>${k.status==="true"?"Məlumat var":"Məlumat yoxdur"}</b><small>${esc(k.status==="true"?"Başqa təşkilatlarda son müraciət və ya qərar ola bilər":"")}</small></div>`:""}</div>`;
+}
+// Loans the person shares as co-borrower and loans they guarantee for someone else.
+function akbSideTables(r,fmt){
+  const co=r.coLoans||[],g=r.guarantees||[];if(!co.length&&!g.length)return"";
+  const t=(title,list,who)=>list.length?`<details class="inq" open><summary>${title} (${list.length})</summary><table class="dtable" style="margin-top:8px"><tbody>${list.map(l=>`<tr><td>${esc(l.bank)}${who&&l.borrower?`<br><small class="muted">Borcalan: ${esc(l.borrower)}</small>`:""}</td><td>${esc(l.type)}<br><small class="muted">${esc(l.grantedOn)} → ${esc(l.dueOn)}</small></td><td class="n">${fmt(l.amount)}</td><td class="n">qalıq ${fmt(l.outstanding)}</td><td class="n">${l.monthly?fmt(l.monthly)+"/ay":"—"}</td><td><span class="st sm ${l.active?(l.overdueNow?"s-rejected":"s-accepted"):"s-cancelled"}">${l.active?(l.overdueNow?l.overdueNow+" gün gecikmə":"Aktiv"):"Bağlanıb"}</span></td></tr>`).join("")}</tbody></table></details>`:"";
+  return t("Birgə borcalan olduğu kreditlər",co,false)+t("Zamin olduğu kreditlər",g,true);
+}
 function akbHtml(a){
   const r=a.bureau,can=has("apps.assess");
-  const up=can?`${me.akb?`<div class="akb-up"><button class="btn" type="button" id="akbAsk">${r?"AKB-dan yenidən sorğula":"AKB-dan sorğula"}</button><button class="btn ghost sm" type="button" id="akbLog">AKB cavabları</button></div>`:""}
+  const up=can?`${me.akb?`<label class="akb-ok"><input type="checkbox" id="akbConsent"> Borcalanın AKB sorğusu üçün yazılı razılığı alınmışdır</label><div class="akb-up"><button class="btn" type="button" id="akbAsk">${r?"AKB-dan yenidən sorğula":"AKB-dan sorğula"}</button><button class="btn ghost sm" type="button" id="akbLog">AKB cavabları</button></div>`:""}
     <div class="akb-up"><input type="file" id="akbFile" accept=".xml,.txt,text/xml,application/xml"><button class="btn ${me.akb?"ghost":""}" type="button" id="akbLoad">${r?"Yeni hesabat yüklə":"XML yüklə və hesabla"}</button></div>
     <div id="akbLogBox"></div>
     <p class="muted" style="margin:8px 0 0;font-size:12.5px">${me.akb?"Sorğu müştərinin şəxsiyyət vəsiqəsi və FİN-i ilə AKB-ya gedir, cavab serverdə saxlanılır və dərhal hesablanır.":"AKB inteqrasiyası qoşulanda (admin → İstifadəçilər → AKB) hesabat bir düymə ilə gələcək."}</p>`:"";
@@ -1445,6 +1497,7 @@ function akbHtml(a){
       <div><small class="muted">Avtomatik nəticə${a.assessment.auto?"":" · ekspert dəyişib"}</small><div class="verdict" style="color:${col}">${res.verdict==="incomplete"?"Gəlir və qiymət daxil ediləndə tam hesablanacaq":`Skor ${res.score} · ${res.grade} · ${Scoring.VERDICTS[res.verdict]}`}</div>
       <small class="muted">AKB göstəriciləri qiymətləndirmə formasına avtomatik yazıldı.</small></div></div>`:""}
     ${r.flags.length?`<div class="flags">${r.flags.map(f=>`<div class="flag">${IC.alert}${esc(f)}</div>`).join("")}</div>`:""}
+    ${akbBadges(r)}
     <div class="akb-tiles">
       <div class="stat"><small>Aktiv öhdəlik</small><b>${S.activeCount}</b><small>${S.activeLoans} kredit · ${S.activeCards} kart/xətt</small></div>
       <div class="stat"><small>Aylıq borc yükü</small><b>${azn(S.debtMonthly)}</b><small>ödəniş ${azn(S.monthlyInstallments)} + kart limiti ${azn(S.cardLoad)}</small></div>
@@ -1460,6 +1513,7 @@ function akbHtml(a){
         <td>${esc(l.type)}<br><small class="muted">${esc(l.purpose)}</small></td><td class="n">${azn(l.card?l.limit:l.amount)}</td><td class="n">${azn(l.outstanding)}</td><td class="n">${l.monthly?azn(l.monthly):"—"}</td><td class="n">${l.rate}%</td>
         <td><span class="st sm ${l.active?(l.overdueNow?"s-rejected":"s-accepted"):"s-cancelled"}">${l.active?(l.overdueNow?l.overdueNow+" gün gecikmə":"Aktiv"):"Bağlanıb "+esc(l.closedOn)}</span></td>
         <td>${l.history.length?strip(l):`<span class="muted">—</span>`}</td></tr>`).join("")}</tbody></table></div>
+    ${akbSideTables(r,azn)}
     ${r.inquiries.length?`<details class="inq"><summary>Kredit sorğuları (${r.inquiries.length})</summary><table class="dtable" style="margin-top:8px"><tbody>${r.inquiries.map(q=>`<tr><td>${esc(q.date)}</td><td>${esc(q.org)}</td><td>${esc(q.purpose)}${q.hard?"":` <small class="muted">· skora təsir etmir</small>`}</td></tr>`).join("")}</tbody></table></details>`:""}
     ${up?`<div style="margin-top:16px">${up}</div>`:""}
   </section>`;
@@ -1674,8 +1728,9 @@ document.addEventListener("click",async e=>{
   if(b.id==="axClose"){$("#axView").hidden=true;document.body.classList.remove("ax-open")}
   if(b.id==="axPrint")window.print();
   if(b.id==="akbAsk"){
+    if(!$("#akbConsent").checked){toast("Əvvəlcə borcalanın yazılı razılığının alındığını təsdiqlə.");$("#akbConsent").focus();return}
     b.disabled=true;b.textContent="AKB-dan gözlənilir…";
-    try{const j=await api(`/applications/${encodeURIComponent(cur.id)}/akb`,{method:"POST"});
+    try{const j=await api(`/applications/${encodeURIComponent(cur.id)}/akb`,{method:"POST",body:JSON.stringify({consent:true})});
       if(j.parsed){const r=j.assessment.result;toast(r.verdict==="incomplete"?"AKB hesabatı gəldi, gəlir və qiymət daxil et":`AKB: ${r.score} · ${r.grade} · ${Scoring.VERDICTS[r.verdict]}`)}else toast(j.note||"AKB cavabı saxlanıldı");
       await openApp(cur.id);loadList()}catch(err){toast(err.message);b.disabled=false;b.textContent="AKB-dan sorğula"}}
   if(b.id==="akbLog"){const box=$("#akbLogBox");if(box.innerHTML){box.innerHTML="";return}

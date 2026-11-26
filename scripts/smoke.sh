@@ -232,26 +232,54 @@ RP=$(curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/report" -d '{"host":"127
 echo "$RP" | grep -q '"passSet":true' || fail; echo "$RP" | grep -q 'smoke-secret-pass' && fail; echo "$RP" | grep -q '"a@arzoom.test","b@arzoom.test"' || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/report/send")" = 502 ] || fail
 curl -fsS "${H[@]}" "$B/api/admin/settings/report" | grep -q '"ok":false' || fail; echo "✓ gün sonu hesabatı: yalnız admin, parol gizli, ünvan və vaxt yoxlanır, SMTP xətası görünür"
-# AKB score-report API: a local stand-in for AKB checks Basic auth and the request, and answers with the sample report inside JSON.
-AKX="$(dirname "$0")/../test/akb-sample.xml" node -e '
-const x=require("fs").readFileSync(process.env.AKX,"utf8");
+# AKB HUB SOAP service (BorrowerInquiryWS): a local stand-in serves the WSDL, checks the WS-Security login, the consent flag and the
+# person's IDs, and answers inquireByIdCard with the full sample report inside a namespaced SOAP body; getBalance answers a balance.
+# /score answers the older REST mode with the report in base64 JSON.
+AKX="$(dirname "$0")/../test/akb-full-sample.xml" node -e '
+const x=require("fs").readFileSync(process.env.AKX,"utf8").replace(/<(\/?)(?=[a-zA-Z])/g,"<$1ns2:");
+const env=b=>`<?xml version="1.0"?><S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/"><S:Body>${b}</S:Body></S:Envelope>`;
+const fault=m=>env(`<S:Fault><faultcode>S:Server</faultcode><faultstring>${m}</faultstring></S:Fault>`);
 require("http").createServer((q,r)=>{let b="";q.on("data",c=>b+=c).on("end",()=>{
-  if(q.headers.authorization!=="Basic "+Buffer.from("akbtest:akb-smoke-pass").toString("base64")){r.statusCode=401;return r.end(JSON.stringify({message:"Unauthorized"}))}
-  const j=JSON.parse(b);if(!j.accepted||j.docType!=="ID_CARD"||!/^[0-9A-Z]{7}$/.test(j.pinCode)||!j.docSerie||!j.documentNo){r.statusCode=400;return r.end("{}")}
-  r.setHeader("Content-Type","application/json");r.end(JSON.stringify({status:"OK",data:{report:Buffer.from(x).toString("base64")}}))})}).listen(18998,"127.0.0.1")' &
+  if(q.url.startsWith("/score")){
+    if(q.headers.authorization!=="Basic "+Buffer.from("akbtest:akb-smoke-pass").toString("base64")){r.statusCode=401;return r.end("{}")}
+    r.setHeader("Content-Type","application/json");return r.end(JSON.stringify({data:{report:Buffer.from(x.replace(/ns2:/g,"")).toString("base64")}}))}
+  if(q.method==="GET"&&q.url.endsWith("?wsdl")){r.setHeader("Content-Type","text/xml");return r.end(`<definitions xmlns="http://schemas.xmlsoap.org/wsdl/" targetNamespace="http://ws.hub.acb.az/"><types><xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" elementFormDefault="unqualified"/></types><portType name="P"><operation name="inquireByIdCard"/><operation name="getBalance"/></portType><service name="BorrowerInquiryWS"><port name="p"><soap:address xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" location="http://127.0.0.1:18998/soap/BorrowerInquiryWS"/></port></service></definitions>`)}
+  r.setHeader("Content-Type","text/xml");
+  if(!b.includes("<wsse:Username>akbtest</wsse:Username>")||!b.includes(">akb-smoke-pass</wsse:Password>")){r.statusCode=500;return r.end(fault("Authentication failed"))}
+  if(b.includes("<ns:getBalance>"))return r.end(env(`<ns2:getBalanceResponse xmlns:ns2="http://ws.hub.acb.az/"><return>3635.5</return></ns2:getBalanceResponse>`));
+  if(!b.includes("<ns:inquireByIdCard>")||!b.includes("<accept>true</accept>")||!/<pinCode>[0-9A-Z]{7}<\/pinCode>/.test(b)||!b.includes("<documentSerial>AZE</documentSerial>")||!b.includes("<purposeCode>001</purposeCode>")||!b.includes("<org_id>ORG1</org_id>")){r.statusCode=500;return r.end(fault("INQ-009"))}
+  r.end(env(`<ns2:inquireByIdCardResponse xmlns:ns2="http://ws.hub.acb.az/"><return>${x}</return></ns2:inquireByIdCardResponse>`))})}).listen(18998,"127.0.0.1")' &
 AKP=$!; sleep 1
+AKU='http://127.0.0.1:18998/soap/BorrowerInquiryWS'
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/akb" -d '{"url":"https://evil.example.com/x","user":"a","pass":"b"}')" = 400 ] || fail
-curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb" -d '{"url":"http://127.0.0.1:18998/score","user":"akbtest","pass":"wrong-pass"}' | grep -q '"connected":true' || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb" -d "{\"url\":\"$AKU\",\"user\":\"akbtest\",\"pass\":\"wrong-pass\",\"orgId\":\"ORG1\"}" | grep -q '"connected":true' || fail
 curl -fsS "${H[@]}" "$B/api/admin/me" | grep -q '"akb":true' || fail
-[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID/akb")" = 502 ] || fail
-AKS=$(curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb" -d '{"url":"http://127.0.0.1:18998/score","user":"akbtest","pass":"akb-smoke-pass"}')
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID/akb" -d '{}')" = 400 ] || fail
+AKE=$(curl -s -X POST "${H[@]}" "$B/api/admin/applications/$ID/akb" -d '{"consent":true}'); echo "$AKE" | grep -q 'Authentication failed' || fail
+# The client certificate: a .pfx opens only with its passphrase, is stored, and never comes back.
+if command -v openssl >/dev/null; then
+  T=$(mktemp -d); openssl req -x509 -newkey rsa:2048 -nodes -keyout "$T/k.pem" -out "$T/c.pem" -subj "/CN=arzoom-smoke" -days 2 2>/dev/null
+  openssl pkcs12 -export -inkey "$T/k.pem" -in "$T/c.pem" -out "$T/c.pfx" -passout pass:pfx-smoke-pass 2>/dev/null; PFX=$(base64 -w0 "$T/c.pfx"); rm -rf "$T"
+  [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/akb" -d "{\"url\":\"$AKU\",\"user\":\"akbtest\",\"orgId\":\"ORG1\",\"pfx\":\"$PFX\",\"certPass\":\"wrong\"}")" = 400 ] || fail
+  AKC=$(curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb" -d "{\"url\":\"$AKU\",\"user\":\"akbtest\",\"orgId\":\"ORG1\",\"pfx\":\"$PFX\",\"certPass\":\"pfx-smoke-pass\",\"certName\":\"arzoom.pfx\"}")
+  echo "$AKC" | grep -q '"certSet":true' || fail; echo "$AKC" | grep -q 'pfx-smoke-pass' && fail; echo "$AKC" | grep -q "${PFX:0:40}" && fail
+fi
+AKS=$(curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb" -d "{\"url\":\"$AKU\",\"user\":\"akbtest\",\"pass\":\"akb-smoke-pass\",\"orgId\":\"ORG1\",\"branchId\":\"B1\",\"userId\":\"U1\"}")
 echo "$AKS" | grep -q 'akb-smoke-pass' && fail; echo "$AKS" | grep -q '"passSet":true' || fail
-curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb/test" -d '{"series":"AZE","number":"1234567","fin":"TEST001"}' | grep -q '"parsed":true' || fail
-curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/akb" | grep -q '"parsed":true' || fail
-[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID/akb")" = 429 ] || fail
-AKL=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID/akb"); echo "$AKL" | grep -q '"parsed":true' || fail; echo "$AKL" | grep -q '"http_status":401' || fail
-curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q 'AKB API' || fail
-kill $AKP 2>/dev/null; echo "✓ AKB API: yalnız acb.az, parol gizli, səhv girişdə 502, cavab saxlanılır, hesabat oxunur, təkrar sorğu 1 dəq bloklanır"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/akb/test" -d '{"series":"AZE","number":"1234567","fin":"TEST001"}')" = 400 ] || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb/test" -d '{"series":"AZE","number":"1234567","fin":"TEST001","consent":true}' | grep -q '"parsed":true' || fail
+curl -fsS "${H[@]}" "$B/api/admin/settings/akb/balance" | grep -q '"balance":3635.5' || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/akb" -d '{"consent":true}' | grep -q '"parsed":true' || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID/akb" -d '{"consent":true}')" = 429 ] || fail
+AKL=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID/akb"); echo "$AKL" | grep -q '"parsed":true' || fail; echo "$AKL" | grep -q '"report_id":"1000002"' || fail
+AKA=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID"); echo "$AKA" | grep -q 'AKB API' || fail
+echo "$AKA" | grep -q '"point":712' || fail; echo "$AKA" | grep -q 'TEST ZAMİN ALAN' || fail; echo "$AKA" | grep -q 'birgə borcalandır' || fail
+AKJ=$(curl -fsS "${H[@]}" "$B/api/admin/akb/log?q=TEST001"); echo "$AKJ" | grep -q '"consent":true' || fail; echo "$AKJ" | grep -q '"purpose_code":"001"' || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/akb/log")" = 403 ] || fail
+# The older REST mode still works.
+curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb" -d '{"mode":"rest","url":"http://127.0.0.1:18998/score","user":"akbtest","orgId":"ORG1"}' | grep -q '"mode":"rest"' || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb/test" -d '{"series":"AZE","number":"1234567","fin":"TEST002","consent":true}' | grep -q '"parsed":true' || fail
+kill $AKP 2>/dev/null; echo "✓ AKB SOAP: WSDL oxunur, WS-Security girişi, razılıq tələb olunur, .pfx parolla yoxlanır və gizlidir, skor/zaminlik/birgə borc oxunur, balans, jurnal, 30 dəq təkrar bloku, REST rejimi"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE -H "x-admin-token: $ES" -H "Content-Type: application/json" "$B/api/admin/applications/$ID2" -d '{"reason":"test"}')" = 403 ] || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE "${H[@]}" "$B/api/admin/applications/$ID2" -d '{}')" = 400 ] || fail
 curl -fsS -X DELETE "${H[@]}" "$B/api/admin/applications/$ID2" -d '{"reason":"smoke test"}' >/dev/null || fail

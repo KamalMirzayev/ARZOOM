@@ -248,7 +248,7 @@ require("http").createServer((q,r)=>{let b="";q.on("data",c=>b+=c).on("end",()=>
   if(!b.includes("<wsse:Username>akbtest</wsse:Username>")||!b.includes(">akb-smoke-pass</wsse:Password>")){r.statusCode=500;return r.end(fault("Authentication failed"))}
   if(b.includes("<ns:getBalance>"))return r.end(env(`<ns2:getBalanceResponse xmlns:ns2="http://ws.hub.acb.az/"><return>3635.5</return></ns2:getBalanceResponse>`));
   if(!b.includes("<ns:inquireByIdCard>")||!b.includes("<accept>true</accept>")||!/<pinCode>[0-9A-Z]{7}<\/pinCode>/.test(b)||!b.includes("<documentSerial>AZE</documentSerial>")||!b.includes("<purposeCode>001</purposeCode>")||!b.includes("<orgId>ORG1</orgId>")){r.statusCode=500;return r.end(fault("INQ-009"))}
-  r.end(env(`<ns2:inquireByIdCardResponse xmlns:ns2="http://ws.hub.acb.az/"><return>${x}</return></ns2:inquireByIdCardResponse>`))})}).listen(18998,"127.0.0.1")' &
+  r.end(env(`<ns2:inquireByIdCardResponse xmlns:ns2="http://ws.hub.acb.az/"><return>${x.replace(/<\/?ns2:inquiryResult>/g,"").replace(/ns2:/g,"")}</return></ns2:inquireByIdCardResponse>`))})}).listen(18998,"127.0.0.1")' &
 AKP=$!; sleep 1
 AKU='http://127.0.0.1:18998/soap/BorrowerInquiryWS'
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/akb" -d '{"url":"https://evil.example.com/x","user":"a","pass":"b"}')" = 400 ] || fail

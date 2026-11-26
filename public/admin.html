@@ -503,6 +503,7 @@ input,select,textarea,.inp{transition:border-color .2s,box-shadow .2s,background
 .av{background:linear-gradient(135deg,#22348F,#5273FF);box-shadow:0 0 0 2px var(--surface),0 0 0 3px var(--gold-line)}
 .motto{display:inline-flex;align-items:center;gap:10px;font-family:var(--f-serif,Georgia,serif);font-style:italic;font-weight:500;font-size:clamp(17px,1.6vw,21px);color:var(--ink);letter-spacing:0}
 .motto::before{content:"";width:22px;height:1px;background:linear-gradient(90deg,var(--gold-a,#A9824A),var(--gold-a2,#C9A66B))}
+.akblog details{border-top:1px solid var(--line);padding:8px 0;font-size:13px}.akblog summary{cursor:pointer}.akb-test{border-top:1px solid var(--line);padding-top:12px}.akb-up+.akb-up{margin-top:8px}
 .rptpre{white-space:pre-wrap;font:12.5px/1.5 var(--f-mono,monospace);background:var(--bg2,rgba(0,0,0,.04));padding:12px;border-radius:10px;margin:8px 0 0;max-height:320px;overflow:auto}
 </style>
 </head>
@@ -681,7 +682,7 @@ document.addEventListener("dragleave",e=>{const z=e.target.closest?.("#docZone")
 document.addEventListener("drop",e=>{const z=e.target.closest?.("#docZone");if(!z)return;e.preventDefault();z.classList.remove("over");const k=e.dataTransfer.getData("text/plain");if(INFO_DOCS[k])addDoc({key:k,label:INFO_DOCS[k]})});
 const ROBO_RESULTS={wants_lower_monthly:"Aylıq ödənişi çox hesab edir",wants_lower_down:"İlkin ödənişdə endirim istəyir",wants_other_terms:"Başqa şərt istəyir (müddət, məbləğ)",transferred_to_sales:"Satış təmsilçisinə qoşuldu",agrees_will_visit:"Razıdır, salona gələcək",agrees_will_call:"Razıdır, özü zəng edəcək",thinking:"Düşünür",docs_will_send:"Sənədləri göndərəcək",docs_cannot:"Sənədləri təqdim edə bilmir",declined:"İmtina etdi",callback:"Yenidən zəng istədi",wrong_person:"Başqa şəxsdir",other:"Digər"};
 const CALL_RESULTS={agreed:"Razılaşdı",thinking:"Düşünür",callback:"Yenidən zəng ediləcək",docs:"Sənəd gətirəcək",verified:"Məlumatlar təsdiqləndi",mismatch:"Uyğunsuzluq aşkarlandı",no_answer:"Cavab vermədi",not_interested:"Maraqlanmır",wrong_number:"Nömrə səhvdir"};
-const EVENTS={reoffer_declined:"Təkrar təklif göndərilmədi: Təkliflərə qaytarıldı",call_requeue:"ArzoomCall-a yenidən zəng sifariş edildi",partner_ref:"Partnyor ref nömrəsi əlavə edildi",webhook:"Partnyora bildiriş göndərildi",info_request:"Müştəridən əlavə məlumat istənildi",info_reply:"Müştəri əlavə məlumat göndərdi",bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",reoffer:"Müştəri başqa şərt istəyir: təkrar təklif",doc_analysis:"Gəlir sənədi avtomatik oxundu",rejected:"Müraciət rədd edildi",note:"Qeyd",
+const EVENTS={akb_request:"AKB-dan sorğu göndərildi",reoffer_declined:"Təkrar təklif göndərilmədi: Təkliflərə qaytarıldı",call_requeue:"ArzoomCall-a yenidən zəng sifariş edildi",partner_ref:"Partnyor ref nömrəsi əlavə edildi",webhook:"Partnyora bildiriş göndərildi",info_request:"Müştəridən əlavə məlumat istənildi",info_reply:"Müştəri əlavə məlumat göndərdi",bureau:"AKB hesabatı oxundu və hesablandı",created:"Müraciət daxil oldu",assessed:"Qiymətləndirildi",offer:"Təklif göndərildi",reoffer:"Müştəri başqa şərt istəyir: təkrar təklif",doc_analysis:"Gəlir sənədi avtomatik oxundu",rejected:"Müraciət rədd edildi",note:"Qeyd",
   accepted:"Müştəri son təklifi təsdiqlədi: anderraytinqə və satışa ötürüldü",declined:"Müştəri təklifdən imtina etdi",cancelled:"Müştəri müraciəti ləğv etdi",sms:"SMS"};
 const FILTERS=[["","Hamısı"],["review","Baxılır"],["info","Məlumat"],["offer","Təklif"],["reoffer","Təkrar təklif"],["accepted","Satış"],["rejected","Rədd"],["declined","İmtina"],["cancelled","Ləğv"]];
 
@@ -799,9 +800,10 @@ async function renderUsers(){
   <form class="panel" id="whBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("send","Partnyor webhook (Bitrix)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <section class="panel" id="rcBox" style="margin-top:16px;display:grid;gap:12px">${ph("send","ArzoomCall inteqrasiyası")}<p class="muted" style="margin:0">Yüklənir…</p></section>
   <form class="panel" id="smsBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("shield","SMS provayderi (Softline)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
+  <form class="panel" id="akbBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("shield","AKB inteqrasiyası (kredit bürosu)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <form class="panel" id="rptBox" style="margin-top:16px;display:grid;gap:12px" autocomplete="off">${ph("send","Gün sonu hesabatı (e-poçt)")}<p class="muted" style="margin:0">Yüklənir…</p></form>
   <section class="panel" id="auditBox" style="margin-top:16px">${ph("shield","Təhlükəsizlik jurnalı")}<p class="muted" style="margin:0">Yüklənir…</p></section>`;
-  renderSms();renderWh();renderRc();renderReport();
+  renderSms();renderWh();renderRc();renderReport();renderAkb();
   try{const {items}=await api("/audit");
     $("#auditBox").innerHTML=ph("shield","Təhlükəsizlik jurnalı")+(items.length?`<div style="overflow-x:auto"><table class="dtable"><thead><tr><th>Vaxt</th><th>İstifadəçi</th><th>Əməliyyat</th><th>Obyekt</th><th>IP</th></tr></thead>
       <tbody>${items.map(r=>`<tr${r.action==="login.fail"?' class="closed"':""}><td>${dt(r.at)}</td><td class="mono">${esc(r.username||"—")}</td><td>${esc(AUDIT[r.action]||r.action)}</td><td>${esc(r.target||"")}</td><td class="mono">${esc(r.ip||"")}</td></tr>`).join("")}</tbody></table></div>`
@@ -824,6 +826,35 @@ async function renderSms(st){
 document.addEventListener("submit",async e=>{if(e.target.id!=="smsBox")return;e.preventDefault();
   try{const st=await api("/settings/sms",{method:"POST",body:JSON.stringify({user:$("#slUser").value,key:$("#slKey").value,sender:$("#slSender").value})});
     toast(st.connected?"SMS provayderi qoşuldu":"Saxlanıldı");renderSms(st)}catch(err){toast(err.message)}});
+const prettyAkb=t=>{if(!t)return"";try{return JSON.stringify(JSON.parse(t),null,2)}catch{return t}};
+// AKB score-report API: address, login and password typed once; the password never comes back. A test person's document checks the link.
+async function renderAkb(st){
+  const box=$("#akbBox");if(!box)return;
+  try{st=st||await api("/settings/akb")}catch(e){box.hidden=true;return}
+  const l=st.last;
+  box.innerHTML=ph("shield","AKB inteqrasiyası (kredit bürosu)")+`
+    <p style="margin:0">${st.connected?`<span class="st sm s-accepted">Qoşulub</span>`:`<span class="st sm s-rejected">Qoşulmayıb</span> <span class="muted">Hesabatı XML faylı ilə yükləmək olar.</span>`}</p>
+    ${l?`<p style="margin:0;font-size:13px">${l.ok?`<span class="muted">Son sorğu: ${dt(l.at)}, ${l.parsed?"hesabat oxundu":"cavab gəldi, hesabat tanınmadı"}</span>`:`<b style="color:var(--bad)">Son sorğu alınmadı (${dt(l.at)}):</b> ${esc(l.error||"")}`}</p>`:""}
+    <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+      <label class="f" style="grid-column:1/-1">Ünvan (score-report)<input id="akUrl" value="${esc(st.url)}" autocapitalize="off" spellcheck="false" required></label>
+      <label class="f">İstifadəçi adı<input id="akUser" value="${esc(st.user)}" autocapitalize="off" spellcheck="false" autocomplete="off" required></label>
+      <label class="f">Parol<input id="akPass" type="password" autocomplete="new-password" placeholder="${st.passSet?"Saxlanılıb, dəyişmək üçün yenisini yaz":"AKB parolu"}" ${st.passSet?"":"required"}></label>
+      <label class="f">Sorğu məqsədi kodu<input id="akPurpose" value="${esc(st.purpose)}" inputmode="numeric" maxlength="3"></label>
+    </div>
+    <div class="pbar"><small class="muted">Parol serverdə saxlanılır, ekrana qaytarılmır. AKB serverin IP ünvanına icazə verməlidir.</small><span class="sp"></span><button class="btn sm" type="submit">Saxla</button></div>
+    ${st.connected?`<div class="akb-test"><b style="font-size:13.5px">Bağlantını yoxla</b> <small class="muted">AKB-nin test şəxsinin sənədi ilə; sənəd saxlanılmır.</small>
+      <div style="display:grid;gap:8px;grid-template-columns:90px 1fr 1fr auto;align-items:end;margin-top:8px">
+        <select id="akTSer" aria-label="Seriya"><option>AZE</option><option>AA</option><option>AB</option></select>
+        <input id="akTNum" inputmode="numeric" placeholder="Sənəd nömrəsi" autocomplete="off"><input id="akTFin" placeholder="FİN" maxlength="7" autocapitalize="characters" autocomplete="off">
+        <button class="btn ghost sm" type="button" id="akTest">Yoxla</button></div><div id="akTOut"></div></div>`:""}`;
+}
+document.addEventListener("submit",async e=>{if(e.target.id!=="akbBox")return;e.preventDefault();
+  try{const st=await api("/settings/akb",{method:"POST",body:JSON.stringify({url:$("#akUrl").value,user:$("#akUser").value,pass:$("#akPass").value,purpose:$("#akPurpose").value})});
+    me.akb=st.connected;toast("AKB ayarları saxlanıldı");renderAkb(st)}catch(err){toast(err.message)}});
+document.addEventListener("click",async e=>{if(e.target.id!=="akTest")return;const b=e.target;b.disabled=true;b.textContent="Gözlənilir…";
+  try{const r=await api("/settings/akb/test",{method:"POST",body:JSON.stringify({series:$("#akTSer").value,number:$("#akTNum").value,fin:$("#akTFin").value})});
+    $("#akTOut").innerHTML=`<p style="margin:8px 0 0">${r.ok?(r.parsed?`<b style="color:var(--ok)">Bağlantı işləyir, kredit hesabatı oxundu.</b>`:`<b style="color:var(--warn)">AKB cavab verdi (${r.status}), amma hesabat formatı tanınmadı.</b> Cavabın strukturu aşağıdadır (dəyərlər yoxdur):`):`<b style="color:var(--bad)">${esc(r.error||"Alınmadı")}</b>`}</p>${r.shape&&!r.parsed?`<pre class="rptpre">${esc(JSON.stringify(r.shape,null,2))}</pre>`:""}`}
+  catch(err){$("#akTOut").innerHTML=`<p style="margin:8px 0 0;color:var(--bad)">${esc(err.message)}</p>`}b.disabled=false;b.textContent="Yoxla"});
 // End-of-day report: mailed every day at the set time. The SMTP password is typed once and never sent back.
 async function renderReport(st){
   const box=$("#rptBox");if(!box)return;
@@ -979,7 +1010,7 @@ document.addEventListener("click",async e=>{if(e.target.id!=="whOff")return;
 document.addEventListener("change",async e=>{const c=e.target.closest("[data-ubrand]");if(!c)return;const id=c.dataset.ubrand;
   const brands=[...document.querySelectorAll(`[data-ubrand="${id}"]:checked`)].map(i=>i.value);
   try{await api("/users/"+id,{method:"POST",body:JSON.stringify({brands})});toast(brands.length?"Markalar: "+brands.join(", "):"Bütün markalar")}catch(err){toast(err.message)}renderUsers()});
-const AUDIT={"settings.report":"Gün sonu hesabatını dəyişdi","settings.report.send":"Hesabatı göndərdi","apps.partner_ref":"Partnyor ref nömrəsi əlavə etdi","apps.export":"Excel-ə çıxardı","settings.sms":"SMS ayarını dəyişdi","settings.webhook":"Webhook ayarını dəyişdi","settings.robocall":"ArzoomCall inteqrasiyasını dəyişdi","call.recording":"Zəng yazısına qulaq asdı","settings.ai":"Sənəd analizi açarını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
+const AUDIT={"settings.akb":"AKB inteqrasiyasını dəyişdi","settings.report":"Gün sonu hesabatını dəyişdi","settings.report.send":"Hesabatı göndərdi","apps.partner_ref":"Partnyor ref nömrəsi əlavə etdi","apps.export":"Excel-ə çıxardı","settings.sms":"SMS ayarını dəyişdi","settings.webhook":"Webhook ayarını dəyişdi","settings.robocall":"ArzoomCall inteqrasiyasını dəyişdi","call.recording":"Zəng yazısına qulaq asdı","settings.ai":"Sənəd analizi açarını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
   "user.update":"İstifadəçini dəyişdi","file.view":"Sənədə baxdı","app.delete":"Müraciəti sildi"};
 $("#usersBtn").onclick=renderUsers;
 // Excel: downloads what the list shows now (status filter and search), all rows, not only the first 500.
@@ -1328,8 +1359,10 @@ function steps(a){
 }
 function akbHtml(a){
   const r=a.bureau,can=has("apps.assess");
-  const up=can?`<div class="akb-up"><input type="file" id="akbFile" accept=".xml,.txt,text/xml,application/xml"><button class="btn" type="button" id="akbLoad">${r?"Yeni hesabat yüklə":"XML yüklə və hesabla"}</button></div>
-    <p class="muted" style="margin:8px 0 0;font-size:12.5px">AKB inteqrasiyası qoşulanda hesabat avtomatik gələcək və nəticə dərhal hesablanacaq.</p>`:"";
+  const up=can?`${me.akb?`<div class="akb-up"><button class="btn" type="button" id="akbAsk">${r?"AKB-dan yenidən sorğula":"AKB-dan sorğula"}</button><button class="btn ghost sm" type="button" id="akbLog">AKB cavabları</button></div>`:""}
+    <div class="akb-up"><input type="file" id="akbFile" accept=".xml,.txt,text/xml,application/xml"><button class="btn ${me.akb?"ghost":""}" type="button" id="akbLoad">${r?"Yeni hesabat yüklə":"XML yüklə və hesabla"}</button></div>
+    <div id="akbLogBox"></div>
+    <p class="muted" style="margin:8px 0 0;font-size:12.5px">${me.akb?"Sorğu müştərinin şəxsiyyət vəsiqəsi və FİN-i ilə AKB-ya gedir, cavab serverdə saxlanılır və dərhal hesablanır.":"AKB inteqrasiyası qoşulanda (admin → İstifadəçilər → AKB) hesabat bir düymə ilə gələcək."}</p>`:"";
   if(!r)return `<section class="panel span2">${ph("shield","Kredit Bürosu (AKB) hesabatı")}<p class="muted" style="margin:0 0 12px">Hesabat hələ yüklənməyib.</p>${up}</section>`;
   const S=r.summary,res=a.assessment?.result,col=!res?"var(--muted)":res.verdict==="approve"?"var(--ok)":res.verdict==="reject"?"var(--bad)":res.verdict==="incomplete"?"var(--muted)":"var(--warn)";
   const yrs=m=>m>=12?`${Math.floor(m/12)} il ${m%12?m%12+" ay":""}`:m+" ay";
@@ -1496,7 +1529,7 @@ function renderDetail(){
   if(!has("docs.view"))document.querySelectorAll("[data-file]").forEach(b=>{b.disabled=true;b.title="Sənədləri açmaq üçün icazən yoxdur"});
   if($("#akbBox"))tipOn($("#akbBox"));
 }
-const EV_IC={doc_analysis:["doc",""],reoffer:["send","k-bad"],reoffer_declined:["send",""],webhook:["send",""],info_request:["msg",""],info_reply:["inbox","k-ok"],bureau:["shield",""],created:["inbox",""],assessed:["gauge",""],offer:["send",""],rejected:["x","k-bad"],note:["pen",""],accepted:["check","k-ok"],declined:["x","k-bad"],cancelled:["x","k-bad"],sms:["msg","k-sms"]};
+const EV_IC={akb_request:["shield",""],doc_analysis:["doc",""],reoffer:["send","k-bad"],reoffer_declined:["send",""],webhook:["send",""],info_request:["msg",""],info_reply:["inbox","k-ok"],bureau:["shield",""],created:["inbox",""],assessed:["gauge",""],offer:["send",""],rejected:["x","k-bad"],note:["pen",""],accepted:["check","k-ok"],declined:["x","k-bad"],cancelled:["x","k-bad"],sms:["msg","k-sms"]};
 function evHtml(e){
   const d=e.details||{};
   const extra=e.kind==="bureau"?`${d.score} bal, ${d.grade} · ${Scoring.VERDICTS[d.verdict]||""} · aylıq borc ${azn(d.debtMonthly||0)}${d.flags?` · ${d.flags} xəbərdarlıq`:""}`:e.kind==="assessed"?`${d.score} bal, ${d.grade} · ${Scoring.VERDICTS[d.verdict]||""}`:
@@ -1567,6 +1600,15 @@ document.addEventListener("click",async e=>{
       await api(`/applications/${cur.id}/assessment`,{method:"PUT",body:JSON.stringify(i)});
       await api(`/applications/${cur.id}/offer`,{method:"POST",body:JSON.stringify({price:+i.price,downPct:+i.downPct,months:+i.months,rate:+i.rate,commissionPct:+i.commissionPct,bankCommissionPct:+i.bankCommissionPct,bankCommissionAuto:!$("#aForm").bankCommissionPct.dataset.manual,costs:{dyp:+i.costDyp||0,kasko:+i.costKasko||0,gps:+i.costGps||0}})});
       toast("Təklif müştəriyə göndərildi");await openApp(cur.id);loadList()}catch(err){toast(err.message)}}
+  if(b.id==="akbAsk"){
+    b.disabled=true;b.textContent="AKB-dan gözlənilir…";
+    try{const j=await api(`/applications/${encodeURIComponent(cur.id)}/akb`,{method:"POST"});
+      if(j.parsed){const r=j.assessment.result;toast(r.verdict==="incomplete"?"AKB hesabatı gəldi, gəlir və qiymət daxil et":`AKB: ${r.score} · ${r.grade} · ${Scoring.VERDICTS[r.verdict]}`)}else toast(j.note||"AKB cavabı saxlanıldı");
+      await openApp(cur.id);loadList()}catch(err){toast(err.message);b.disabled=false;b.textContent="AKB-dan sorğula"}}
+  if(b.id==="akbLog"){const box=$("#akbLogBox");if(box.innerHTML){box.innerHTML="";return}
+    try{const {items}=await api(`/applications/${encodeURIComponent(cur.id)}/akb`);
+      box.innerHTML=items.length?`<div class="akblog">${items.map(x=>`<details><summary>${dt(x.at)} · ${esc(x.actor)} · ${x.ok?(x.parsed?"<b style='color:var(--ok)'>hesabat oxundu</b>":"<b style='color:var(--warn)'>cavab var, hesabat tanınmadı</b>"):`<b style='color:var(--bad)'>xəta</b>`} · ${x.http_status||"—"} · ${x.ms??"—"} ms</summary>
+        ${x.error?`<p style="margin:6px 0;color:var(--bad)">${esc(x.error)}</p>`:""}<pre class="rptpre">${esc(prettyAkb(x.response))}</pre></details>`).join("")}</div>`:`<p class="muted" style="margin:8px 0 0">Hələ AKB sorğusu olmayıb.</p>`}catch(err){toast(err.message)}}
   if(b.id==="akbLoad"){
     const f=$("#akbFile").files[0];if(!f){toast("AKB XML faylını seç.");return}
     if(f.size>2e6){toast("Fayl 2 MB-dan böyükdür.");return}

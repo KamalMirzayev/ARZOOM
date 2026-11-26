@@ -276,6 +276,14 @@ AKA=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID"); echo "$AKA" | grep -
 echo "$AKA" | grep -q '"point":712' || fail; echo "$AKA" | grep -q 'TEST ZAMİN ALAN' || fail; echo "$AKA" | grep -q 'birgə borcalandır' || fail
 AKJ=$(curl -fsS "${H[@]}" "$B/api/admin/akb/log?q=TEST001"); echo "$AKJ" | grep -q '"consent":true' || fail; echo "$AKJ" | grep -q '"purpose_code":"001"' || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/akb/log")" = 403 ] || fail
+AKI=$(echo "$AKJ" | J "items[0].id"); curl -fsS "${H[@]}" "$B/api/admin/akb/log/$AKI/report" | grep -q '"reportId":"1000002"' || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/akb/log/$AKI/report")" = 403 ] || fail
+# Standalone inquiry from the main screen: consent required, report comes back, 30-minute guard per FİN, own list.
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/akb/inquiry" -d '{"series":"AZE","number":"7654321","fin":"TEST003"}')" = 400 ] || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/akb/inquiry" -d '{"series":"AZE","number":"7654321","fin":"TEST003","consent":true}' | grep -q '"point":712' || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/akb/inquiry" -d '{"series":"AZE","number":"7654321","fin":"TEST003","consent":true}')" = 429 ] || fail
+AKM=$(curl -fsS "${H[@]}" "$B/api/admin/akb/mine"); echo "$AKM" | grep -q 'TEST003' || fail
+curl -fsS "${H[@]}" "$B/api/admin/akb/mine/$(echo "$AKM" | J "items[0].id")" | grep -q '"reportId":"1000002"' || fail
 # The older REST mode still works.
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/akb" -d '{"mode":"soap","url":"https://staging-hub.acb.az/score-partner/score-report/ex","user":"akbtest","orgId":"ORG1"}')" = 400 ] || fail
 curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb" -d '{"mode":"rest","url":"http://127.0.0.1:18998/score","user":"akbtest","orgId":"ORG1"}' | grep -q '"mode":"rest"' || fail

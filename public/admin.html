@@ -606,6 +606,7 @@ input,select,textarea,.inp{transition:border-color .2s,box-shadow .2s,background
       <button type="button" id="homeBtn" title="Ümumi baxış" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span class="t">Ümumi baxış</span></button>
       <button type="button" id="analyticsBtn" title="Analitika" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span class="t">Analitika</span></button>
       <button type="button" id="callsBtn" title="Zəng analitikası" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg><span class="t">Zəng analitikası</span></button>
+      <button type="button" id="akbqBtn" title="AKB sorğusu" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg><span class="t">AKB sorğusu</span></button>
     </div>
     <div class="nav" id="statusNav"><h6>Müraciətlər</h6></div>
     <div class="nav"><h6>Hesab</h6>
@@ -763,7 +764,7 @@ $("#logout").onclick=()=>logout();
 async function start(){me=await api("/me");staff=me.name;await loadList();enter()}
 function enter(){$("#login").hidden=true;$("#app").hidden=false;
   $("#who").innerHTML=`<b>${esc(me.name)}</b><span>${ROLES[me.role]}</span>`;$("#av").textContent=me.name.split(/\s+/).map(w=>w[0]).join("").slice(0,2).toUpperCase();
-  $("#usersBtn").hidden=me.role!=="admin";$("#exportBtn").hidden=!has("apps.export");$("#analyticsBtn").hidden=!has("analytics.view");$("#callsBtn").hidden=!has("analytics.view");
+  $("#usersBtn").hidden=me.role!=="admin";$("#exportBtn").hidden=!has("apps.export");$("#analyticsBtn").hidden=!has("analytics.view");$("#callsBtn").hidden=!has("analytics.view");$("#akbqBtn").hidden=!(has("apps.assess")&&me.akb);
   if(!cur)renderHome()}
 
 /* ---------- account: password and staff users ---------- */
@@ -880,7 +881,7 @@ function akbExtract(a){
   return `<div class="ax">
     <div class="ax-tools"><button class="btn sm" type="button" id="axPrint">Çap et / PDF</button><button class="btn ghost sm" type="button" id="axClose">Bağla</button></div>
     <div class="ax-head"><div><h2>AZƏRBAYCAN KREDİT BÜROSUNDAN ÇIXARIŞ</h2><h3>${esc(b.name||"")}</h3></div>
-      <dl><dt>Kredit hesabatının İD-si:</dt><dd>${esc(r.reportId||"—")}</dd><dt>Tərtib olunma tarixi:</dt><dd>${esc(r.reportingDate||"—")}</dd><dt>Müraciət:</dt><dd>№ ${esc(a.id)}</dd></dl></div>
+      <dl><dt>Kredit hesabatının İD-si:</dt><dd>${esc(r.reportId||"—")}</dd><dt>Tərtib olunma tarixi:</dt><dd>${esc(r.reportingDate||"—")}</dd>${a.id?`<dt>Müraciət:</dt><dd>№ ${esc(a.id)}</dd>`:""}</dl></div>
     <h3 class="ax-h">1. Borcalanın şəxsi məlumatları</h3>
     <div class="ax-kv one"><div><span>Borcalanın İD-si</span><b>${esc(b.documentNo||"—")}</b></div><div><span>FİN</span><b>${esc(b.fin||"—")}</b></div>
       ${b.address?`<div><span>Ünvanı</span><b>${esc(b.address)}</b></div>`:""}${b.birthPlace?`<div><span>Doğum yeri</span><b>${esc(b.birthPlace)}</b></div>`:""}
@@ -953,14 +954,17 @@ document.addEventListener("click",async e=>{const id=e.target.id;
   if(id==="akRmCert"){if(!confirmInline(e.target,"Silməyi təsdiqlə"))return;
     try{const st=await api("/settings/akb",{method:"POST",body:JSON.stringify({mode:$("#akMode").value,env:$("#akEnv").value,url:$("#akUrl").value,user:$("#akUser").value,purpose:$("#akPurpose").value,orgId:$("#akOrg").value,branchId:$("#akBranch").value,userId:$("#akUid").value,removeCert:true})});
       toast("Sertifikat silindi");renderAkb(st)}catch(err){toast(err.message)}}
+  if(e.target.dataset?.akbrep){try{const j=await api(`/akb/log/${e.target.dataset.akbrep}/report`);
+    let o=$("#axView");if(!o){o=document.createElement("div");o.id="axView";document.body.appendChild(o)}
+    o.innerHTML=akbExtract({id:j.applicationId,bureau:j.report});o.hidden=false;document.body.classList.add("ax-open");o.scrollTop=0}catch(err){toast(err.message)}return}
   if(id==="akBal"){try{const r=await api("/settings/akb/balance");$("#akBalOut").innerHTML=`<p style="margin:0">AKB depozit balansı: <b>${r.balance==null?"—":azn(r.balance)}</b></p>`}catch(err){$("#akBalOut").innerHTML=`<p style="margin:0;color:var(--bad)">${esc(err.message)}</p>`}}
   if(id==="akJournal"){const o=$("#akJOut");if(o.innerHTML){o.innerHTML="";return}
-    try{const {items}=await api("/akb/log");o.innerHTML=items.length?`<div class="tscroll"><table class="dtable"><thead><tr><th>Tarix</th><th>Əməkdaş</th><th>Müraciət</th><th>FİN</th><th>Sənəd</th><th>Məqsəd</th><th>Razılıq</th><th>Hesabat</th><th>Nəticə</th></tr></thead><tbody>${items.map(x=>`<tr><td>${dt(x.at)}</td><td>${esc(x.actor)}</td><td>${x.application_id?esc(x.application_id):x.test?"test":"—"}</td><td class="mono">${esc(x.fin||"—")}</td><td class="mono">${esc(x.document||"—")}</td><td>${esc(x.purpose_code||"—")}</td><td>${x.consent?"Bəli":"—"}</td><td class="mono">${esc(x.report_id||"—")}</td><td>${x.ok?"ok":`<span style="color:var(--bad)">${esc(x.error||"xəta")}</span>`}</td></tr>`).join("")}</tbody></table></div><p class="muted" style="font-size:12px">Son 200 sorğu. Jurnal AKB tələbinə görə ən az 5 il saxlanılır.</p>`:`<p class="muted">Hələ sorğu olmayıb.</p>`}catch(err){toast(err.message)}}
+    try{const {items}=await api("/akb/log");o.innerHTML=items.length?`<div class="tscroll"><table class="dtable"><thead><tr><th>Tarix</th><th>Əməkdaş</th><th>Müraciət</th><th>FİN</th><th>Sənəd</th><th>Məqsəd</th><th>Razılıq</th><th>Hesabat</th><th>Nəticə</th></tr></thead><tbody>${items.map(x=>`<tr><td>${dt(x.at)}</td><td>${esc(x.actor)}</td><td>${x.application_id?esc(x.application_id):x.test?"test":"—"}</td><td class="mono">${esc(x.fin||"—")}</td><td class="mono">${esc(x.document||"—")}</td><td>${esc(x.purpose_code||"—")}</td><td>${x.consent?"Bəli":"—"}</td><td class="mono">${x.report_id?`<button class="btn ghost sm" type="button" data-akbrep="${x.id}">${esc(x.report_id)}</button>`:"—"}</td><td>${x.ok?"ok":`<span style="color:var(--bad)">${esc(x.error||"xəta")}</span>`}</td></tr>`).join("")}</tbody></table></div><p class="muted" style="font-size:12px">Son 200 sorğu. Jurnal AKB tələbinə görə ən az 5 il saxlanılır.</p>`:`<p class="muted">Hələ sorğu olmayıb.</p>`}catch(err){toast(err.message)}}
   if(id!=="akTest")return;const b=e.target;
   if(!$("#akTConsent").checked){toast("Şəxsin yazılı razılığının alındığını təsdiqlə.");return}
   b.disabled=true;b.textContent="Gözlənilir…";
   try{const r=await api("/settings/akb/test",{method:"POST",body:JSON.stringify({series:$("#akTSer").value,number:$("#akTNum").value,fin:$("#akTFin").value,consent:true})});
-    $("#akTOut").innerHTML=`<p style="margin:8px 0 0">${r.ok?(r.parsed?`<b style="color:var(--ok)">Bağlantı işləyir, kredit hesabatı oxundu.</b>`:`<b style="color:var(--warn)">AKB cavab verdi (${r.status}), amma hesabat formatı tanınmadı.</b> Cavabın strukturu aşağıdadır (dəyərlər yoxdur):`):`<b style="color:var(--bad)">${esc(r.error||"Alınmadı")}</b>`}</p>${r.shape&&!r.parsed?`<pre class="rptpre">${esc(JSON.stringify(r.shape,null,2))}</pre>`:""}`}
+    $("#akTOut").innerHTML=`<p style="margin:8px 0 0">${r.ok?(r.parsed?`<b style="color:var(--ok)">Bağlantı işləyir, kredit hesabatı oxundu.</b> <button class="btn ghost sm" type="button" data-akbrep="${r.id}">Vizual çıxarış</button>`:`<b style="color:var(--warn)">AKB cavab verdi (${r.status}), amma hesabat formatı tanınmadı.</b> Cavabın strukturu aşağıdadır (dəyərlər yoxdur):`):`<b style="color:var(--bad)">${esc(r.error||"Alınmadı")}</b>`}</p>${r.shape&&!r.parsed?`<pre class="rptpre">${esc(JSON.stringify(r.shape,null,2))}</pre>`:""}`}
   catch(err){$("#akTOut").innerHTML=`<p style="margin:8px 0 0;color:var(--bad)">${esc(err.message)}</p>`}b.disabled=false;b.textContent="Yoxla"});
 // End-of-day report: mailed every day at the set time. The SMTP password is typed once and never sent back.
 async function renderReport(st){
@@ -1117,9 +1121,35 @@ document.addEventListener("click",async e=>{if(e.target.id!=="whOff")return;
 document.addEventListener("change",async e=>{const c=e.target.closest("[data-ubrand]");if(!c)return;const id=c.dataset.ubrand;
   const brands=[...document.querySelectorAll(`[data-ubrand="${id}"]:checked`)].map(i=>i.value);
   try{await api("/users/"+id,{method:"POST",body:JSON.stringify({brands})});toast(brands.length?"Markalar: "+brands.join(", "):"Bütün markalar")}catch(err){toast(err.message)}renderUsers()});
-const AUDIT={"settings.akb":"AKB inteqrasiyasını dəyişdi","settings.report":"Gün sonu hesabatını dəyişdi","settings.report.send":"Hesabatı göndərdi","apps.partner_ref":"Partnyor ref nömrəsi əlavə etdi","apps.export":"Excel-ə çıxardı","settings.sms":"SMS ayarını dəyişdi","settings.webhook":"Webhook ayarını dəyişdi","settings.robocall":"ArzoomCall inteqrasiyasını dəyişdi","call.recording":"Zəng yazısına qulaq asdı","settings.ai":"Sənəd analizi açarını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
+const AUDIT={"settings.akb":"AKB inteqrasiyasını dəyişdi","akb.view":"AKB hesabatına baxdı","akb.inquiry":"AKB-dan sorğu etdi","settings.report":"Gün sonu hesabatını dəyişdi","settings.report.send":"Hesabatı göndərdi","apps.partner_ref":"Partnyor ref nömrəsi əlavə etdi","apps.export":"Excel-ə çıxardı","settings.sms":"SMS ayarını dəyişdi","settings.webhook":"Webhook ayarını dəyişdi","settings.robocall":"ArzoomCall inteqrasiyasını dəyişdi","call.recording":"Zəng yazısına qulaq asdı","settings.ai":"Sənəd analizi açarını dəyişdi","login":"Giriş","login.fail":"Uğursuz giriş","logout":"Çıxış","password.change":"Parolunu dəyişdi","user.create":"İstifadəçi yaratdı",
   "user.update":"İstifadəçini dəyişdi","file.view":"Sənədə baxdı","app.delete":"Müraciəti sildi"};
 $("#usersBtn").onclick=renderUsers;
+// Standalone AKB inquiry from the main screen: ID card + FİN, consent, then the visual extract opens. No application needed.
+function axOpen(html){let o=$("#axView");if(!o){o=document.createElement("div");o.id="axView";document.body.appendChild(o)}o.innerHTML=html;o.hidden=false;document.body.classList.add("ax-open");o.scrollTop=0}
+async function openAkbQuery(){
+  let mine=[];try{mine=(await api("/akb/mine")).items}catch{}
+  axOpen(`<div class="ax"><div class="ax-tools"><button class="btn ghost sm" type="button" id="axClose">Bağla</button></div>
+    <div class="ax-head"><div><h2>AKB SORĞUSU</h2><h3 style="font-weight:500">Şəxsiyyət vəsiqəsi ilə kredit hesabatı</h3></div></div>
+    <form id="akbqForm" autocomplete="off" style="display:grid;gap:12px;max-width:640px">
+      <div style="display:grid;gap:10px;grid-template-columns:110px 1fr 1fr">
+        <label class="f">Seriya<select id="aqSer"><option>AZE</option><option>AA</option><option>AB</option></select></label>
+        <label class="f">Sənəd nömrəsi<input id="aqNum" inputmode="numeric" required></label>
+        <label class="f">FİN<input id="aqFin" maxlength="7" autocapitalize="characters" required></label></div>
+      <label class="f">Sorğu məqsədi<select id="aqPurpose"><option value="001">001 · Kredit müraciəti</option><option value="002">002 · Kredit xətti üçün müraciət</option><option value="005">005 · Cari borcalanın sorğulanması</option></select></label>
+      <label class="akb-ok"><input type="checkbox" id="aqConsent"> Borcalanın AKB sorğusu üçün yazılı razılığı alınmışdır</label>
+      <div><button class="btn" type="submit" id="aqGo">AKB-dan sorğula</button></div>
+      <p class="muted" style="margin:0;font-size:12.5px">Sorğu jurnala yazılır (kim, kim haqqında, nə vaxt, hansı məqsədlə). AKB eyni şəxs üçün 30 dəqiqə ərzində təkrar sorğu qəbul etmir.</p>
+    </form>
+    ${mine.length?`<h3 class="ax-h">Son sorğularım (30 gün)</h3><table class="ax-t"><tr><th>Tarix</th><th>FİN</th><th>Sənəd</th><th>Hesabat</th></tr>${mine.map(x=>`<tr><td>${dt(x.at)}</td><td class="mono">${esc(x.fin)}</td><td class="mono">${esc(x.document)}</td><td><button class="btn ghost sm" type="button" data-akbmine="${x.id}">${esc(x.report_id||"Aç")}</button></td></tr>`).join("")}</table>`:""}</div>`);
+}
+$("#akbqBtn").onclick=openAkbQuery;
+document.addEventListener("submit",async e=>{if(e.target.id!=="akbqForm")return;e.preventDefault();
+  if(!$("#aqConsent").checked){toast("Əvvəlcə borcalanın yazılı razılığının alındığını təsdiqlə.");return}
+  const b=$("#aqGo");b.disabled=true;b.textContent="AKB-dan gözlənilir…";
+  try{const j=await api("/akb/inquiry",{method:"POST",body:JSON.stringify({series:$("#aqSer").value,number:$("#aqNum").value,fin:$("#aqFin").value,purpose:$("#aqPurpose").value,consent:true})});
+    axOpen(akbExtract({bureau:j.report}))}catch(err){toast(err.message);b.disabled=false;b.textContent="AKB-dan sorğula"}});
+document.addEventListener("click",async e=>{const id=e.target.dataset?.akbmine;if(!id)return;
+  try{const j=await api(`/akb/mine/${id}`);axOpen(akbExtract({bureau:j.report}))}catch(err){toast(err.message)}});
 // Excel: downloads what the list shows now (status filter and search), all rows, not only the first 500.
 $("#exportBtn").onclick=async()=>{const b=$("#exportBtn");b.disabled=true;
   try{const r=await fetch(`/api/admin/export.xlsx?status=${status}&period=${period}&q=${encodeURIComponent(query)}`,{headers:{"x-admin-token":token}});

@@ -50,6 +50,7 @@ if [ -n "${NEW_POSTGRES_PASSWORD:-}" ] && [ "$NEW_POSTGRES_PASSWORD" != "$(get_e
   echo "POSTGRES_PASSWORD yeniləndi."
 fi
 
+bash /opt/arzoom/deploy/akb-relay.sh || echo "DİQQƏT: AKB relay qurulmadı."
 docker compose up -d --build --remove-orphans
 # Caddyfile is a bind-mounted file: recreate Caddy so it reads the new version.
 docker compose up -d --force-recreate --no-deps caddy

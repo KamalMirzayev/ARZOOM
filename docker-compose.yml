@@ -42,11 +42,14 @@ services:
       SMS_BODY: ${SMS_BODY:-}
       SMS_HEADERS: ${SMS_HEADERS:-}
       AKB_API_KEY: ${AKB_API_KEY:-}
+      # AKB goes through the host's relay (deploy/akb-relay.sh) because the VPN carries only the host's traffic; "off" connects directly.
+      AKB_RELAY: ${AKB_RELAY:-host.docker.internal}
       OTP_SECRET: ${OTP_SECRET:-}
       STAFF_IDLE_MINUTES: ${STAFF_IDLE_MINUTES:-120}
       UPLOAD_DIR: /app/uploads
     volumes:
       - uploads:/app/uploads
+    extra_hosts: ["host.docker.internal:host-gateway"]
     networks: [internal, web]
     expose: ["3000"]
     read_only: true

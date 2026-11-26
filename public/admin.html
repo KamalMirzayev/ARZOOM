@@ -925,7 +925,7 @@ async function renderAkb(st){
       <label class="f">İstifadəçi adı<input id="akUser" value="${esc(st.user)}" autocapitalize="off" spellcheck="false" autocomplete="off" required></label>
       <label class="f">Parol<input id="akPass" type="password" autocomplete="new-password" placeholder="${st.passSet?"Saxlanılıb, dəyişmək üçün yenisini yaz":"AKB parolu"}" ${st.passSet?"":"required"}></label>
       <label class="f">Sorğu məqsədi kodu<select id="akPurpose">${[["001","Kredit müraciəti"],["002","Kredit xətti üçün müraciət"],["005","Cari borcalanın sorğulanması"]].map(([k,v])=>`<option value="${k}"${st.purpose===k?" selected":""}>${k} · ${v}</option>`).join("")}</select></label>
-      <label class="f">Təşkilat kodu (org_id)<input id="akOrg" value="${esc(st.orgId)}" autocomplete="off"></label>
+      <label class="f">Təşkilat kodu (orgId)<input id="akOrg" value="${esc(st.orgId)}" autocomplete="off"></label>
       <label class="f">Filial kodu (branchId)<input id="akBranch" value="${esc(st.branchId)}" autocomplete="off"></label>
       <label class="f">AKB istifadəçi kodu (userId)<input id="akUid" value="${esc(st.userId)}" placeholder="boş qalsa istifadəçi adı" autocomplete="off"></label>
       <label class="f" style="grid-column:span 2">Sertifikat (.pfx / .p12) ${st.certSet?`<small class="muted">· yüklənib: ${esc(st.certName||"sertifikat")}</small>`:""}<input id="akPfx" type="file" accept=".pfx,.p12,application/x-pkcs12"></label>

@@ -1473,20 +1473,20 @@ const maskDoc = s => String(s || "").replace(/^(.{3}).*(.{2})$/, "$1***$2");
 async function akbAsk(applicationId, person, actor, extra = {}) {
   const r = await AkbApi.query(akbConf(), person);
   const xml = r.ok ? AkbApi.findXml(r.text) : null;
-  let parsed = false, parseError = null, out = null, reportId = null;
+  let parsed = false, parseError = null, out = null, reportId = null, report = null;
   if (xml && applicationId) {
     try { out = await applyBureau(applicationId, xml, `${actor} · AKB API`); parsed = !!out; reportId = out?.report?.reportId || null; }
     catch (e) { parseError = e.message; }
-  } else if (xml) { try { reportId = String(Akb.parse(xml).reportId || "") || null; parsed = true; } catch (e) { parseError = e.message; } }
+  } else if (xml) { try { report = Akb.analyze(Akb.parse(xml), { fin: person.fin }); reportId = report.reportId || null; parsed = true; } catch (e) { parseError = e.message; } }
   if (r.ok && !xml && !parseError) parseError = "Cavabda kredit hesabatı (inquiryResult) tapılmadı";
   const ins = await pool.query(
     `INSERT INTO akb_requests (application_id, actor, http_status, ok, error, content_type, response, parsed, ms,
                                fin, document, purpose_code, consent, report_id, test, mode)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id`,
     [applicationId, actor, r.status, r.ok, r.error || parseError, r.type || null, r.text ?? null, parsed, r.ms,
-     person.fin, `${person.series}${person.number}`, person.purpose || AKBC.purpose, true, reportId, !applicationId, `${AKBC.mode}:${AKBC.env}`]);
+     person.fin, `${person.series}${person.number}`, person.purpose || AKBC.purpose, true, reportId, extra.test ?? !applicationId, `${AKBC.mode}:${AKBC.env}`]);
   if (applicationId) await logEvent(pool, applicationId, actor, "akb_request", { ok: r.ok, status: r.status, parsed, reportId, error: r.error || parseError || undefined });
-  return { id: ins.rows[0].id, ok: r.ok, status: r.status, error: r.error || parseError, parsed, out, reportId,
+  return { id: ins.rows[0].id, ok: r.ok, status: r.status, error: r.error || parseError, parsed, out, reportId, report,
            shape: r.ok && !parsed ? (AkbApi.shape(r.text) || AkbApi.xmlShape(r.text)) : null };
 }
 
@@ -1534,7 +1534,7 @@ app.post("/api/admin/settings/akb/test", admin, adminOnly, async (req, res) => {
   if (!["AZE", "AA", "AB"].includes(p.series) || !/^\d{5,9}$/.test(p.number) || !/^[0-9A-Z]{7}$/.test(p.fin)) return bad(res, "Sənəd seriyası, nömrəsi və FİN-i düzgün yaz.");
   const r = await akbAsk(null, p, req.user.name);
   audit(req, req.user.username, "akb.inquiry", `test ${maskDoc(p.series + p.number)}: ${r.ok ? "ok" : "xəta"}`);
-  res.json({ ...r, out: undefined, state: await akbState() });
+  res.json({ ...r, out: undefined, report: undefined, state: await akbState() });
 });
 // Deposit balance at AKB (getBalance), for the person who tops it up (AKB 1.3.8).
 app.get("/api/admin/settings/akb/balance", admin, adminOnly, async (req, res) => {
@@ -1558,6 +1558,36 @@ app.post("/api/admin/applications/:id/akb", admin, brandGate, can("apps.assess")
   res.json({ ok: true, parsed: r.parsed, error: r.error, assessment: r.out?.assessment || null,
              note: r.parsed ? null : "AKB cavab verdi, amma kredit hesabatı tanınmadı. Cavab saxlanıldı." });
 });
+// A standalone inquiry from the main screen: a person's ID card and FİN, without an application. Staff who may assess
+// confirm the written consent; the answer is logged like any other inquiry and comes back as a report to view.
+app.post("/api/admin/akb/inquiry", admin, can("apps.assess"), async (req, res) => {
+  if (!akbReady()) return bad(res, "AKB inteqrasiyası qoşulmayıb. Admin paneldə AKB ayarlarını yazmalıdır.", 409);
+  if (req.body?.consent !== true) return bad(res, "Sorğudan əvvəl borcalanın yazılı razılığının alındığını təsdiqlə.");
+  const p = { series: String(req.body?.series || "AZE").toUpperCase(), number: String(req.body?.number || "").trim(), fin: String(req.body?.fin || "").trim().toUpperCase(),
+              purpose: String(req.body?.purpose || AKBC.purpose) };
+  if (!["AZE", "AA", "AB"].includes(p.series) || !/^\d{5,9}$/.test(p.number) || !/^[0-9A-Z]{7}$/.test(p.fin)) return bad(res, "Sənəd seriyası, nömrəsi və FİN-i düzgün yaz.");
+  if (!["001", "002", "005"].includes(p.purpose)) return bad(res, "Sorğu məqsədi düzgün deyil.");
+  const recent = await pool.query("SELECT 1 FROM akb_requests WHERE upper(fin) = $1 AND at > now() - interval '30 minutes' AND ok AND NOT test", [p.fin]);
+  if (recent.rowCount) return bad(res, "Bu şəxs üçün AKB sorğusu son 30 dəqiqədə göndərilib. Nəticə \"Son sorğular\" siyahısındadır.", 429);
+  const r = await akbAsk(null, p, req.staff, { test: false });
+  audit(req, req.user.username, "akb.inquiry", `${maskDoc(p.series + p.number)}: ${r.ok ? (r.parsed ? "hesabat" : "cavab") : "xəta"}`);
+  if (!r.ok) return bad(res, r.error, 502);
+  if (!r.parsed) return bad(res, r.error || "AKB cavab verdi, amma kredit hesabatı tanınmadı. Cavab jurnalda saxlanıldı.", 502);
+  res.json({ id: r.id, report: r.report });
+});
+// The caller's own standalone inquiries of the last 30 days, to reopen a report without asking AKB again.
+app.get("/api/admin/akb/mine", admin, can("apps.assess"), async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT id, at, fin, document, report_id FROM akb_requests WHERE application_id IS NULL AND NOT test AND ok AND parsed AND actor = $1
+     AND at > now() - interval '30 days' ORDER BY id DESC LIMIT 30`, [req.staff]);
+  res.json({ items: rows });
+});
+app.get("/api/admin/akb/mine/:id", admin, can("apps.assess"), async (req, res) => {
+  const { rows } = await pool.query("SELECT response, fin FROM akb_requests WHERE id = $1 AND application_id IS NULL AND NOT test AND actor = $2", [req.params.id, req.staff]);
+  if (!rows[0]) return bad(res, "Sorğu tapılmadı.", 404);
+  try { res.json({ report: Akb.analyze(Akb.parse(AkbApi.findXml(rows[0].response)), { fin: rows[0].fin }) }); }
+  catch (e) { bad(res, e.message, 422); }
+});
 // The stored answers for one application: newest first. The full answer only for staff who may assess.
 app.get("/api/admin/applications/:id/akb", admin, brandGate, can("apps.assess"), async (req, res) => {
   const { rows } = await pool.query(
@@ -1565,6 +1595,16 @@ app.get("/api/admin/applications/:id/akb", admin, brandGate, can("apps.assess"),
   res.json({ items: rows });
 });
 // The inquiry log (AKB 1.3.4): who asked about whom, when, with what purpose; searchable by FİN, document or report number.
+// One logged answer read as a report, for the visual extract (the connection test, or any inquiry in the log).
+app.get("/api/admin/akb/log/:id/report", admin, adminOnly, async (req, res) => {
+  const { rows } = await pool.query("SELECT response, application_id, fin FROM akb_requests WHERE id = $1", [req.params.id]);
+  if (!rows[0]) return bad(res, "Sorğu tapılmadı.", 404);
+  const xml = AkbApi.findXml(rows[0].response);
+  if (!xml) return bad(res, "Bu cavabda kredit hesabatı yoxdur.", 404);
+  let report; try { report = Akb.analyze(Akb.parse(xml), { fin: rows[0].fin }); } catch (e) { return bad(res, e.message, 422); }
+  audit(req, req.user.username, "akb.view", `jurnal #${req.params.id}`);
+  res.json({ report, applicationId: rows[0].application_id });
+});
 app.get("/api/admin/akb/log", admin, adminOnly, async (req, res) => {
   const q = String(req.query.q || "").trim().toUpperCase().slice(0, 40);
   const { rows } = await pool.query(

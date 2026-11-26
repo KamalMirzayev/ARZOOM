@@ -161,7 +161,7 @@ CREATE INDEX IF NOT EXISTS link_sms_phone_at ON link_sms (phone_hash, at);
 -- AKB score-report API: hər sorğu və AKB-nin tam cavabı (yalnız serverdə). application_id boşdursa, paneldən bağlantı yoxlamasıdır.
 CREATE TABLE IF NOT EXISTS akb_requests (
   id             BIGSERIAL PRIMARY KEY,
-  application_id TEXT REFERENCES applications(id) ON DELETE CASCADE,
+  application_id TEXT,  -- no FK: the inquiry log outlives a deleted application (AKB 1.3.4)
   at             TIMESTAMPTZ NOT NULL DEFAULT now(),
   actor          TEXT NOT NULL,
   http_status    INT,
@@ -173,3 +173,13 @@ CREATE TABLE IF NOT EXISTS akb_requests (
   ms             INT
 );
 CREATE INDEX IF NOT EXISTS akb_requests_app_idx ON akb_requests (application_id, id DESC);
+-- AKB sorğu jurnalı ən az 5 il saxlanılır (AKB texniki sənədi, 1.3.4): müraciət silinsə də qeyd qalır.
+ALTER TABLE akb_requests DROP CONSTRAINT IF EXISTS akb_requests_application_id_fkey;
+ALTER TABLE akb_requests ADD COLUMN IF NOT EXISTS fin          TEXT;
+ALTER TABLE akb_requests ADD COLUMN IF NOT EXISTS document     TEXT;
+ALTER TABLE akb_requests ADD COLUMN IF NOT EXISTS purpose_code TEXT;
+ALTER TABLE akb_requests ADD COLUMN IF NOT EXISTS consent      BOOLEAN;
+ALTER TABLE akb_requests ADD COLUMN IF NOT EXISTS report_id    TEXT;
+ALTER TABLE akb_requests ADD COLUMN IF NOT EXISTS test         BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE akb_requests ADD COLUMN IF NOT EXISTS mode         TEXT;
+CREATE INDEX IF NOT EXISTS akb_requests_fin_idx ON akb_requests (fin);

@@ -277,6 +277,7 @@ echo "$AKA" | grep -q '"point":712' || fail; echo "$AKA" | grep -q 'TEST ZAMİN 
 AKJ=$(curl -fsS "${H[@]}" "$B/api/admin/akb/log?q=TEST001"); echo "$AKJ" | grep -q '"consent":true' || fail; echo "$AKJ" | grep -q '"purpose_code":"001"' || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/akb/log")" = 403 ] || fail
 # The older REST mode still works.
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/akb" -d '{"mode":"soap","url":"https://staging-hub.acb.az/score-partner/score-report/ex","user":"akbtest","orgId":"ORG1"}')" = 400 ] || fail
 curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb" -d '{"mode":"rest","url":"http://127.0.0.1:18998/score","user":"akbtest","orgId":"ORG1"}' | grep -q '"mode":"rest"' || fail
 curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb/test" -d '{"series":"AZE","number":"1234567","fin":"TEST002","consent":true}' | grep -q '"parsed":true' || fail
 kill $AKP 2>/dev/null; echo "✓ AKB SOAP: WSDL oxunur, WS-Security girişi, razılıq tələb olunur, .pfx parolla yoxlanır və gizlidir, skor/zaminlik/birgə borc oxunur, balans, jurnal, 30 dəq təkrar bloku, REST rejimi"

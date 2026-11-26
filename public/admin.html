@@ -921,7 +921,7 @@ async function renderAkb(st){
     <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
       <label class="f">Servis<select id="akMode"><option value="soap"${soap?" selected":""}>SOAP (BorrowerInquiryWS)</option><option value="rest"${soap?"":" selected"}>REST (score-report)</option></select></label>
       <label class="f">Mühit<select id="akEnv"><option value="test"${st.env!=="prod"?" selected":""}>Test (staging-hub)</option><option value="prod"${st.env==="prod"?" selected":""}>Real (hub.acb.az)</option></select></label>
-      <label class="f" style="grid-column:span 2">Başqa ünvan <small class="muted">(boş qalsa mühitin ünvanı)</small><input id="akUrl" value="${esc(st.url)}" placeholder="${esc(st.urls?.[st.env]||"")}" autocapitalize="off" spellcheck="false"></label>
+      <label class="f" style="grid-column:span 2">Başqa ünvan <small class="muted">(boş qalsa mühitin ünvanı)</small><input id="akUrl" value="${esc(soap&&/score-report/.test(st.url)?"":st.url)}" placeholder="${esc(st.urls?.[st.env]||"")}" autocapitalize="off" spellcheck="false"></label>
       <label class="f">İstifadəçi adı<input id="akUser" value="${esc(st.user)}" autocapitalize="off" spellcheck="false" autocomplete="off" required></label>
       <label class="f">Parol<input id="akPass" type="password" autocomplete="new-password" placeholder="${st.passSet?"Saxlanılıb, dəyişmək üçün yenisini yaz":"AKB parolu"}" ${st.passSet?"":"required"}></label>
       <label class="f">Sorğu məqsədi kodu<select id="akPurpose">${[["001","Kredit müraciəti"],["002","Kredit xətti üçün müraciət"],["005","Cari borcalanın sorğulanması"]].map(([k,v])=>`<option value="${k}"${st.purpose===k?" selected":""}>${k} · ${v}</option>`).join("")}</select></label>

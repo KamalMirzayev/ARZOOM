@@ -1451,7 +1451,9 @@ const AKBC = { mode: "soap", env: "test", url: "", user: "", pass: "", purpose: 
 async function loadAkbSettings() {
   const { rows } = await pool.query("SELECT key, value FROM settings WHERE key = ANY($1)", [AKB_KEYS]);
   const v = Object.fromEntries(rows.map(r => [r.key, r.value]));
-  Object.assign(AKBC, { mode: v.akb_mode === "rest" ? "rest" : "soap", env: v.akb_env === "prod" ? "prod" : "test", url: v.akb_url || "",
+  // An address saved before the SOAP service (the REST score-report one) means REST until the admin picks a mode.
+  const legacyRest = !v.akb_mode && /score-report/.test(v.akb_url || "");
+  Object.assign(AKBC, { mode: v.akb_mode === "rest" || legacyRest ? "rest" : "soap", env: v.akb_env === "prod" ? "prod" : "test", url: v.akb_url || "",
     user: v.akb_user || "", pass: v.akb_pass || "", purpose: v.akb_purpose || "001", orgId: v.akb_org_id || "", branchId: v.akb_branch_id || "",
     userId: v.akb_user_id || "", pfx: v.akb_pfx || "", certPass: v.akb_cert_pass || "", certName: v.akb_cert_name || "" });
 }
@@ -1494,6 +1496,7 @@ app.post("/api/admin/settings/akb", admin, adminOnly, async (req, res) => {
   const mode = b.mode === "rest" ? "rest" : "soap", env = b.env === "prod" ? "prod" : "test";
   const url = String(b.url || "").trim(), user = String(b.user || "").trim(), purpose = String(b.purpose || "001").trim();
   const orgId = String(b.orgId || "").trim(), branchId = String(b.branchId || "").trim(), userId = String(b.userId || "").trim();
+  if (url && mode === "soap" && /score-report/.test(url)) return bad(res, "Bu REST (score-report) ünvanıdır. SOAP üçün \"Başqa ünvan\" sahəsini boş saxla, mühitin ünvanı istifadə olunacaq.");
   if (url) {
     let u; try { u = new URL(url); } catch { return bad(res, "Ünvan düzgün deyil."); }
     // Only AKB's own hosts over https; a local test server is allowed outside production (smoke test).

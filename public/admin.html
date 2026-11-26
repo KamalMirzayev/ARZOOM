@@ -504,6 +504,25 @@ input,select,textarea,.inp{transition:border-color .2s,box-shadow .2s,background
 .motto{display:inline-flex;align-items:center;gap:10px;font-family:var(--f-serif,Georgia,serif);font-style:italic;font-weight:500;font-size:clamp(17px,1.6vw,21px);color:var(--ink);letter-spacing:0}
 .motto::before{content:"";width:22px;height:1px;background:linear-gradient(90deg,var(--gold-a,#A9824A),var(--gold-a2,#C9A66B))}
 .akblog details{border-top:1px solid var(--line);padding:8px 0;font-size:13px}.akblog summary{cursor:pointer}.akb-test{border-top:1px solid var(--line);padding-top:12px}.akb-up+.akb-up{margin-top:8px}
+#axView{position:fixed;inset:0;z-index:90;overflow:auto;background:rgba(20,24,36,.55);padding:24px 12px}
+.ax{max-width:880px;margin:0 auto;background:#fff;color:#111;padding:32px 36px;font:13px/1.45 Arial,Helvetica,sans-serif;border-radius:6px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.ax-tools{display:flex;gap:8px;justify-content:flex-end;margin:-12px -16px 8px}
+.ax-head{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:10px}
+.ax-head h2{margin:0;font:700 21px Arial,sans-serif;letter-spacing:.2px}.ax-head h3{margin:10px 0 0;font:700 15px Arial,sans-serif}
+.ax-head dl{display:grid;grid-template-columns:auto auto;gap:2px 8px;margin:0;font-size:12px;white-space:nowrap}.ax-head dd{margin:0;font-weight:700}
+.ax-h{font:700 16px Arial,sans-serif;margin:22px 0 8px;border-bottom:1px solid #111;padding-bottom:3px}.ax-h i{font-weight:700}
+.ax-t{width:100%;border-collapse:collapse;font-size:12px}.ax-t th,.ax-t td{border:1px solid #9aa3ae;padding:5px 7px;text-align:left;vertical-align:top}
+.ax-t th{background:#f2f4f7}.ax-t .n{text-align:right}.ax-t tr.sub td{color:#333}.ax-t tr:nth-child(even) td{background:#fafbfc}
+.ax-kv{display:grid;grid-template-columns:1fr 1fr;gap:3px 28px;font-size:12px;margin:6px 0}.ax-kv.one{grid-template-columns:1fr}
+.ax-kv div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dotted #d5d9df;padding:2px 0}.ax-kv span{color:#333}.ax-kv b{text-align:right}
+.ax-kv .big span,.ax-kv .big b{font-size:15px;font-weight:700;color:#111}
+.ax-ob{border:1px solid #c9ced6;padding:10px 12px;margin:10px 0;break-inside:avoid}.ax-ob h4{margin:0 0 6px;font:700 14px Arial,sans-serif}
+.ax-cap{text-align:center;font-weight:700;font-size:12px;margin:10px 0 4px}
+.ax-grid{border-collapse:collapse;width:100%;font-size:10.5px;table-layout:fixed}.ax-grid th,.ax-grid td{border:1px solid #9aa3ae;padding:3px 1px;text-align:center}
+.ax-grid th{background:#f2f4f7}.ax-grid th[rowspan]{width:54px}.ax-grid td.bad{background:#fde2df;color:#a3261b;font-weight:700}
+.ax-leg td{border:none;padding:3px 7px}.ax-end{text-align:center;border-top:1px solid #111;margin-top:24px;padding-top:6px;font-size:12px}
+@media(max-width:700px){.ax{padding:18px 14px}.ax-head{flex-direction:column}.ax-kv{grid-template-columns:1fr}.ax-grid{font-size:8px}}
+@media print{body.ax-open>*:not(#axView){display:none!important}body.ax-open{background:#fff!important}#axView{position:static;background:none;padding:0;overflow:visible}.ax{box-shadow:none;max-width:none;padding:0;border-radius:0}.ax-tools{display:none}@page{size:A4;margin:12mm}}
 .rptpre{white-space:pre-wrap;font:12.5px/1.5 var(--f-mono,monospace);background:var(--bg2,rgba(0,0,0,.04));padding:12px;border-radius:10px;margin:8px 0 0;max-height:320px;overflow:auto}
 </style>
 </head>
@@ -826,6 +845,56 @@ async function renderSms(st){
 document.addEventListener("submit",async e=>{if(e.target.id!=="smsBox")return;e.preventDefault();
   try{const st=await api("/settings/sms",{method:"POST",body:JSON.stringify({user:$("#slUser").value,key:$("#slKey").value,sender:$("#slSender").value})});
     toast(st.connected?"SMS provayderi qoşuldu":"Saxlanıldı");renderSms(st)}catch(err){toast(err.message)}});
+// AKB extract laid out like the bureau's own printout: personal details, summary, inquiries, active and closed obligations
+// with the 24-month grid, and the legend. Built from the stored report; prints on its own (Ctrl+P / "Çap et").
+function akbExtract(a){
+  const r=a.bureau,b=r.borrower||{},L=r.loans||[];
+  const m2=x=>Number(x||0).toLocaleString("az-AZ",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const act=L.filter(l=>l.active),cls=L.filter(l=>!l.active),banks=l=>new Set(l.map(x=>x.bank)).size;
+  const lines=act.filter(l=>l.card),credits=act.filter(l=>!l.card),sum=(l,f)=>l.reduce((t,x)=>t+(+f(x)||0),0);
+  const code=d=>d==null?"-":d<=0?"0":d<=30?"30":d<=90?"90":d<=180?"180":d<=360?"360":"361+";
+  // 24 months back from the report month: newest first, years over the months.
+  const [ry,rm]=(r.reportingDate||"").split("-").map(Number);const months=[];
+  for(let i=0;i<24&&ry;i++){const t=ry*12+(rm-1)-i;months.push({y:Math.floor(t/12),m:t%12+1,ago:i})}
+  const grid=l=>{if(!months.length)return"";const by={};(l.history||[]).forEach(h=>by[h.ago]=h.days);
+    const yrs=[];months.forEach(x=>{const last=yrs[yrs.length-1];if(last&&last.y===x.y)last.n++;else yrs.push({y:x.y,n:1})});
+    return `<table class="ax-grid"><tr><th rowspan="2">Aylar</th>${yrs.map(y=>`<th colspan="${y.n}">${y.y}</th>`).join("")}</tr>
+      <tr>${months.map(x=>`<th>${String(x.m).padStart(2,"0")}</th>`).join("")}</tr>
+      <tr><th>Tarixçə</th>${months.map(x=>{const c=code(by[x.ago]);return `<td class="${c!=="-"&&c!=="0"?"bad":""}">${c}</td>`}).join("")}</tr></table>`};
+  const card=(l,i,sec)=>`<div class="ax-ob"><h4>${sec}.${i+1} ${esc(l.type)} - ${m2(l.card?l.limit:l.amount)} ${esc(l.currency)}</h4>
+    <div class="ax-kv"><div><span>Məlumat təchizatçısı</span><b>${esc(l.bank)}</b></div><div><span>Kreditin verilmə tarixi</span><b>${esc(l.grantedOn||"—")}</b></div>
+      ${l.active?`<div class="big"><span>Kreditin qalıq məbləği</span><b>${m2(l.outstanding)}</b></div><div class="big"><span>Faiz dərəcəsi</span><b>${l.rate?l.rate+"%":"—"}</b></div>`:""}
+      <div><span>Aylıq ödəniş məbləği</span><b>${l.monthly?m2(l.monthly):"—"}</b></div><div><span>Kreditin ilkin müqavilə üzrə bitmə tarixi</span><b>${esc(l.dueOn||"—")}</b></div>
+      <div><span>Məqsədi</span><b>${esc(l.purpose)}</b></div><div><span>${l.active?"Hazırkı gecikmə":"Bağlanma tarixi"}</span><b>${l.active?(l.overdueNow?l.overdueNow+" gün":"Yoxdur"):esc(l.closedOn||"—")}</b></div>
+      <div><span>Ən böyük gecikmə (gün)</span><b>${l.maxOverdue||0}</b></div><div><span>Kreditin statusu</span><b>${esc(l.status)}</b></div>
+      <div><span>Təminat</span><b>${esc(l.collateral||"—")}</b></div><div><span>Müddətin uzadılması</span><b>${l.prolongations||0}</b></div></div>
+    <p class="ax-cap">Öhdəlik üzrə son 24 aylıq tarixçə və ödəniş tərzi</p>${grid(l)}</div>`;
+  const row=(n,t,v,c,k,sub)=>`<tr${sub?' class="sub"':""}><td>${n}</td><td>${t}</td><td class="n">${m2(v)}</td><td class="n">${c}</td><td class="n">${k}</td></tr>`;
+  return `<div class="ax">
+    <div class="ax-tools"><button class="btn sm" type="button" id="axPrint">Çap et / PDF</button><button class="btn ghost sm" type="button" id="axClose">Bağla</button></div>
+    <div class="ax-head"><div><h2>AZƏRBAYCAN KREDİT BÜROSUNDAN ÇIXARIŞ</h2><h3>${esc(b.name||"")}</h3></div>
+      <dl><dt>Kredit hesabatının İD-si:</dt><dd>${esc(r.reportId||"—")}</dd><dt>Tərtib olunma tarixi:</dt><dd>${esc(r.reportingDate||"—")}</dd><dt>Müraciət:</dt><dd>№ ${esc(a.id)}</dd></dl></div>
+    <h3 class="ax-h">1. Borcalanın şəxsi məlumatları</h3>
+    <div class="ax-kv one"><div><span>Borcalanın İD-si</span><b>${esc(b.documentNo||"—")}</b></div><div><span>FİN</span><b>${esc(b.fin||"—")}</b></div>
+      ${b.address?`<div><span>Ünvanı</span><b>${esc(b.address)}</b></div>`:""}${b.birthPlace?`<div><span>Doğum yeri</span><b>${esc(b.birthPlace)}</b></div>`:""}
+      <div><span>Doğum tarixi</span><b>${esc(b.dateOfBirth||"—")}</b></div><div><span>Statusu</span><b>${esc(b.status||"—")}</b></div><div><span>Büroda ilk qeyd</span><b>${esc(b.fileDate||"—")}</b></div></div>
+    <h3 class="ax-h">2. Kredit məlumatlarının icmalı <i>(manatla)</i></h3>
+    <table class="ax-t"><tr><th>N</th><th></th><th class="n">Məbləğ</th><th class="n">Kreditlərin sayı</th><th class="n">Kreditorların sayı</th></tr>
+      ${row("1","<b>Aktiv kreditlərin cəmi qalıq məbləği</b><br><small>(Kredit + kredit xətlərinin istifadə olunmuş hissəsi)</small>",sum(act,x=>x.outstanding),act.length,banks(act))}
+      ${row("1.1","Kreditlər üzrə qalıq məbləği",sum(credits,x=>x.outstanding),credits.length,banks(credits),1)}
+      ${row("1.2","Kredit xətləri üzrə qalıq məbləği",sum(lines,x=>x.outstanding),lines.length,banks(lines),1)}
+      ${row("2","Cəmi aylıq ödəniş məbləği",sum(act,x=>x.monthly),act.filter(x=>x.monthly).length,banks(act.filter(x=>x.monthly)))}
+      ${row("3","<b>Tam ödənilmiş kreditlərin cəmi məbləği</b><br><small>(Kredit + kredit xətlərinin istifadə olunmuş hissəsi)</small>",sum(cls,x=>x.card?x.limit:x.amount),cls.length,banks(cls))}</table>
+    <h3 class="ax-h">2.1 Borcalan haqqında ${r.inquiries.length} dəfə sorğu olunmuşdur.</h3>
+    ${r.inquiries.length?`<table class="ax-t"><tr><th>N</th><th>Bankın adı</th><th>Tarix</th><th>Məqsəd</th></tr>${r.inquiries.map((q,i)=>`<tr><td>${i+1}.</td><td>${esc(q.org)}</td><td>${esc(q.date)}</td><td>${esc(q.purpose)}</td></tr>`).join("")}</table>`:""}
+    <h3 class="ax-h">3. Borcalanın aktiv öhdəlikləri</h3>${act.length?act.map((l,i)=>card(l,i,3)).join(""):`<p>Aktiv öhdəlik yoxdur.</p>`}
+    <h3 class="ax-h">4. Borcalanın bağlanmış öhdəlikləri</h3>${cls.length?cls.map((l,i)=>card(l,i,4)).join(""):`<p>Bağlanmış öhdəlik yoxdur.</p>`}
+    <h3 class="ax-h">Tarixçə üzrə şərti işarələmə</h3>
+    <table class="ax-t ax-leg"><tr><td><b>-</b> məlumat yoxdur</td><td><b>0</b> 0 gün gecikmə</td><td><b>30</b> 1-30 gün gecikmə</td></tr>
+      <tr><td><b>90</b> 31-90 gün gecikmə</td><td><b>180</b> 91-180 gün gecikmə</td><td><b>360</b> 181-360 gün gecikmə</td></tr><tr><td><b>361+</b> 360 gündən artıq gecikmə</td><td></td><td></td></tr></table>
+    ${(r.flags||[]).length?`<h3 class="ax-h">ARZOOM qeydləri</h3><ul>${r.flags.map(f=>`<li>${esc(f)}</li>`).join("")}</ul>`:""}
+    <p class="ax-end">Kredit hesabatının sonu · ARZOOM paneli, ${esc(new Date().toLocaleString("az-AZ"))}</p></div>`;
+}
 const prettyAkb=t=>{if(!t)return"";try{return JSON.stringify(JSON.parse(t),null,2)}catch{return t}};
 // AKB score-report API: address, login and password typed once; the password never comes back. A test person's document checks the link.
 async function renderAkb(st){
@@ -1370,7 +1439,7 @@ function akbHtml(a){
     return `<div class="strip">${Array.from({length:24},(_,k)=>23-k).map(ago=>{const h=by[ago];const c=!h?"":h.days>30?"b":h.days>0?"w":"g";
       return `<i class="${c}" data-tip="${h?`<b>${h.period.replace("x",".")}</b>${h.days?h.days+" gün gecikmə":"Gecikmə yoxdur"}`:"Məlumat yoxdur"}"></i>`}).join("")}</div>`};
   return `<section class="panel span2" id="akbBox">${ph("shield","Kredit Bürosu (AKB) hesabatı",`<span class="muted" style="font-size:12px">Yüklənib: ${dt(a.bureau_at)}</span>`)}
-    <div class="akb-meta"><span>Hesabat № <b class="mono">${esc(r.reportId)}</b></span><span>Tarix <b>${esc(r.reportingDate)}</b></span>
+    <div class="akb-meta"><button class="btn ghost sm" type="button" id="akbView" style="margin-left:auto;order:9">Vizual çıxarış</button><span>Hesabat № <b class="mono">${esc(r.reportId)}</b></span><span>Tarix <b>${esc(r.reportingDate)}</b></span>
       <span>Borcalan <b>${esc(r.borrower.name)}</b></span><span>FİN <b class="mono">${esc(r.borrower.fin)}</b></span><span>Status <b>${esc(r.borrower.status||"—")}</b></span></div>
     ${res?`<div class="akb-auto"><div class="ring" style="--p:${res.verdict==="incomplete"?0:res.score};--c:${col}"><span>${res.verdict==="incomplete"?"—":res.score}</span></div>
       <div><small class="muted">Avtomatik nəticə${a.assessment.auto?"":" · ekspert dəyişib"}</small><div class="verdict" style="color:${col}">${res.verdict==="incomplete"?"Gəlir və qiymət daxil ediləndə tam hesablanacaq":`Skor ${res.score} · ${res.grade} · ${Scoring.VERDICTS[res.verdict]}`}</div>
@@ -1600,6 +1669,10 @@ document.addEventListener("click",async e=>{
       await api(`/applications/${cur.id}/assessment`,{method:"PUT",body:JSON.stringify(i)});
       await api(`/applications/${cur.id}/offer`,{method:"POST",body:JSON.stringify({price:+i.price,downPct:+i.downPct,months:+i.months,rate:+i.rate,commissionPct:+i.commissionPct,bankCommissionPct:+i.bankCommissionPct,bankCommissionAuto:!$("#aForm").bankCommissionPct.dataset.manual,costs:{dyp:+i.costDyp||0,kasko:+i.costKasko||0,gps:+i.costGps||0}})});
       toast("Təklif müştəriyə göndərildi");await openApp(cur.id);loadList()}catch(err){toast(err.message)}}
+  if(b.id==="akbView"){let o=$("#axView");if(!o){o=document.createElement("div");o.id="axView";document.body.appendChild(o)}
+    o.innerHTML=akbExtract(cur);o.hidden=false;document.body.classList.add("ax-open");o.scrollTop=0}
+  if(b.id==="axClose"){$("#axView").hidden=true;document.body.classList.remove("ax-open")}
+  if(b.id==="axPrint")window.print();
   if(b.id==="akbAsk"){
     b.disabled=true;b.textContent="AKB-dan gözlənilir…";
     try{const j=await api(`/applications/${encodeURIComponent(cur.id)}/akb`,{method:"POST"});

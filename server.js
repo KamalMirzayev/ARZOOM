@@ -18,6 +18,7 @@ const nodemailer = require("nodemailer");
 const Report = require("./lib/report");
 const Scoring = require("./lib/scoring");
 const Akb = require("./lib/akb");
+const AkbApi = require("./lib/akbapi");
 const Ocr = require("./lib/ocr");
 const Perms = require("./lib/permissions");
 const { rateLimit } = require("./lib/ratelimit");
@@ -525,7 +526,7 @@ app.post("/api/admin/logout", admin, async (req, res) => {
   res.json({ ok: true });
 });
 
-app.get("/api/admin/me", admin, (req, res) => res.json(req.user));
+app.get("/api/admin/me", admin, (req, res) => res.json({ ...req.user, akb: akbReady() }));
 
 app.post("/api/admin/me/password", admin, async (req, res) => {
   const { rows } = await pool.query("SELECT password_hash FROM staff_users WHERE id = $1", [req.user.id]);
@@ -1440,6 +1441,87 @@ app.post("/api/integrations/akb", xmlBody, async (req, res) => {
              verdict: out.assessment.result.verdict, flags: out.report.flags });
 });
 
+/* ---------- AKB score-report API: staff press "AKB-dan sorğula", the server asks AKB with the customer's ID card and FİN ---------- */
+// Every request and its full answer are kept in akb_requests (on the server only). An XML credit report in the answer is read
+// and scored at once, the same as an uploaded file. The customer gave consent to the bureau check in the application form.
+const AKBC = { url: AkbApi.DEFAULT_URL, user: "", pass: "", purpose: "001" };
+async function loadAkbSettings() {
+  const { rows } = await pool.query("SELECT key, value FROM settings WHERE key IN ('akb_url','akb_user','akb_pass','akb_purpose')");
+  const v = Object.fromEntries(rows.map(r => [r.key, r.value]));
+  Object.assign(AKBC, { url: v.akb_url || AkbApi.DEFAULT_URL, user: v.akb_user || "", pass: v.akb_pass || "", purpose: v.akb_purpose || "001" });
+}
+const akbReady = () => !!(AKBC.url && AKBC.user && AKBC.pass);
+async function akbLast() {
+  const { rows } = await pool.query("SELECT at, actor, http_status, ok, error, parsed FROM akb_requests ORDER BY id DESC LIMIT 1");
+  return rows[0] || null;
+}
+const akbState = async () => ({ url: AKBC.url, user: AKBC.user, passSet: !!AKBC.pass, purpose: AKBC.purpose, connected: akbReady(), last: await akbLast() });
+
+// Asks AKB, stores the answer, reads a report out of it if there is one. applicationId is null for the panel's connection test.
+async function akbAsk(applicationId, person, actor) {
+  const r = await AkbApi.query(AKBC, person);
+  const xml = r.ok ? AkbApi.findXml(r.text) : null;
+  let parsed = false, parseError = null, out = null;
+  if (xml && applicationId) {
+    try { out = await applyBureau(applicationId, xml, `${actor} · AKB API`); parsed = !!out; }
+    catch (e) { parseError = e.message; }
+  } else if (xml) { try { Akb.parse(xml); parsed = true; } catch (e) { parseError = e.message; } }
+  const ins = await pool.query(
+    `INSERT INTO akb_requests (application_id, actor, http_status, ok, error, content_type, response, parsed, ms)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+    [applicationId, actor, r.status, r.ok, r.error || parseError, r.type || null, r.text ?? null, parsed, r.ms]);
+  if (applicationId) await logEvent(pool, applicationId, actor, "akb_request", { ok: r.ok, status: r.status, parsed, error: r.error || parseError || undefined });
+  return { id: ins.rows[0].id, ok: r.ok, status: r.status, error: r.error || parseError, parsed, out, shape: r.ok ? AkbApi.shape(r.text) : null };
+}
+
+app.get("/api/admin/settings/akb", admin, adminOnly, async (_req, res) => res.json(await akbState()));
+app.post("/api/admin/settings/akb", admin, adminOnly, async (req, res) => {
+  const b = req.body || {};
+  const url = String(b.url || "").trim() || AkbApi.DEFAULT_URL, user = String(b.user || "").trim(), purpose = String(b.purpose || "001").trim();
+  let u; try { u = new URL(url); } catch { return bad(res, "Ünvan düzgün deyil."); }
+  // Only AKB's own hosts over https; a local test server is allowed outside production (smoke test).
+  const local = process.env.NODE_ENV !== "production" && u.protocol === "http:" && u.hostname === "127.0.0.1";
+  if (!local && (u.protocol !== "https:" || !/(^|\.)acb\.az$/i.test(u.hostname))) return bad(res, "Ünvan https və acb.az domenində olmalıdır.");
+  if (!user || user.length > 200) return bad(res, "AKB istifadəçi adını yaz.");
+  if (!/^\d{3}$/.test(purpose)) return bad(res, "Sorğu məqsədi kodu 3 rəqəm olmalıdır, məs. 001.");
+  if (!b.pass && !AKBC.pass) return bad(res, "AKB parolunu yaz.");
+  if (String(b.pass || "").length > 300) return bad(res, "Parol çox uzundur.");
+  const vals = { akb_url: url, akb_user: user, akb_purpose: purpose };
+  if (b.pass) vals.akb_pass = String(b.pass);
+  for (const [k, v] of Object.entries(vals))
+    await pool.query("INSERT INTO settings (key, value, updated_by) VALUES ($1,$2,$3) ON CONFLICT (key) DO UPDATE SET value = $2, updated_by = $3, updated_at = now()", [k, v, req.user.username]);
+  await loadAkbSettings();
+  audit(req, req.user.username, "settings.akb", `${u.host}${b.pass ? ", parol yeniləndi" : ""}`);
+  res.json(await akbState());
+});
+// Connection test with a test person's document (AKB's staging gives one). The document is not stored; the answer is.
+app.post("/api/admin/settings/akb/test", admin, adminOnly, async (req, res) => {
+  if (!akbReady()) return bad(res, "Əvvəlcə AKB ayarlarını saxla.", 409);
+  const p = { series: String(req.body?.series || "AZE").toUpperCase(), number: String(req.body?.number || "").trim(), fin: String(req.body?.fin || "").trim().toUpperCase() };
+  if (!["AZE", "AA", "AB"].includes(p.series) || !/^\d{5,9}$/.test(p.number) || !/^[0-9A-Z]{7}$/.test(p.fin)) return bad(res, "Sənəd seriyası, nömrəsi və FİN-i düzgün yaz.");
+  const r = await akbAsk(null, p, req.user.name);
+  audit(req, req.user.username, "settings.akb", r.ok ? "bağlantı yoxlandı" : "bağlantı alınmadı");
+  res.json({ ...r, state: await akbState() });
+});
+app.post("/api/admin/applications/:id/akb", admin, brandGate, can("apps.assess"), async (req, res) => {
+  if (!akbReady()) return bad(res, "AKB inteqrasiyası qoşulmayıb. Admin paneldə AKB ayarlarını yazmalıdır.", 409);
+  const { rows } = await pool.query("SELECT id_series, id_number, fin FROM applications WHERE id = $1", [req.params.id]);
+  if (!rows[0]) return bad(res, "Müraciət tapılmadı.", 404);
+  // One request per application per minute, so a double click does not cost two bureau inquiries.
+  const recent = await pool.query("SELECT 1 FROM akb_requests WHERE application_id = $1 AND at > now() - interval '1 minute' AND ok", [req.params.id]);
+  if (recent.rowCount) return bad(res, "Bu müraciət üçün AKB sorğusu bir dəqiqə əvvəl göndərilib.", 429);
+  const r = await akbAsk(req.params.id, { series: rows[0].id_series, number: rows[0].id_number, fin: rows[0].fin }, req.staff);
+  if (!r.ok) return bad(res, r.error, 502);
+  res.json({ ok: true, parsed: r.parsed, error: r.error, assessment: r.out?.assessment || null,
+             note: r.parsed ? null : "AKB cavab verdi, amma kredit hesabatı tanınmadı. Cavab saxlanıldı." });
+});
+// The stored answers for one application: newest first. The full answer only for staff who may assess.
+app.get("/api/admin/applications/:id/akb", admin, brandGate, can("apps.assess"), async (req, res) => {
+  const { rows } = await pool.query(
+    "SELECT id, at, actor, http_status, ok, error, parsed, ms, content_type, left(response, 300000) AS response FROM akb_requests WHERE application_id = $1 ORDER BY id DESC LIMIT 20", [req.params.id]);
+  res.json({ items: rows });
+});
+
 /* ---------- analytics ---------- */
 app.get("/api/admin/analytics", admin, can("analytics.view"), async (req, res) => {
   const days = Math.min(365, Math.max(7, parseInt(req.query.days, 10) || 30));
@@ -1522,6 +1604,7 @@ async function start() {
   await loadRobocallSettings();
   await loadRcApi();
   await loadReportSettings();
+  await loadAkbSettings();
   setInterval(() => reportTick().catch(e => console.error(e.message)), 30e3).unref();
   await backfillRobotSales().catch(e => console.error(e.message));
   Ocr.available().then(t => { if (!t.tesseract || !t.pdftotext) console.warn("Sənəd analizi üçün tesseract və poppler-utils quraşdırılmayıb."); });

@@ -103,7 +103,9 @@ Müraciət səhifəsində AKB XML faylını yükləyəndə sistem onu oxuyur (`l
 
 Bu göstəricilər qiymətləndirmə formasına yazılır, ekspertin daxil etdiyi gəlir və avtomobil şərtləri saxlanılır. AKB kodlarının (kredit növü, status, sorğu məqsədi) mənası rəsmi kitabça ilə yoxlanmalıdır.
 
-Avtomatik inteqrasiya: `.env`-də `AKB_API_KEY` (ən azı 20 simvol) yazılanda `POST /api/integrations/akb` ünvanı açılır. XML `x-api-key` başlığı ilə göndərilir, sistem FİN üzrə açıq müraciəti tapıb hesabatı yazır və nəticəni qaytarır.
+AKB API (score-report): admin paneldə İstifadəçilər → "AKB inteqrasiyası" bölməsinə ünvanı (standart: staging `https://staging-hub.acb.az/score-partner/score-report/ex`), istifadəçi adını, parolu və sorğu məqsədi kodunu (001) yazır. Parol serverdə saxlanılır, panelə qaytarılmır. "Bağlantını yoxla" AKB-nin test şəxsinin sənədi ilə sorğu göndərir. Müraciət səhifəsində "AKB-dan sorğula" düyməsi müştərinin şəxsiyyət vəsiqəsi (seriya, nömrə) və FİN-i ilə sorğu göndərir. Hər sorğu və AKB-nin tam cavabı `akb_requests` cədvəlində saxlanılır, cavabdakı kredit hesabatı dərhal oxunub skor hesablanır. Eyni müraciət üçün uğurlu sorğu dəqiqədə bir dəfə göndərilir. AKB serverin IP ünvanına icazə verməlidir.
+
+Avtomatik inteqrasiya (AKB özü göndərəndə): `.env`-də `AKB_API_KEY` (ən azı 20 simvol) yazılanda `POST /api/integrations/akb` ünvanı açılır. XML `x-api-key` başlığı ilə göndərilir, sistem FİN üzrə açıq müraciəti tapıb hesabatı yazır və nəticəni qaytarır.
 
 ## Analitika
 

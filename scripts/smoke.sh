@@ -232,6 +232,26 @@ RP=$(curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/report" -d '{"host":"127
 echo "$RP" | grep -q '"passSet":true' || fail; echo "$RP" | grep -q 'smoke-secret-pass' && fail; echo "$RP" | grep -q '"a@arzoom.test","b@arzoom.test"' || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/report/send")" = 502 ] || fail
 curl -fsS "${H[@]}" "$B/api/admin/settings/report" | grep -q '"ok":false' || fail; echo "✓ gün sonu hesabatı: yalnız admin, parol gizli, ünvan və vaxt yoxlanır, SMTP xətası görünür"
+# AKB score-report API: a local stand-in for AKB checks Basic auth and the request, and answers with the sample report inside JSON.
+AKX="$(dirname "$0")/../test/akb-sample.xml" node -e '
+const x=require("fs").readFileSync(process.env.AKX,"utf8");
+require("http").createServer((q,r)=>{let b="";q.on("data",c=>b+=c).on("end",()=>{
+  if(q.headers.authorization!=="Basic "+Buffer.from("akbtest:akb-smoke-pass").toString("base64")){r.statusCode=401;return r.end(JSON.stringify({message:"Unauthorized"}))}
+  const j=JSON.parse(b);if(!j.accepted||j.docType!=="ID_CARD"||!/^[0-9A-Z]{7}$/.test(j.pinCode)||!j.docSerie||!j.documentNo){r.statusCode=400;return r.end("{}")}
+  r.setHeader("Content-Type","application/json");r.end(JSON.stringify({status:"OK",data:{report:Buffer.from(x).toString("base64")}}))})}).listen(18998,"127.0.0.1")' &
+AKP=$!; sleep 1
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/akb" -d '{"url":"https://evil.example.com/x","user":"a","pass":"b"}')" = 400 ] || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb" -d '{"url":"http://127.0.0.1:18998/score","user":"akbtest","pass":"wrong-pass"}' | grep -q '"connected":true' || fail
+curl -fsS "${H[@]}" "$B/api/admin/me" | grep -q '"akb":true' || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID/akb")" = 502 ] || fail
+AKS=$(curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb" -d '{"url":"http://127.0.0.1:18998/score","user":"akbtest","pass":"akb-smoke-pass"}')
+echo "$AKS" | grep -q 'akb-smoke-pass' && fail; echo "$AKS" | grep -q '"passSet":true' || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb/test" -d '{"series":"AZE","number":"1234567","fin":"TEST001"}' | grep -q '"parsed":true' || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/akb" | grep -q '"parsed":true' || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID/akb")" = 429 ] || fail
+AKL=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID/akb"); echo "$AKL" | grep -q '"parsed":true' || fail; echo "$AKL" | grep -q '"http_status":401' || fail
+curl -fsS "${H[@]}" "$B/api/admin/applications/$ID" | grep -q 'AKB API' || fail
+kill $AKP 2>/dev/null; echo "✓ AKB API: yalnız acb.az, parol gizli, səhv girişdə 502, cavab saxlanılır, hesabat oxunur, təkrar sorğu 1 dəq bloklanır"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE -H "x-admin-token: $ES" -H "Content-Type: application/json" "$B/api/admin/applications/$ID2" -d '{"reason":"test"}')" = 403 ] || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE "${H[@]}" "$B/api/admin/applications/$ID2" -d '{}')" = 400 ] || fail
 curl -fsS -X DELETE "${H[@]}" "$B/api/admin/applications/$ID2" -d '{"reason":"smoke test"}' >/dev/null || fail

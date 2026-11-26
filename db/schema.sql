@@ -157,3 +157,19 @@ CREATE TABLE IF NOT EXISTS link_sms (
   at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS link_sms_phone_at ON link_sms (phone_hash, at);
+
+-- AKB score-report API: hər sorğu və AKB-nin tam cavabı (yalnız serverdə). application_id boşdursa, paneldən bağlantı yoxlamasıdır.
+CREATE TABLE IF NOT EXISTS akb_requests (
+  id             BIGSERIAL PRIMARY KEY,
+  application_id TEXT REFERENCES applications(id) ON DELETE CASCADE,
+  at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+  actor          TEXT NOT NULL,
+  http_status    INT,
+  ok             BOOLEAN NOT NULL,
+  error          TEXT,
+  content_type   TEXT,
+  response       TEXT,
+  parsed         BOOLEAN NOT NULL DEFAULT false,
+  ms             INT
+);
+CREATE INDEX IF NOT EXISTS akb_requests_app_idx ON akb_requests (application_id, id DESC);

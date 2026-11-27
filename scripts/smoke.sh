@@ -271,9 +271,12 @@ echo "$AKS" | grep -q 'akb-smoke-pass' && fail; echo "$AKS" | grep -q '"passSet"
 curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb/test" -d '{"series":"AZE","number":"12345678","fin":"TEST001","consent":true}' | grep -q '"parsed":true' || fail
 curl -fsS "${H[@]}" "$B/api/admin/settings/akb/balance" | grep -q '"balance":3635.5' || fail
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/akb" -d '{"consent":true}' | grep -q '"parsed":true' || fail
-[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID/akb" -d '{"consent":true}')" = 429 ] || fail
+# A report for the same FİN in the last 30 days is reused: no second inquiry goes to AKB.
+AKR=$(curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/akb" -d '{"consent":true}'); echo "$AKR" | grep -q '"cached":true' || fail
+[ "$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID/akb" | grep -o '"report_id":"1000002"' | wc -l)" = 1 ] || fail
 AKL=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID/akb"); echo "$AKL" | grep -q '"parsed":true' || fail; echo "$AKL" | grep -q '"report_id":"1000002"' || fail
 AKA=$(curl -fsS "${H[@]}" "$B/api/admin/applications/$ID"); echo "$AKA" | grep -q 'AKB API' || fail
+echo "$AKA" | grep -q '"full_name":"TEST TESTOV TEST OĞLU"' || fail; echo "$AKA" | grep -q '"address":"BAKI ŞƏHƏRİ, TEST KÜÇƏSİ 1"' || fail; echo "$AKA" | grep -q '"akb_reuse"' || fail
 echo "$AKA" | grep -q '"point":712' || fail; echo "$AKA" | grep -q 'TEST ZAMİN ALAN' || fail; echo "$AKA" | grep -q 'birgə borcalandır' || fail
 AKJ=$(curl -fsS "${H[@]}" "$B/api/admin/akb/log?q=TEST001"); echo "$AKJ" | grep -q '"consent":true' || fail; echo "$AKJ" | grep -q '"purpose_code":"001"' || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/akb/log")" = 403 ] || fail
@@ -283,7 +286,8 @@ AKI=$(echo "$AKJ" | J "items[0].id"); curl -fsS "${H[@]}" "$B/api/admin/akb/log/
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/akb/inquiry" -d '{"series":"AA","number":"7654321","fin":"TEST003"}')" = 400 ] || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/akb/inquiry" -d '{"series":"AZE","number":"7654321","fin":"TEST003","consent":true}')" = 400 ] || fail
 curl -fsS -X POST "${H[@]}" "$B/api/admin/akb/inquiry" -d '{"series":"AA","number":"7654321","fin":"TEST003","consent":true}' | grep -q '"point":712' || fail
-[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/akb/inquiry" -d '{"series":"AA","number":"7654321","fin":"TEST003","consent":true}')" = 429 ] || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/akb/inquiry" -d '{"series":"AA","number":"7654321","fin":"TEST003","consent":true}' | grep -q '"cached":true' || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/akb/inquiry" -d '{"series":"AZE","number":"12345678","fin":"5ABC12D","consent":true}' | grep -q '"cached":true' || fail
 AKM=$(curl -fsS "${H[@]}" "$B/api/admin/akb/mine"); echo "$AKM" | grep -q 'TEST003' || fail
 curl -fsS "${H[@]}" "$B/api/admin/akb/mine/$(echo "$AKM" | J "items[0].id")" | grep -q '"reportId":"1000002"' || fail
 # The older REST mode still works.

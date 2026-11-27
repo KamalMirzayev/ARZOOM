@@ -1156,7 +1156,7 @@ app.get("/api/admin/export.xlsx", admin, async (req, res) => {
   const st = String(req.query.status || "");
   const [pDays, pEnd] = periodArgs(String(req.query.period || ""), q);
   const { rows } = await pool.query(
-    `SELECT id, created_at, updated_at, status, fin, id_series, id_number, birth_date::text AS birth_date, phone, partner, partner_ref, income_sources, voen, brand, model, guarantor,
+    `SELECT id, created_at, updated_at, status, fin, full_name, address, id_series, id_number, birth_date::text AS birth_date, phone, partner, partner_ref, income_sources, voen, brand, model, guarantor,
             assessment->'result'->>'grade' AS grade, (assessment->'result'->>'score')::int AS score, offer, reject_public, decided_by,
             ${LAST_CALL} AS last_call
      FROM applications
@@ -1165,15 +1165,15 @@ app.get("/api/admin/export.xlsx", admin, async (req, res) => {
        AND ($3::text[] IS NULL OR brand = ANY($3))
        AND ${PERIOD_SQL(4, 5)}
      ORDER BY created_at DESC`, [st, q, req.user.brands, pDays, pEnd]);
-  const cols = [["Müraciət №", 14], ["Daxil olub", 17], ["Status", 18], ["FİN", 10], ["Şəxsiyyət vəsiqəsi", 16], ["Doğum tarixi", 12],
+  const cols = [["Müraciət №", 14], ["Daxil olub", 17], ["Status", 18], ["FİN", 10], ["Ad, soyad", 24], ["Şəxsiyyət vəsiqəsi", 16], ["Doğum tarixi", 12], ["Ünvan", 32],
     ["Telefon", 15], ["Partnyor", 14], ["Partnyor ref №", 14], ["Gəlir mənbələri", 28], ["VÖEN", 12], ["Marka", 14], ["Model", 18], ["Zamin", 8], ["Bal", 7], ["Risk dərəcəsi", 10],
     ["Avtomobilin qiyməti", 14], ["İlkin ödəniş %", 10], ["İlkin ödəniş", 13], ["İlkin kredit məbləği", 15], ["Müddət (ay)", 10],
     ["İllik faiz %", 10], ["Aylıq ödəniş", 13], ["Bank komissiyası", 13], ["Təşkilatın komissiyası", 15], ["Rədd səbəbi", 30], ["Qərar verən", 14], ["Son danışığın nəticəsi", 20], ["Son dəyişiklik", 17]].map(([title, width]) => ({ title, width }));
   const r2 = x => Math.round(x * 100) / 100;
   const data = rows.map(a => {
     const o = a.offer, t = o?.price ? finalTerms(o, o.final?.downPct ?? o.downPct) : null;
-    return [a.id, a.created_at, EXPORT_STATUS[a.status] || a.status, a.fin, `${a.id_series} ${a.id_number}`,
-      a.birth_date ? a.birth_date.split("-").reverse().join(".") : "", "+" + a.phone, a.partner || "", a.partner_ref || "",
+    return [a.id, a.created_at, EXPORT_STATUS[a.status] || a.status, a.fin, a.full_name || "", `${a.id_series} ${a.id_number}`,
+      a.birth_date ? a.birth_date.split("-").reverse().join(".") : "", a.address || "", "+" + a.phone, a.partner || "", a.partner_ref || "",
       (a.income_sources || []).map(s => INCOME_NAMES[s] || s).join(", "), a.voen || "", a.brand, a.model,
       a.guarantor == null ? "" : a.guarantor ? "Bəli" : "Xeyr", a.score ?? "", a.grade || "",
       t ? o.price : "", t ? t.dp : "", t ? r2(t.down) : "", t ? r2(t.credit) : "", t ? t.months : "", t ? o.rate : "", t ? r2(t.pay) : "", t ? r2(t.fee) : "", t ? r2(t.org.amount) : "",
@@ -1395,6 +1395,27 @@ app.delete("/api/admin/applications/:id", admin, brandGate, can("apps.delete"), 
 /* ---------- AKB credit report ---------- */
 const xmlBody = express.text({ type: ["text/xml", "application/xml", "text/plain"], limit: "2mb" });
 const MANUAL_KEYS = ["incomeMonthly", "tenureMonths", "docsOk", "price", "downPct", "months", "rate", "akbNote"];
+// The name and registered address AKB holds for the person go into the customer details of every application with
+// that FİN (only when the report is about that FİN). The birth date is filled in only where it is missing.
+async function customerFromReport(report, fin) {
+  const b = report?.borrower || {}, f = String(fin || "").trim().toUpperCase();
+  if (!f || (b.fin && String(b.fin).toUpperCase() !== f)) return;
+  const name = String(b.name || "").trim().slice(0, 200) || null, address = String(b.address || "").trim().slice(0, 500) || null;
+  const d = String(b.dateOfBirth || "").match(/^(\d{2})[./](\d{2})[./](\d{4})$/), iso = String(b.dateOfBirth || "").match(/^\d{4}-\d{2}-\d{2}/);
+  const dob = d ? `${d[3]}-${d[2]}-${d[1]}` : iso ? iso[0] : null;
+  if (!name && !address && !dob) return;
+  await pool.query(`UPDATE applications SET full_name = COALESCE($2, full_name), address = COALESCE($3, address),
+                    birth_date = COALESCE(birth_date, $4::date) WHERE upper(fin) = $1`, [f, name, address, dob]);
+}
+// The newest report AKB gave for this FİN in the last 30 days (not the connection test): reused instead of a new
+// inquiry, which costs money and adds a hard inquiry to the person's history.
+async function akbCached(fin) {
+  const { rows } = await pool.query(
+    `SELECT id, at, response FROM akb_requests WHERE upper(fin) = $1 AND ok AND parsed AND NOT test AND report_id IS NOT NULL
+     AND at > now() - interval '30 days' ORDER BY id DESC LIMIT 1`, [String(fin || "").trim().toUpperCase()]);
+  const xml = rows[0] && AkbApi.findXml(rows[0].response);
+  return xml ? { id: rows[0].id, at: rows[0].at, xml } : null;
+}
 // Every incoming report is parsed, merged with what the expert already entered (income, car, terms)
 // and scored at once; the result is stored as the current assessment.
 async function applyBureau(id, xml, actor) {
@@ -1409,6 +1430,7 @@ async function applyBureau(id, xml, actor) {
   const assessment = { inputs, result, by: actor, at: new Date().toISOString(), auto: true };
   await pool.query("UPDATE applications SET bureau = $2, bureau_xml = $3, bureau_at = now(), assessment = $4, updated_at = now() WHERE id = $1",
     [id, report, String(xml).slice(0, 2e6), assessment]);
+  await customerFromReport(report, rows[0].fin);
   await logEvent(pool, id, actor, "bureau", {
     reportId: report.reportId, score: result.score, grade: result.grade, verdict: result.verdict,
     debtMonthly: report.summary.debtMonthly, active: report.summary.activeCount, flags: report.flags.length
@@ -1478,6 +1500,7 @@ async function akbAsk(applicationId, person, actor, extra = {}) {
     try { out = await applyBureau(applicationId, xml, `${actor} · AKB API`); parsed = !!out; reportId = out?.report?.reportId || null; }
     catch (e) { parseError = e.message; }
   } else if (xml) { try { report = Akb.analyze(Akb.parse(xml), { fin: person.fin }); reportId = report.reportId || null; parsed = true; } catch (e) { parseError = e.message; } }
+  if (report && extra.test === false) await customerFromReport(report, person.fin);
   if (r.ok && !xml && !parseError) parseError = "Cavabda kredit hesabatı (inquiryResult) tapılmadı";
   const ins = await pool.query(
     `INSERT INTO akb_requests (application_id, actor, http_status, ok, error, content_type, response, parsed, ms,
@@ -1550,6 +1573,13 @@ app.post("/api/admin/applications/:id/akb", admin, brandGate, can("apps.assess")
   if (req.body?.consent !== true) return bad(res, "Sorğudan əvvəl borcalanın yazılı razılığının alındığını təsdiqlə.");
   const { rows } = await pool.query("SELECT id_series, id_number, fin FROM applications WHERE id = $1", [req.params.id]);
   if (!rows[0]) return bad(res, "Müraciət tapılmadı.", 404);
+  const hit = await akbCached(rows[0].fin);
+  if (hit) {
+    let out; try { out = await applyBureau(req.params.id, hit.xml, `${req.staff} · AKB (bazadan)`); } catch (e) { return bad(res, e.message, 422); }
+    await logEvent(pool, req.params.id, req.staff, "akb_reuse", { from: hit.id, at: hit.at, reportId: out.report.reportId });
+    audit(req, req.user.username, "akb.inquiry", `${req.params.id}: bazadan (#${hit.id})`);
+    return res.json({ ok: true, parsed: true, cached: true, cachedAt: hit.at, assessment: out.assessment, note: null });
+  }
   // AKB refuses a repeat inquiry on the same person within 30 minutes (INQ-018); a double click must not cost a second one.
   const recent = await pool.query("SELECT 1 FROM akb_requests WHERE application_id = $1 AND at > now() - interval '30 minutes' AND ok", [req.params.id]);
   if (recent.rowCount) return bad(res, "Bu şəxs üçün AKB sorğusu son 30 dəqiqədə göndərilib. AKB təkrar sorğunu 30 dəqiqədən sonra qəbul edir.", 429);
@@ -1569,6 +1599,13 @@ app.post("/api/admin/akb/inquiry", admin, can("apps.assess"), async (req, res) =
   if (!Object.hasOwn(SERIES, p.series) || !new RegExp(`^\\d{${SERIES[p.series]}}$`).test(p.number) || !/^[0-9A-Z]{7}$/.test(p.fin))
     return bad(res, "Sənəd nömrəsi və ya FİN düzgün deyil: köhnə vəsiqə AZE + 8 rəqəm, yeni vəsiqə AA/AB + 7 rəqəm.");
   if (!["001", "002", "005"].includes(p.purpose)) return bad(res, "Sorğu məqsədi düzgün deyil.");
+  const hit = await akbCached(p.fin);
+  if (hit) {
+    let report; try { report = Akb.analyze(Akb.parse(hit.xml), { fin: p.fin }); } catch (e) { return bad(res, e.message, 422); }
+    await customerFromReport(report, p.fin);
+    audit(req, req.user.username, "akb.inquiry", `${maskDoc(p.series + p.number)}: bazadan (#${hit.id})`);
+    return res.json({ id: hit.id, report, cached: true, cachedAt: hit.at });
+  }
   const recent = await pool.query("SELECT 1 FROM akb_requests WHERE upper(fin) = $1 AND at > now() - interval '30 minutes' AND ok AND NOT test", [p.fin]);
   if (recent.rowCount) return bad(res, "Bu şəxs üçün AKB sorğusu son 30 dəqiqədə göndərilib. Nəticə \"Son sorğular\" siyahısındadır.", 429);
   const r = await akbAsk(null, p, req.staff, { test: false });

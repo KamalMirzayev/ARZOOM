@@ -84,6 +84,9 @@ CREATE TABLE IF NOT EXISTS staff_users (
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS bureau     JSONB;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS bureau_xml TEXT;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS bureau_at  TIMESTAMPTZ;
+-- Name and registered address as AKB holds them, filled in when a report arrives.
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS full_name  TEXT;
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS address    TEXT;
 -- Fərdi icazələr: NULL olduqda rolun standart icazələri işləyir
 ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS permissions JSONB;
 -- Silinmiş müraciətlərin izi: kim, nə vaxt, niyə

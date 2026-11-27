@@ -87,6 +87,11 @@ ALTER TABLE applications ADD COLUMN IF NOT EXISTS bureau_at  TIMESTAMPTZ;
 -- Name and registered address as AKB holds them, filled in when a report arrives.
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS full_name  TEXT;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS address    TEXT;
+-- Reports read before these columns existed: take the name and address from the stored report once.
+UPDATE applications SET full_name = COALESCE(full_name, NULLIF(bureau->'borrower'->>'name', '')), address = COALESCE(address, NULLIF(bureau->'borrower'->>'address', ''))
+ WHERE bureau IS NOT NULL AND (full_name IS NULL OR address IS NULL)
+   AND (COALESCE(bureau->'borrower'->>'fin', '') = '' OR upper(bureau->'borrower'->>'fin') = upper(fin))
+   AND (NULLIF(bureau->'borrower'->>'name', '') IS NOT NULL OR NULLIF(bureau->'borrower'->>'address', '') IS NOT NULL);
 -- Fərdi icazələr: NULL olduqda rolun standart icazələri işləyir
 ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS permissions JSONB;
 -- Silinmiş müraciətlərin izi: kim, nə vaxt, niyə

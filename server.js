@@ -334,6 +334,8 @@ app.post("/api/applications", submitLimit, upload.any(), async (req, res) => {
     }
     const token = await issueToken(client, id);
     await client.query("COMMIT");
+    // A person AKB already reported on (another application, or a main-screen inquiry) gets their name and address at once.
+    knownCustomer(id, fin).catch(e => console.error("Müştəri məlumatı:", e.message));
     res.status(201).json({ id, status: "review", token });
     announceNew(id).catch(e => console.error(e.message));
     sendResult(id);
@@ -1406,6 +1408,13 @@ async function customerFromReport(report, fin) {
   if (!name && !address && !dob) return;
   await pool.query(`UPDATE applications SET full_name = COALESCE($2, full_name), address = COALESCE($3, address),
                     birth_date = COALESCE(birth_date, $4::date) WHERE upper(fin) = $1`, [f, name, address, dob]);
+}
+async function knownCustomer(id, fin) {
+  const { rows } = await pool.query(
+    "SELECT full_name, address FROM applications WHERE upper(fin) = upper($1) AND id <> $2 AND (full_name IS NOT NULL OR address IS NOT NULL) ORDER BY bureau_at DESC NULLS LAST LIMIT 1", [fin, id]);
+  if (rows[0]) return pool.query("UPDATE applications SET full_name = COALESCE(full_name, $2), address = COALESCE(address, $3) WHERE id = $1", [id, rows[0].full_name, rows[0].address]);
+  const hit = await akbCached(fin);
+  if (hit) await customerFromReport(Akb.analyze(Akb.parse(hit.xml), { fin }), fin);
 }
 // The newest report AKB gave for this FİN in the last 30 days (not the connection test): reused instead of a new
 // inquiry, which costs money and adds a hard inquiry to the person's history.

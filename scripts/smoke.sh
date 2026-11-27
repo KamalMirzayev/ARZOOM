@@ -247,7 +247,8 @@ require("http").createServer((q,r)=>{let b="";q.on("data",c=>b+=c).on("end",()=>
   r.setHeader("Content-Type","text/xml");
   if(!b.includes("<wsse:Username>akbtest</wsse:Username>")||!b.includes(">akb-smoke-pass</wsse:Password>")){r.statusCode=500;return r.end(fault("Authentication failed"))}
   if(b.includes("<ns:getBalance>"))return r.end(env(`<ns2:getBalanceResponse xmlns:ns2="http://ws.hub.acb.az/"><return>3635.5</return></ns2:getBalanceResponse>`));
-  if(!b.includes("<ns:inquireByIdCard>")||!b.includes("<accept>true</accept>")||!/<pinCode>[0-9A-Z]{7}<\/pinCode>/.test(b)||!b.includes("<documentSerial>AZE</documentSerial>")||!b.includes("<purposeCode>001</purposeCode>")||!b.includes("<orgId>ORG1</orgId>")){r.statusCode=500;return r.end(fault("INQ-009"))}
+  if(b.includes("<ns:inquireByIdCard>")&&!/<documentSerial>AZE(AA|AB)?<\/documentSerial><documentNo>\d{7,8}<\/documentNo>/.test(b)){r.statusCode=500;return r.end(fault("Sənəd seriyası üçün şablon tapılmadı</faultstring><detail><code>INQ-015</code></detail><faultstring>"))}
+  if(!b.includes("<ns:inquireByIdCard>")||!b.includes("<accept>true</accept>")||!/<pinCode>[0-9A-Z]{7}<\/pinCode>/.test(b)||!b.includes("<purposeCode>001</purposeCode>")||!b.includes("<orgId>ORG1</orgId>")){r.statusCode=500;return r.end(fault("INQ-009"))}
   r.end(env(`<ns2:inquireByIdCardResponse xmlns:ns2="http://ws.hub.acb.az/"><return>${x.replace(/<\/?ns2:inquiryResult>/g,"").replace(/ns2:/g,"")}</return></ns2:inquireByIdCardResponse>`))})}).listen(18998,"127.0.0.1")' &
 AKP=$!; sleep 1
 AKU='http://127.0.0.1:18998/soap/BorrowerInquiryWS'
@@ -266,8 +267,8 @@ if command -v openssl >/dev/null; then
 fi
 AKS=$(curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb" -d "{\"url\":\"$AKU\",\"user\":\"akbtest\",\"pass\":\"akb-smoke-pass\",\"orgId\":\"ORG1\",\"branchId\":\"B1\",\"userId\":\"U1\"}")
 echo "$AKS" | grep -q 'akb-smoke-pass' && fail; echo "$AKS" | grep -q '"passSet":true' || fail
-[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/akb/test" -d '{"series":"AZE","number":"1234567","fin":"TEST001"}')" = 400 ] || fail
-curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb/test" -d '{"series":"AZE","number":"1234567","fin":"TEST001","consent":true}' | grep -q '"parsed":true' || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/akb/test" -d '{"series":"AZE","number":"12345678","fin":"TEST001"}')" = 400 ] || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb/test" -d '{"series":"AZE","number":"12345678","fin":"TEST001","consent":true}' | grep -q '"parsed":true' || fail
 curl -fsS "${H[@]}" "$B/api/admin/settings/akb/balance" | grep -q '"balance":3635.5' || fail
 curl -fsS -X POST "${H[@]}" "$B/api/admin/applications/$ID/akb" -d '{"consent":true}' | grep -q '"parsed":true' || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/applications/$ID/akb" -d '{"consent":true}')" = 429 ] || fail
@@ -279,15 +280,16 @@ AKJ=$(curl -fsS "${H[@]}" "$B/api/admin/akb/log?q=TEST001"); echo "$AKJ" | grep 
 AKI=$(echo "$AKJ" | J "items[0].id"); curl -fsS "${H[@]}" "$B/api/admin/akb/log/$AKI/report" | grep -q '"reportId":"1000002"' || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H "x-admin-token: $ES" "$B/api/admin/akb/log/$AKI/report")" = 403 ] || fail
 # Standalone inquiry from the main screen: consent required, report comes back, 30-minute guard per FİN, own list.
-[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/akb/inquiry" -d '{"series":"AZE","number":"7654321","fin":"TEST003"}')" = 400 ] || fail
-curl -fsS -X POST "${H[@]}" "$B/api/admin/akb/inquiry" -d '{"series":"AZE","number":"7654321","fin":"TEST003","consent":true}' | grep -q '"point":712' || fail
-[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/akb/inquiry" -d '{"series":"AZE","number":"7654321","fin":"TEST003","consent":true}')" = 429 ] || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/akb/inquiry" -d '{"series":"AA","number":"7654321","fin":"TEST003"}')" = 400 ] || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/akb/inquiry" -d '{"series":"AZE","number":"7654321","fin":"TEST003","consent":true}')" = 400 ] || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/akb/inquiry" -d '{"series":"AA","number":"7654321","fin":"TEST003","consent":true}' | grep -q '"point":712' || fail
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/akb/inquiry" -d '{"series":"AA","number":"7654321","fin":"TEST003","consent":true}')" = 429 ] || fail
 AKM=$(curl -fsS "${H[@]}" "$B/api/admin/akb/mine"); echo "$AKM" | grep -q 'TEST003' || fail
 curl -fsS "${H[@]}" "$B/api/admin/akb/mine/$(echo "$AKM" | J "items[0].id")" | grep -q '"reportId":"1000002"' || fail
 # The older REST mode still works.
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "${H[@]}" "$B/api/admin/settings/akb" -d '{"mode":"soap","url":"https://staging-hub.acb.az/score-partner/score-report/ex","user":"akbtest","orgId":"ORG1"}')" = 400 ] || fail
 curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb" -d '{"mode":"rest","url":"http://127.0.0.1:18998/score","user":"akbtest","orgId":"ORG1"}' | grep -q '"mode":"rest"' || fail
-curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb/test" -d '{"series":"AZE","number":"1234567","fin":"TEST002","consent":true}' | grep -q '"parsed":true' || fail
+curl -fsS -X POST "${H[@]}" "$B/api/admin/settings/akb/test" -d '{"series":"AZE","number":"12345678","fin":"TEST002","consent":true}' | grep -q '"parsed":true' || fail
 kill $AKP 2>/dev/null; echo "✓ AKB SOAP: WSDL oxunur, WS-Security girişi, razılıq tələb olunur, .pfx parolla yoxlanır və gizlidir, skor/zaminlik/birgə borc oxunur, balans, jurnal, 30 dəq təkrar bloku, REST rejimi"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE -H "x-admin-token: $ES" -H "Content-Type: application/json" "$B/api/admin/applications/$ID2" -d '{"reason":"test"}')" = 403 ] || fail
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE "${H[@]}" "$B/api/admin/applications/$ID2" -d '{}')" = 400 ] || fail

@@ -1531,7 +1531,8 @@ app.post("/api/admin/settings/akb/test", admin, adminOnly, async (req, res) => {
   if (!akbReady()) return bad(res, "Əvvəlcə AKB ayarlarını saxla.", 409);
   if (req.body?.consent !== true) return bad(res, "Borcalanın yazılı razılığının alındığını təsdiqlə.");
   const p = { series: String(req.body?.series || "AZE").toUpperCase(), number: String(req.body?.number || "").trim(), fin: String(req.body?.fin || "").trim().toUpperCase() };
-  if (!["AZE", "AA", "AB"].includes(p.series) || !/^\d{5,9}$/.test(p.number) || !/^[0-9A-Z]{7}$/.test(p.fin)) return bad(res, "Sənəd seriyası, nömrəsi və FİN-i düzgün yaz.");
+  if (!Object.hasOwn(SERIES, p.series) || !new RegExp(`^\\d{${SERIES[p.series]}}$`).test(p.number) || !/^[0-9A-Z]{7}$/.test(p.fin))
+    return bad(res, "Sənəd nömrəsi və ya FİN düzgün deyil: köhnə vəsiqə AZE + 8 rəqəm, yeni vəsiqə AA/AB + 7 rəqəm.");
   const r = await akbAsk(null, p, req.user.name);
   audit(req, req.user.username, "akb.inquiry", `test ${maskDoc(p.series + p.number)}: ${r.ok ? "ok" : "xəta"}`);
   res.json({ ...r, out: undefined, report: undefined, state: await akbState() });
@@ -1565,7 +1566,8 @@ app.post("/api/admin/akb/inquiry", admin, can("apps.assess"), async (req, res) =
   if (req.body?.consent !== true) return bad(res, "Sorğudan əvvəl borcalanın yazılı razılığının alındığını təsdiqlə.");
   const p = { series: String(req.body?.series || "AZE").toUpperCase(), number: String(req.body?.number || "").trim(), fin: String(req.body?.fin || "").trim().toUpperCase(),
               purpose: String(req.body?.purpose || AKBC.purpose) };
-  if (!["AZE", "AA", "AB"].includes(p.series) || !/^\d{5,9}$/.test(p.number) || !/^[0-9A-Z]{7}$/.test(p.fin)) return bad(res, "Sənəd seriyası, nömrəsi və FİN-i düzgün yaz.");
+  if (!Object.hasOwn(SERIES, p.series) || !new RegExp(`^\\d{${SERIES[p.series]}}$`).test(p.number) || !/^[0-9A-Z]{7}$/.test(p.fin))
+    return bad(res, "Sənəd nömrəsi və ya FİN düzgün deyil: köhnə vəsiqə AZE + 8 rəqəm, yeni vəsiqə AA/AB + 7 rəqəm.");
   if (!["001", "002", "005"].includes(p.purpose)) return bad(res, "Sorğu məqsədi düzgün deyil.");
   const recent = await pool.query("SELECT 1 FROM akb_requests WHERE upper(fin) = $1 AND at > now() - interval '30 minutes' AND ok AND NOT test", [p.fin]);
   if (recent.rowCount) return bad(res, "Bu şəxs üçün AKB sorğusu son 30 dəqiqədə göndərilib. Nəticə \"Son sorğular\" siyahısındadır.", 429);
